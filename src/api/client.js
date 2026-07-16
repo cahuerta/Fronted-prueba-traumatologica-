@@ -35,7 +35,7 @@ async function request(path, { method = "GET", body, auth = false } = {}) {
 
 // ---------------- AUTH ----------------
 export const auth = {
-  login: (email, password) => request("/auth/login", { method: "POST", body: { email, password } }),
+  login: (rut, password) => request("/auth/login", { method: "POST", body: { rut, password } }),
   crearInterrogador: (data) => request("/auth/interrogadores", { method: "POST", body: data, auth: true }),
   me: () => request("/auth/me", { auth: true }),
 };
@@ -82,4 +82,3 @@ export const examen = {
     request(`/examen/${instanciaId}/responder`, { method: "POST", body: { pregunta_id: preguntaId, opcion_elegida: opcionElegida } }),
   finalizar: (instanciaId) => request(`/examen/${instanciaId}/finalizar`, { method: "POST" }),
 };
-                              
