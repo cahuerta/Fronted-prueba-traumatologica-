@@ -2,25 +2,61 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, setToken } from "../../api/client";
 
+function formatearRut(valor) {
+  const limpio = valor.replace(/[^0-9kK]/g, "").toUpperCase();
+  if (limpio.length === 0) return "";
+  const cuerpo = limpio.slice(0, -1);
+  const dv = limpio.slice(-1);
+  const cuerpoFormateado = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return cuerpo.length > 0 ? `${cuerpoFormateado}-${dv}` : dv;
+}
+
+function validarRut(rutFormateado) {
+  const limpio = rutFormateado.replace(/\./g, "").replace("-", "");
+  if (limpio.length < 2) return false;
+  const cuerpo = limpio.slice(0, -1);
+  const dv = limpio.slice(-1).toUpperCase();
+
+  let suma = 0;
+  let multiplicador = 2;
+  for (let i = cuerpo.length - 1; i >= 0; i--) {
+    suma += parseInt(cuerpo[i], 10) * multiplicador;
+    multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
+  }
+  const resto = 11 - (suma % 11);
+  const dvEsperado = resto === 11 ? "0" : resto === 10 ? "K" : String(resto);
+  return dv === dvEsperado;
+}
+
 export default function AdminLogin() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [rut, setRut] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
 
+  function handleRutChange(e) {
+    setRut(formatearRut(e.target.value));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    if (!validarRut(rut)) {
+      setError("RUT inválido");
+      return;
+    }
+
     setCargando(true);
     try {
-      const res = await auth.login(email, password);
+      const res = await auth.login(rut, password);
       setToken(res.token);
       localStorage.setItem("nombre", res.nombre);
       localStorage.setItem("rol", res.rol);
       navigate("/admin/dashboard");
     } catch (err) {
-      setError(err.message || "Email o contraseña incorrectos");
+      setError(err.message || "RUT o contraseña incorrectos");
     } finally {
       setCargando(false);
     }
@@ -32,11 +68,13 @@ export default function AdminLogin() {
         <h1 style={styles.title}>Examen Musculoesquelético</h1>
         <p style={styles.subtitle}>Ingreso interrogadores</p>
 
-        <label style={styles.label}>Email</label>
+        <label style={styles.label}>RUT</label>
         <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          value={rut}
+          onChange={handleRutChange}
+          placeholder="12.345.678-9"
+          maxLength={12}
           required
           style={styles.input}
         />
