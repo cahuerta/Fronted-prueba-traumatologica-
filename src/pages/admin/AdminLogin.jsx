@@ -48,9 +48,11 @@ export default function AdminLogin() {
       return;
     }
 
+    const rutLimpio = rut.replace(/\./g, "");
+
     setCargando(true);
     try {
-      const res = await auth.login(rut, password);
+      const res = await auth.login(rutLimpio, password);
       setToken(res.token);
       localStorage.setItem("nombre", res.nombre);
       localStorage.setItem("rol", res.rol);
