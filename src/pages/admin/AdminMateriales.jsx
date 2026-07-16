@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createClient } from "@supabase/supabase-js";
-import { materiales } from "../../api/client";
+import { materiales, getToken } from "../../api/client";
 
-const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-
+const API_URL = import.meta.env.VITE_API_URL;
 const REGIONES = ["hombro", "codo", "muneca", "columna", "cadera", "rodilla", "tobillo"];
 
 export default function AdminMateriales() {
@@ -45,11 +43,21 @@ export default function AdminMateriales() {
     }
     setSubiendo(true);
     try {
-      const path = `${region}/${Date.now()}-${archivo.name}`;
-      const { error: uploadError } = await supabase.storage.from("materiales").upload(path, archivo);
-      if (uploadError) throw uploadError;
+      const formData = new FormData();
+      formData.append("region", region);
+      formData.append("tipo", tipo);
+      formData.append("titulo", titulo.trim() || archivo.name);
+      formData.append("archivo", archivo);
 
-      await materiales.registrar({ region, tipo, titulo: titulo.trim() || archivo.name, storage_path: path });
+      const res = await fetch(`${API_URL}/materiales`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `Error ${res.status}`);
+      }
 
       setExito("Material subido");
       setTitulo("");
@@ -139,4 +147,3 @@ const s = {
   cardTitle: { color: "#F4F1EA", fontSize: 13.5, margin: "2px 0 0" },
   chevron: { color: "#94A3B8", fontSize: 16 },
 };
-          
