@@ -27,7 +27,13 @@ async function request(path, { method = "GET", body, auth = false } = {}) {
 
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}));
-    throw new Error(detail.detail || `Error ${res.status}`);
+    let mensaje = `Error ${res.status}`;
+    if (typeof detail.detail === "string") {
+      mensaje = detail.detail;
+    } else if (Array.isArray(detail.detail)) {
+      mensaje = detail.detail.map((d) => `${d.loc?.join(".")}: ${d.msg}`).join(" · ");
+    }
+    throw new Error(mensaje);
   }
   if (res.status === 204) return null;
   return res.json();
