@@ -113,6 +113,14 @@ export default function AlumnoExamen() {
 
       <div style={s.card}>
         <p style={s.region}>{pregunta.region}</p>
+
+        {pregunta.media_url && pregunta.media_tipo === "foto" && (
+          <img src={pregunta.media_url} alt="" style={s.media} />
+        )}
+        {pregunta.media_url && pregunta.media_tipo === "video" && (
+          <video src={pregunta.media_url} controls style={s.media} />
+        )}
+
         <p style={s.pregunta}>{pregunta.pregunta}</p>
 
         <div style={s.opciones}>
@@ -152,6 +160,7 @@ const s = {
   error: { color: "#D1495B", fontSize: 14, textAlign: "center", marginTop: 60 },
   card: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 18, marginBottom: 16 },
   region: { color: "#4FC3D9", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 },
+  media: { width: "100%", borderRadius: 10, marginBottom: 14, background: "#000" },
   pregunta: { fontSize: 16, lineHeight: 1.4, marginBottom: 16 },
   opciones: { display: "flex", flexDirection: "column", gap: 8 },
   opcionBtn: { display: "flex", alignItems: "center", gap: 10, background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "12px 14px", cursor: "pointer", textAlign: "left", color: "#F4F1EA", fontSize: 14 },
@@ -160,4 +169,4 @@ const s = {
   letraActiva: { borderColor: "#4FC3D9", color: "#4FC3D9" },
   nextBtn: { width: "100%", background: "#4FC3D9", border: "none", borderRadius: 10, color: "#0E1526", padding: "14px 0", fontSize: 15, fontWeight: 600, cursor: "pointer" },
 };
-                                             
+    
