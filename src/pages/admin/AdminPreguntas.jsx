@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { preguntas } from "../../api/client";
+import { preguntas, getToken } from "../../api/client";
 
+const API_URL = import.meta.env.VITE_API_URL;
 const REGIONES = ["hombro", "codo", "muneca", "columna", "cadera", "rodilla", "tobillo"];
 const COMPLEJIDADES = ["basica", "intermedia", "compleja"];
 const LETRAS = ["A", "B", "C", "D", "E"];
@@ -14,6 +15,9 @@ export default function AdminPreguntas() {
   const [pregunta, setPregunta] = useState("");
   const [respuestaCorrecta, setRespuestaCorrecta] = useState("");
   const [explicacion, setExplicacion] = useState("");
+
+  const [tipoMedia, setTipoMedia] = useState("");
+  const [archivoMedia, setArchivoMedia] = useState(null);
 
   const [opciones, setOpciones] = useState(null); // null hasta generar con IA
   const [correctaIdx, setCorrectaIdx] = useState(null);
@@ -66,22 +70,52 @@ export default function AdminPreguntas() {
     setOpciones(nuevas);
   }
 
+  async function subirMedia() {
+    const formData = new FormData();
+    formData.append("tipo", tipoMedia);
+    formData.append("archivo", archivoMedia);
+
+    const res = await fetch(`${API_URL}/preguntas/media`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${getToken()}` },
+      body: formData,
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail.detail || "No se pudo subir la imagen/video");
+    }
+    return res.json(); // { media_url, media_tipo }
+  }
+
   async function handleGuardar() {
     setError("");
     setExito("");
     setGuardando(true);
     try {
+      let media_url = null;
+      let media_tipo = null;
+
+      if (archivoMedia) {
+        const media = await subirMedia();
+        media_url = media.media_url;
+        media_tipo = media.media_tipo;
+      }
+
       await preguntas.crear({
         region, complejidad, pregunta: pregunta.trim(),
         opciones, correcta: correctaIdx,
         explicacion: explicacion.trim() || null,
+        media_url, media_tipo,
       });
+
       setExito("Pregunta guardada");
       setPregunta("");
       setRespuestaCorrecta("");
       setExplicacion("");
       setOpciones(null);
       setCorrectaIdx(null);
+      setTipoMedia("");
+      setArchivoMedia(null);
       cargarLista();
     } catch (err) {
       setError(err.message);
@@ -122,6 +156,21 @@ export default function AdminPreguntas() {
 
         <label style={s.label}>Respuesta correcta</label>
         <input value={respuestaCorrecta} onChange={(e) => setRespuestaCorrecta(e.target.value)} style={s.input} />
+
+        <label style={s.label}>Foto o video (opcional, ej. radiografía)</label>
+        <select value={tipoMedia} onChange={(e) => setTipoMedia(e.target.value)} style={s.input}>
+          <option value="">Sin foto/video</option>
+          <option value="foto">Foto</option>
+          <option value="video">Video</option>
+        </select>
+        {tipoMedia && (
+          <input
+            type="file"
+            accept={tipoMedia === "foto" ? "image/*" : "video/*"}
+            onChange={(e) => setArchivoMedia(e.target.files[0])}
+            style={s.fileInput}
+          />
+        )}
 
         {opciones === null ? (
           <button onClick={handleGenerar} disabled={generando} style={s.iaBtn}>
@@ -170,7 +219,7 @@ export default function AdminPreguntas() {
         {lista.map((p) => (
           <div key={p.id} style={s.card}>
             <div style={{ flex: 1 }}>
-              <p style={s.cardMeta}>{p.region} · {p.complejidad}</p>
+              <p style={s.cardMeta}>{p.region} · {p.complejidad}{p.media_tipo ? ` · ${p.media_tipo}` : ""}</p>
               <p style={s.cardTitle}>{p.pregunta}</p>
             </div>
             <button onClick={() => handleBorrar(p.id)} style={s.deleteBtn}>✕</button>
@@ -189,6 +238,7 @@ const s = {
   form: { display: "flex", flexDirection: "column", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 16, marginBottom: 24 },
   label: { fontSize: 11, color: "#94A3B8", marginTop: 10, marginBottom: 4 },
   input: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "9px 11px", color: "#F4F1EA", fontSize: 14, marginBottom: 4 },
+  fileInput: { color: "#F4F1EA", fontSize: 12.5, marginBottom: 4 },
   iaBtn: { marginTop: 16, background: "#4FC3D9", border: "none", borderRadius: 8, color: "#0E1526", padding: "12px 0", fontSize: 14, fontWeight: 600, cursor: "pointer" },
   opcionRow: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 },
   letraBtn: { width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(244,241,233,0.2)", background: "transparent", color: "#94A3B8", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 },
