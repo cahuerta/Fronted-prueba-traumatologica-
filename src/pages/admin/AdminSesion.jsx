@@ -51,6 +51,7 @@ export default function AdminSesion() {
   if (!sesion) return <div style={s.wrap}><p style={s.muted}>Cargando...</p></div>;
 
   const linkAlumno = `${window.location.origin}/alumno/${sesionId}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(linkAlumno)}`;
   const totalVotos = encuesta.agil + encuesta.estandar + encuesta.exigente;
 
   return (
@@ -61,7 +62,8 @@ export default function AdminSesion() {
       </div>
       <p style={s.estado}>Estado: {sesion.estado}</p>
 
-      <div style={s.linkBox}>
+      <div style={s.qrBox}>
+        <img src={qrUrl} alt="QR del examen" style={s.qrImg} />
         <p style={s.linkLabel}>Link para alumnos</p>
         <p style={s.linkValue}>{linkAlumno}</p>
       </div>
@@ -125,9 +127,10 @@ const s = {
   back: { background: "none", border: "none", color: "#94A3B8", fontSize: 14, cursor: "pointer" },
   title: { fontSize: 17, margin: 0 },
   estado: { color: "#94A3B8", fontSize: 12, textTransform: "capitalize", marginBottom: 16 },
-  linkBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: 12, marginBottom: 18 },
+  qrBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: 16, marginBottom: 18, textAlign: "center" },
+  qrImg: { width: 160, height: 160, borderRadius: 8, background: "#F4F1EA", padding: 8, marginBottom: 10 },
   linkLabel: { fontSize: 10.5, color: "#4FC3D9", margin: 0, textTransform: "uppercase" },
-  linkValue: { fontSize: 12.5, color: "#F4F1EA", margin: "4px 0 0", wordBreak: "break-all" },
+  linkValue: { fontSize: 12, color: "#F4F1EA", margin: "4px 0 0", wordBreak: "break-all" },
   error: { color: "#D1495B", fontSize: 13, marginBottom: 12 },
   card: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 16, marginBottom: 14 },
   h2: { fontSize: 14, margin: "0 0 8px" },
@@ -143,4 +146,4 @@ const s = {
   votoCount: { fontSize: 13.5, fontWeight: 600, color: "#4FC3D9" },
   paqueteElegido: { marginTop: 10, fontSize: 13, color: "#7FB685" },
 };
-      
+    
