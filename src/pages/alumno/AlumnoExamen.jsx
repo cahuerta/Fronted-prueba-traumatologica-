@@ -19,7 +19,11 @@ export default function AlumnoExamen() {
   const [cargando, setCargando] = useState(true);
   const [enviando, setEnviando] = useState(false);
 
+  const [empezado, setEmpezado] = useState(false);
+  const [warning, setWarning] = useState(null); // { salidas, maxSalidas, ultima }
+
   const timerIniciado = useRef(false);
+  const registrandoSalida = useRef(false);
 
   useEffect(() => {
     if (!alumnoId) {
@@ -39,6 +43,42 @@ export default function AlumnoExamen() {
     return () => clearTimeout(t);
   }, [segundosRestantes]);
 
+  // ---------------- Detección de salida (cambio de pestaña/app) ----------------
+  useEffect(() => {
+    if (!empezado) return;
+
+    async function handleVisibilityChange() {
+      if (document.hidden && !registrandoSalida.current && instanciaId) {
+        registrandoSalida.current = true;
+        try {
+          const res = await examen.registrarSalida(instanciaId);
+          if (res.finalizado) {
+            sessionStorage.setItem(`resultado_${sesionId}`, JSON.stringify(res.resultado));
+            navigate(`/alumno/${sesionId}/resultado`);
+          } else {
+            setWarning({ salidas: res.salidas, maxSalidas: res.max_salidas, ultima: res.salidas === res.max_salidas - 1 });
+          }
+        } catch (err) {
+          // si falla el registro, no bloqueamos al alumno
+        } finally {
+          registrandoSalida.current = false;
+        }
+      }
+    }
+
+    function handleBeforeUnload(e) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [empezado, instanciaId, sesionId]);
+
   async function iniciar() {
     setCargando(true);
     try {
@@ -55,6 +95,17 @@ export default function AlumnoExamen() {
     } finally {
       setCargando(false);
     }
+  }
+
+  async function handleComenzar() {
+    try {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (err) {
+      // si el navegador no permite pantalla completa, igual dejamos avanzar
+    }
+    setEmpezado(true);
   }
 
   async function handleResponder(opcionIdx) {
@@ -84,6 +135,7 @@ export default function AlumnoExamen() {
     try {
       const res = await examen.finalizar(instanciaId);
       sessionStorage.setItem(`resultado_${sesionId}`, JSON.stringify(res));
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
       navigate(`/alumno/${sesionId}/resultado`);
     } catch (err) {
       setError(err.message);
@@ -96,12 +148,35 @@ export default function AlumnoExamen() {
   if (error) return <div style={s.wrap}><p style={s.error}>{error}</p></div>;
   if (preguntas.length === 0) return <div style={s.wrap}><p style={s.muted}>No hay preguntas disponibles.</p></div>;
 
+  if (!empezado) {
+    return (
+      <div style={s.wrap}>
+        <div style={s.startCard}>
+          <h1 style={s.startTitle}>Antes de comenzar</h1>
+          <p style={s.startText}>
+            El examen se rinde en pantalla completa. Salir de la aplicación o cambiar de pestaña queda
+            registrado como advertencia — a la 3ª vez el examen se finaliza automáticamente con lo ya respondido.
+          </p>
+          <button onClick={handleComenzar} style={s.nextBtn}>Comenzar examen</button>
+        </div>
+      </div>
+    );
+  }
+
   const pregunta = preguntas[idx];
   const min = segundosRestantes !== null ? Math.floor(segundosRestantes / 60) : null;
   const seg = segundosRestantes !== null ? segundosRestantes % 60 : null;
 
   return (
     <div style={s.wrap}>
+      {warning && (
+        <div style={s.warningBanner}>
+          ⚠ Saliste del examen ({warning.salidas}/{warning.maxSalidas}).
+          {warning.ultima ? " Última advertencia: la próxima vez se finaliza automáticamente." : ""}
+          <button onClick={() => setWarning(null)} style={s.warningClose}>✕</button>
+        </div>
+      )}
+
       <div style={s.header}>
         <span style={s.progreso}>{idx + 1} / {preguntas.length}</span>
         {segundosRestantes !== null && (
@@ -168,5 +243,9 @@ const s = {
   letra: { width: 26, height: 26, borderRadius: 8, border: "1px solid rgba(244,241,233,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 },
   letraActiva: { borderColor: "#4FC3D9", color: "#4FC3D9" },
   nextBtn: { width: "100%", background: "#4FC3D9", border: "none", borderRadius: 10, color: "#0E1526", padding: "14px 0", fontSize: 15, fontWeight: 600, cursor: "pointer" },
+  startCard: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 16, padding: 26, maxWidth: 380, margin: "60px auto 0" },
+  startTitle: { fontSize: 18, marginBottom: 12, textAlign: "center" },
+  startText: { color: "#94A3B8", fontSize: 13.5, lineHeight: 1.5, marginBottom: 20, textAlign: "center" },
+  warningBanner: { background: "rgba(224,121,62,0.15)", border: "1px solid #E0793E", color: "#E0793E", borderRadius: 10, padding: "10px 36px 10px 12px", fontSize: 13, marginBottom: 14, position: "relative" },
+  warningClose: { position: "absolute", right: 10, top: 8, background: "none", border: "none", color: "#E0793E", fontSize: 14, cursor: "pointer" },
 };
-    
