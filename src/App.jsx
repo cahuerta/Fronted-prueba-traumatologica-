@@ -4,6 +4,7 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminPreguntas from "./pages/admin/AdminPreguntas";
 import AdminMateriales from "./pages/admin/AdminMateriales";
+import AdminMaterialesAnalisis from "./pages/admin/AdminMaterialesAnalisis";
 import AdminSesion from "./pages/admin/AdminSesion";
 import AdminInterrogadores from "./pages/admin/AdminInterrogadores";
 import AdminResultados from "./pages/admin/AdminResultados";
@@ -13,6 +14,8 @@ import AlumnoIngreso from "./pages/alumno/AlumnoIngreso";
 import AlumnoEspera from "./pages/alumno/AlumnoEspera";
 import AlumnoExamen from "./pages/alumno/AlumnoExamen";
 import AlumnoResultado from "./pages/alumno/AlumnoResultado";
+import AlumnoMaterialesIngreso from "./pages/alumno/AlumnoMaterialesIngreso";
+import AlumnoMateriales from "./pages/alumno/AlumnoMateriales";
 
 export default function App() {
   return (
@@ -25,6 +28,7 @@ export default function App() {
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/preguntas" element={<AdminPreguntas />} />
         <Route path="/admin/materiales" element={<AdminMateriales />} />
+        <Route path="/admin/materiales/analisis" element={<AdminMaterialesAnalisis />} />
         <Route path="/admin/sesion/:sesionId" element={<AdminSesion />} />
         <Route path="/admin/interrogadores" element={<AdminInterrogadores />} />
         <Route path="/admin/sesion/:sesionId/resultados" element={<AdminResultados />} />
@@ -35,6 +39,10 @@ export default function App() {
         <Route path="/alumno/:sesionId/espera" element={<AlumnoEspera />} />
         <Route path="/alumno/:sesionId/examen" element={<AlumnoExamen />} />
         <Route path="/alumno/:sesionId/resultado" element={<AlumnoResultado />} />
+
+        {/* ---------- Materiales (QR fijo, sin sesión asociada) ---------- */}
+        <Route path="/materiales" element={<AlumnoMaterialesIngreso />} />
+        <Route path="/materiales/ver" element={<AlumnoMateriales />} />
 
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
