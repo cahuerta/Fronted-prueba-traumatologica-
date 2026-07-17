@@ -53,6 +53,9 @@ export default function AdminResultados() {
                   <div style={{ textAlign: "right" }}>
                     <p style={{ ...s.nota, color: r.nota >= 4 ? "#7FB685" : "#D1495B" }}>{r.nota ?? "—"}</p>
                     <p style={s.pct}>{r.porcentaje}% · {r.finalizado ? "finalizado" : "en curso"}</p>
+                    {r.salidas_detectadas > 0 && (
+                      <p style={s.salidas}>⚠ {r.salidas_detectadas} salida{r.salidas_detectadas > 1 ? "s" : ""}</p>
+                    )}
                   </div>
                 </button>
 
@@ -95,6 +98,7 @@ const s = {
   rut: { color: "#94A3B8", fontSize: 11.5, margin: "2px 0 0" },
   nota: { fontSize: 18, fontWeight: 700, margin: 0 },
   pct: { color: "#94A3B8", fontSize: 11, margin: "2px 0 0" },
+  salidas: { color: "#E0793E", fontSize: 11, margin: "2px 0 0", fontWeight: 600 },
   detalle: { borderTop: "1px solid rgba(244,241,233,0.1)", padding: "10px 14px 14px" },
   resumen: { color: "#94A3B8", fontSize: 12, marginBottom: 10 },
   pregunta: { border: "1px solid", borderRadius: 8, padding: 10, marginBottom: 8 },
