@@ -2,6 +2,22 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { sesiones, clearToken } from "../../api/client";
 
+function parsearAlumnos(texto) {
+  return texto
+    .split("\n")
+    .map((linea) => linea.trim())
+    .filter(Boolean)
+    .map((linea) => {
+      // Excel pega las columnas separadas por tabulación. Si no hay tab,
+      // se intenta separar por 2+ espacios como respaldo.
+      const partes = linea.includes("\t") ? linea.split("\t") : linea.split(/\s{2,}/);
+      const nombre = (partes[0] || "").trim();
+      const rut = (partes[1] || "").trim();
+      return { nombre, rut };
+    })
+    .filter((a) => a.nombre && a.rut);
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const nombre = localStorage.getItem("nombre");
@@ -15,7 +31,7 @@ export default function AdminDashboard() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [nombreSesion, setNombreSesion] = useState("");
   const [fecha, setFecha] = useState("");
-  const [rutsTexto, setRutsTexto] = useState("");
+  const [alumnosTexto, setAlumnosTexto] = useState("");
 
   useEffect(() => {
     if (esAdmin) cargar();
@@ -44,13 +60,17 @@ export default function AdminDashboard() {
   async function handleCrearSesion(e) {
     e.preventDefault();
     setError("");
+    const alumnos = parsearAlumnos(alumnosTexto);
+    if (alumnos.length === 0) {
+      setError("Agrega al menos un alumno (nombre + RUT)");
+      return;
+    }
     try {
-      const alumnos_ids = rutsTexto.split("\n").map((r) => r.trim()).filter(Boolean);
-      const nueva = await sesiones.crear({ nombre: nombreSesion, fecha, alumnos_ids });
+      const nueva = await sesiones.crear({ nombre: nombreSesion, fecha, alumnos });
       setMostrarForm(false);
       setNombreSesion("");
       setFecha("");
-      setRutsTexto("");
+      setAlumnosTexto("");
       cargar();
       navigate(`/admin/sesion/${nueva.id}`);
     } catch (err) {
@@ -93,8 +113,17 @@ export default function AdminDashboard() {
               <label style={s.label}>Fecha</label>
               <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required style={s.input} />
 
-              <label style={s.label}>RUTs habilitados (uno por línea)</label>
-              <textarea value={rutsTexto} onChange={(e) => setRutsTexto(e.target.value)} rows={4} style={s.input} />
+              <label style={s.label}>
+                Alumnos — pega desde Excel (nombre y RUT en columnas), o escribe una sola fila para probar
+              </label>
+              <textarea
+                value={alumnosTexto}
+                onChange={(e) => setAlumnosTexto(e.target.value)}
+                rows={6}
+                placeholder={"Juan Pérez\t12.345.678-9\nMaría López\t9.876.543-2"}
+                style={s.input}
+              />
+              <p style={s.hint}>{parsearAlumnos(alumnosTexto).length} alumno(s) detectado(s)</p>
 
               <button type="submit" style={s.submitBtn}>Crear sesión</button>
             </form>
@@ -139,6 +168,7 @@ const s = {
   form: { display: "flex", flexDirection: "column", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 16, marginBottom: 16 },
   label: { fontSize: 11, color: "#94A3B8", marginTop: 8, marginBottom: 4 },
   input: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "9px 11px", color: "#F4F1EA", fontSize: 14 },
+  hint: { fontSize: 11, color: "#4FC3D9", margin: "4px 0 0" },
   submitBtn: { marginTop: 14, background: "#4FC3D9", border: "none", borderRadius: 8, color: "#0E1526", padding: "11px 0", fontSize: 14, fontWeight: 600, cursor: "pointer" },
   error: { color: "#D1495B", fontSize: 13, marginBottom: 12 },
   muted: { color: "#94A3B8", fontSize: 13 },
@@ -148,3 +178,4 @@ const s = {
   cardMeta: { color: "#94A3B8", fontSize: 12, margin: "2px 0 0", textTransform: "capitalize" },
   chevron: { color: "#94A3B8", fontSize: 20 },
 };
+  
