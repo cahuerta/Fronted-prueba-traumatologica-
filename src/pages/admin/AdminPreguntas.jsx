@@ -31,6 +31,8 @@ export default function AdminPreguntas() {
   const [filtroRegion, setFiltroRegion] = useState("");
 
   const [expandida, setExpandida] = useState(null);
+  const [mediaUrls, setMediaUrls] = useState({}); // { preguntaId: url }
+  const [cargandoMedia, setCargandoMedia] = useState(null);
 
   useEffect(() => {
     cargarLista();
@@ -135,6 +137,28 @@ export default function AdminPreguntas() {
     }
   }
 
+  async function toggleExpandir(p) {
+    const abriendo = expandida !== p.id;
+    setExpandida(abriendo ? p.id : null);
+
+    if (abriendo && p.media_tipo && !mediaUrls[p.id]) {
+      setCargandoMedia(p.id);
+      try {
+        const res = await fetch(`${API_URL}/preguntas/${p.id}/media`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setMediaUrls((m) => ({ ...m, [p.id]: data.url }));
+        }
+      } catch (err) {
+        // si falla la preview, igual se puede ver el resto del detalle
+      } finally {
+        setCargandoMedia(null);
+      }
+    }
+  }
+
   return (
     <div style={s.wrap}>
       <div style={s.headerRow}>
@@ -222,17 +246,28 @@ export default function AdminPreguntas() {
           const abierta = expandida === p.id;
           return (
             <div key={p.id} style={s.cardExpandible}>
-              <button onClick={() => setExpandida(abierta ? null : p.id)} style={s.cardHeaderBtn}>
+              <button onClick={() => toggleExpandir(p)} style={s.cardHeaderBtn}>
                 <div style={{ flex: 1, textAlign: "left" }}>
                   <p style={s.cardMeta}>{p.region} · {p.complejidad}{p.media_tipo ? ` · ${p.media_tipo}` : ""}</p>
                   <p style={s.cardTitle}>{p.pregunta}</p>
+                  {p.creado_por_nombre && <p style={s.autor}>Creada por {p.creado_por_nombre}</p>}
                 </div>
                 <span style={s.chevron}>{abierta ? "▲" : "▼"}</span>
               </button>
 
               {abierta && (
                 <div style={s.cardDetalle}>
-                  {p.media_tipo && <p style={s.mediaNota}>📎 Tiene {p.media_tipo} adjunto</p>}
+                  {p.media_tipo && (
+                    <div style={s.mediaWrap}>
+                      {cargandoMedia === p.id && <p style={s.mediaNota}>Cargando {p.media_tipo}...</p>}
+                      {mediaUrls[p.id] && p.media_tipo === "foto" && (
+                        <img src={mediaUrls[p.id]} alt="" style={s.mediaPreview} />
+                      )}
+                      {mediaUrls[p.id] && p.media_tipo === "video" && (
+                        <video src={mediaUrls[p.id]} controls style={s.mediaPreview} />
+                      )}
+                    </div>
+                  )}
                   {p.opciones.map((op, i) => (
                     <p key={i} style={{ ...s.opcionDetalle, ...(i === p.correcta ? s.opcionCorrecta : {}) }}>
                       {LETRAS[i]}. {op}{i === p.correcta ? " ✓" : ""}
@@ -272,17 +307,18 @@ const s = {
   h2: { fontSize: 15, margin: 0 },
   filterSelect: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, color: "#F4F1EA", fontSize: 13, padding: "6px 8px" },
   list: { display: "flex", flexDirection: "column", gap: 8 },
-  card: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "10px 12px" },
   cardExpandible: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, overflow: "hidden" },
   cardHeaderBtn: { width: "100%", display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", padding: "10px 12px", cursor: "pointer" },
   chevron: { color: "#94A3B8", fontSize: 10, flexShrink: 0 },
   cardDetalle: { borderTop: "1px solid rgba(244,241,233,0.1)", padding: "10px 12px 12px" },
+  mediaWrap: { marginBottom: 10 },
   mediaNota: { color: "#4FC3D9", fontSize: 12, marginBottom: 8 },
+  mediaPreview: { width: "100%", borderRadius: 8, background: "#000" },
   opcionDetalle: { color: "#94A3B8", fontSize: 13, margin: "4px 0" },
   opcionCorrecta: { color: "#7FB685", fontWeight: 600 },
   explicacionDetalle: { color: "#94A3B8", fontSize: 12.5, fontStyle: "italic", marginTop: 8 },
   deleteBtnFull: { marginTop: 12, background: "none", border: "1px solid rgba(209,73,91,0.4)", borderRadius: 8, color: "#D1495B", padding: "8px 0", width: "100%", fontSize: 13, cursor: "pointer" },
   cardMeta: { color: "#4FC3D9", fontSize: 10.5, margin: 0, textTransform: "uppercase", letterSpacing: "0.03em" },
   cardTitle: { color: "#F4F1EA", fontSize: 13.5, margin: "2px 0 0" },
-  deleteBtn: { background: "none", border: "none", color: "#D1495B", fontSize: 16, cursor: "pointer", flexShrink: 0 },
+  autor: { color: "#94A3B8", fontSize: 11, margin: "3px 0 0" },
 };
