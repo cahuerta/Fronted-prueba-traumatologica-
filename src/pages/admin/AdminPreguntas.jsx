@@ -30,6 +30,8 @@ export default function AdminPreguntas() {
   const [lista, setLista] = useState([]);
   const [filtroRegion, setFiltroRegion] = useState("");
 
+  const [expandida, setExpandida] = useState(null);
+
   useEffect(() => {
     cargarLista();
   }, [filtroRegion]);
@@ -216,15 +218,33 @@ export default function AdminPreguntas() {
       </div>
 
       <div style={s.list}>
-        {lista.map((p) => (
-          <div key={p.id} style={s.card}>
-            <div style={{ flex: 1 }}>
-              <p style={s.cardMeta}>{p.region} · {p.complejidad}{p.media_tipo ? ` · ${p.media_tipo}` : ""}</p>
-              <p style={s.cardTitle}>{p.pregunta}</p>
+        {lista.map((p) => {
+          const abierta = expandida === p.id;
+          return (
+            <div key={p.id} style={s.cardExpandible}>
+              <button onClick={() => setExpandida(abierta ? null : p.id)} style={s.cardHeaderBtn}>
+                <div style={{ flex: 1, textAlign: "left" }}>
+                  <p style={s.cardMeta}>{p.region} · {p.complejidad}{p.media_tipo ? ` · ${p.media_tipo}` : ""}</p>
+                  <p style={s.cardTitle}>{p.pregunta}</p>
+                </div>
+                <span style={s.chevron}>{abierta ? "▲" : "▼"}</span>
+              </button>
+
+              {abierta && (
+                <div style={s.cardDetalle}>
+                  {p.media_tipo && <p style={s.mediaNota}>📎 Tiene {p.media_tipo} adjunto</p>}
+                  {p.opciones.map((op, i) => (
+                    <p key={i} style={{ ...s.opcionDetalle, ...(i === p.correcta ? s.opcionCorrecta : {}) }}>
+                      {LETRAS[i]}. {op}{i === p.correcta ? " ✓" : ""}
+                    </p>
+                  ))}
+                  {p.explicacion && <p style={s.explicacionDetalle}>{p.explicacion}</p>}
+                  <button onClick={() => handleBorrar(p.id)} style={s.deleteBtnFull}>Eliminar pregunta</button>
+                </div>
+              )}
             </div>
-            <button onClick={() => handleBorrar(p.id)} style={s.deleteBtn}>✕</button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -253,8 +273,16 @@ const s = {
   filterSelect: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, color: "#F4F1EA", fontSize: 13, padding: "6px 8px" },
   list: { display: "flex", flexDirection: "column", gap: 8 },
   card: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "10px 12px" },
+  cardExpandible: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, overflow: "hidden" },
+  cardHeaderBtn: { width: "100%", display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", padding: "10px 12px", cursor: "pointer" },
+  chevron: { color: "#94A3B8", fontSize: 10, flexShrink: 0 },
+  cardDetalle: { borderTop: "1px solid rgba(244,241,233,0.1)", padding: "10px 12px 12px" },
+  mediaNota: { color: "#4FC3D9", fontSize: 12, marginBottom: 8 },
+  opcionDetalle: { color: "#94A3B8", fontSize: 13, margin: "4px 0" },
+  opcionCorrecta: { color: "#7FB685", fontWeight: 600 },
+  explicacionDetalle: { color: "#94A3B8", fontSize: 12.5, fontStyle: "italic", marginTop: 8 },
+  deleteBtnFull: { marginTop: 12, background: "none", border: "1px solid rgba(209,73,91,0.4)", borderRadius: 8, color: "#D1495B", padding: "8px 0", width: "100%", fontSize: 13, cursor: "pointer" },
   cardMeta: { color: "#4FC3D9", fontSize: 10.5, margin: 0, textTransform: "uppercase", letterSpacing: "0.03em" },
   cardTitle: { color: "#F4F1EA", fontSize: 13.5, margin: "2px 0 0" },
   deleteBtn: { background: "none", border: "none", color: "#D1495B", fontSize: 16, cursor: "pointer", flexShrink: 0 },
 };
-      
