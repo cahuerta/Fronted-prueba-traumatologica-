@@ -88,4 +88,5 @@ export const examen = {
   responder: (instanciaId, preguntaId, opcionElegida) =>
     request(`/examen/${instanciaId}/responder`, { method: "POST", body: { pregunta_id: preguntaId, opcion_elegida: opcionElegida } }),
   finalizar: (instanciaId) => request(`/examen/${instanciaId}/finalizar`, { method: "POST" }),
+  registrarSalida: (instanciaId) => request(`/examen/${instanciaId}/registrar-salida`, { method: "POST" }),
 };
