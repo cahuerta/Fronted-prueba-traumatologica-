@@ -57,8 +57,10 @@ export const preguntas = {
 
 // ---------------- MATERIALES ----------------
 export const materiales = {
-  registrar: (data) => request("/materiales", { method: "POST", body: data, auth: true }),
   listar: (region) => request(`/materiales${region ? `?region=${region}` : ""}`),
+  ingreso: (nombre, rut) => request("/materiales/ingreso", { method: "POST", body: { nombre, rut } }),
+  descargar: (materialId, alumnoId) => request(`/materiales/${materialId}/descargar`, { method: "POST", body: { alumno_id: alumnoId } }),
+  analisis: () => request("/materiales/analisis", { auth: true }),
 };
 
 // ---------------- SESIONES ----------------
@@ -68,8 +70,7 @@ export const sesiones = {
   ver: (id) => request(`/sesiones/${id}`, { auth: true }),
 
   abrirAsistencia: (id) => request(`/sesiones/${id}/abrir-asistencia`, { method: "POST", auth: true }),
-  alumnos: (id) => request(`/sesiones/${id}/alumnos`),
-  marcarAsistencia: (id, alumnoId) => request(`/sesiones/${id}/asistencia`, { method: "POST", body: { alumno_id: alumnoId } }),
+  marcarAsistencia: (id, nombre, rut) => request(`/sesiones/${id}/asistencia`, { method: "POST", body: { nombre, rut } }),
   verAsistencia: (id) => request(`/sesiones/${id}/asistencia`, { auth: true }),
 
   abrirEncuesta: (id) => request(`/sesiones/${id}/abrir-encuesta`, { method: "POST", auth: true }),
