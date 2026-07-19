@@ -9,6 +9,7 @@ import AdminSesion from "./pages/admin/AdminSesion";
 import AdminInterrogadores from "./pages/admin/AdminInterrogadores";
 import AdminResultados from "./pages/admin/AdminResultados";
 import AdminAnalisis from "./pages/admin/AdminAnalisis";
+import GenerarDocumento from "./pages/documentos/GenerarDocumento";
 
 import AlumnoIngreso from "./pages/alumno/AlumnoIngreso";
 import AlumnoEspera from "./pages/alumno/AlumnoEspera";
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/admin/interrogadores" element={<AdminInterrogadores />} />
         <Route path="/admin/sesion/:sesionId/resultados" element={<AdminResultados />} />
         <Route path="/admin/sesion/:sesionId/analisis" element={<AdminAnalisis />} />
+        <Route path="/admin/documentos" element={<GenerarDocumento />} />
 
         {/* ---------- Alumno (sin login, entra por el link de la sesión) ---------- */}
         <Route path="/alumno/:sesionId" element={<AlumnoIngreso />} />
