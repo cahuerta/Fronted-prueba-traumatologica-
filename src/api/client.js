@@ -92,8 +92,34 @@ export const examen = {
 };
 
 // ---------------- DOCUMENTOS ----------------
+async function descargarArchivo(path, body, nombreFallback) {
+  const token = getToken();
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.detail || `Error ${res.status}`);
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const nombre = match ? match[1] : nombreFallback;
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nombre;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export const documentos = {
+  ping: () => request("/documentos/ping", { auth: true }),
   buscar: (tema, maxResults = 20) => request("/documentos/buscar", { method: "POST", body: { tema, max_results: maxResults }, auth: true }),
   generar: (papers, tema) => request("/documentos/generar", { method: "POST", body: { papers, tema }, auth: true }),
+  descargarPdf: (doc) => descargarArchivo("/documentos/pdf", doc, "documento.pdf"),
+  descargarPpt: (doc) => descargarArchivo("/documentos/ppt", doc, "documento.pptx"),
 };
-  
