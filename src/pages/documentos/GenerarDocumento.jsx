@@ -2,20 +2,11 @@ import { useState } from "react";
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
 } from "docx";
+import { documentos } from "../../api/client";
 
-// ── Config: EvidenciaMed (búsqueda directa) y backend propio (documentos) ──
+// ── Config: EvidenciaMed (búsqueda directa, host y auth propios) ──
 const EVIDENCIAMED_URL = import.meta.env.VITE_EVIDENCIAMED_URL || "";
 const EVIDENCIAMED_KEY = import.meta.env.VITE_EVIDENCIAMED_KEY || "";
-const API_URL = import.meta.env.VITE_API_URL || "/api";
-
-// NOTA: asumo que el token de sesión del interrogador se guarda en
-// localStorage bajo la clave "token" (viste que AdminLogin hace
-// setToken(res.token) pero no tengo el contenido de api/client.js).
-// Si tu setToken() lo guarda distinto, ajusta authHeaders().
-function authHeaders() {
-  const token = localStorage.getItem("token");
-  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-}
 
 async function buscarEnEvidenciaMed(tema, maxResults = 20) {
   const r = await fetch(`${EVIDENCIAMED_URL}/search`, {
@@ -24,16 +15,6 @@ async function buscarEnEvidenciaMed(tema, maxResults = 20) {
     body: JSON.stringify({ query: tema, max_results: maxResults }),
   });
   if (!r.ok) throw new Error(`Error buscando en EvidenciaMed (${r.status})`);
-  return r.json();
-}
-
-async function generarDocumento(papers, tema) {
-  const r = await fetch(`${API_URL}/documentos/generar`, {
-    method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify({ papers, tema }),
-  });
-  if (!r.ok) throw new Error(`Error generando documento (${r.status})`);
   return r.json();
 }
 
@@ -172,7 +153,7 @@ export default function GenerarDocumento() {
     if (!elegidos.length) return;
     setGenerando(true); setError(""); setDocumento(null);
     try {
-      const doc = await generarDocumento(elegidos, tema.trim());
+      const doc = await documentos.generar(elegidos, tema.trim());
       setDocumento(doc);
     } catch (e) {
       setError(e.message);
@@ -333,5 +314,4 @@ export default function GenerarDocumento() {
       )}
     </div>
   );
-                 }
-                    
+      }
