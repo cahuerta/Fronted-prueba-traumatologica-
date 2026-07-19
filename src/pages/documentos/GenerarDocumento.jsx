@@ -4,20 +4,6 @@ import {
 } from "docx";
 import { documentos } from "../../api/client";
 
-// ── Config: EvidenciaMed (búsqueda directa, host y auth propios) ──
-const EVIDENCIAMED_URL = import.meta.env.VITE_EVIDENCIAMED_URL || "";
-const EVIDENCIAMED_KEY = import.meta.env.VITE_EVIDENCIAMED_KEY || "";
-
-async function buscarEnEvidenciaMed(tema, maxResults = 20) {
-  const r = await fetch(`${EVIDENCIAMED_URL}/search`, {
-    method: "POST",
-    headers: { "X-API-Key": EVIDENCIAMED_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ query: tema, max_results: maxResults }),
-  });
-  if (!r.ok) throw new Error(`Error buscando en EvidenciaMed (${r.status})`);
-  return r.json();
-}
-
 // ── Colores (mismos que EvidenciaMed) ──
 const C = {
   navy: "#0f2942", blue: "#1a6bb5", blue2: "#2980b9",
@@ -130,7 +116,7 @@ export default function GenerarDocumento() {
     if (tema.trim().length < 3) return;
     setBuscando(true); setError(""); setPapers([]); setSeleccionados(new Set()); setDocumento(null);
     try {
-      const data = await buscarEnEvidenciaMed(tema.trim(), 20);
+      const data = await documentos.buscar(tema.trim(), 20);
       setPapers(data.papers || []);
       if (!(data.papers || []).length) setError("No se encontraron resultados.");
     } catch (e) {
@@ -314,4 +300,5 @@ export default function GenerarDocumento() {
       )}
     </div>
   );
-      }
+                        }
+                                 
