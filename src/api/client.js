@@ -93,5 +93,7 @@ export const examen = {
 
 // ---------------- DOCUMENTOS ----------------
 export const documentos = {
+  buscar: (tema, maxResults = 20) => request("/documentos/buscar", { method: "POST", body: { tema, max_results: maxResults }, auth: true }),
   generar: (papers, tema) => request("/documentos/generar", { method: "POST", body: { papers, tema }, auth: true }),
 };
+  
