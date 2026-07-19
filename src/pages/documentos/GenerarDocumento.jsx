@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
@@ -29,10 +29,9 @@ function ScoreBadge({ score }) {
   );
 }
 
-// ── Secciones del documento generado (vista en pantalla y .docx) ──
+// ── Secciones del documento generado (editables en pantalla) ──
 const SECCIONES = [
   ["introduccion", "Introducción"],
-  ["epidemiologia", "Epidemiología internacional y nacional"],
   ["clinica", "Clínica"],
   ["diagnostico", "Diagnóstico"],
   ["diagnostico_diferencial", "Diagnóstico diferencial"],
@@ -42,15 +41,7 @@ const SECCIONES = [
   ["conclusiones", "Conclusiones"],
 ];
 
-function textoSeccion(doc, key) {
-  if (key === "epidemiologia") {
-    const epi = doc.epidemiologia || {};
-    return `Internacional: ${epi.internacional || "—"}\n\nNacional: ${epi.nacional || "—"}`;
-  }
-  return doc[key] || "—";
-}
-
-// ── Construcción del .docx en cliente ──
+// ── Construcción del .docx en cliente (usa el estado editado) ──
 function construirDocx(doc) {
   const children = [
     new Paragraph({
@@ -64,21 +55,25 @@ function construirDocx(doc) {
     }),
   ];
 
-  SECCIONES.forEach(([key, label]) => {
+  function agregarSeccion(titulo, texto) {
     children.push(new Paragraph({
-      children: [new TextRun({ text: label, bold: true, size: 26, color: "1F4E78" })],
+      children: [new TextRun({ text: titulo, bold: true, size: 26, color: "1F4E78" })],
       heading: HeadingLevel.HEADING_1,
       spacing: { before: 260, after: 120 },
     }));
-    const texto = textoSeccion(doc, key);
-    texto.split("\n").filter(Boolean).forEach(parrafo => {
+    (texto || "—").split("\n").filter(Boolean).forEach(parrafo => {
       children.push(new Paragraph({
         children: [new TextRun({ text: parrafo, size: 21 })],
         alignment: AlignmentType.JUSTIFIED,
         spacing: { after: 140 },
       }));
     });
-  });
+  }
+
+  agregarSeccion("Introducción", doc.introduccion);
+  agregarSeccion("Epidemiología internacional y nacional",
+    `Internacional: ${doc.epidemiologia?.internacional || "—"}\n\nNacional: ${doc.epidemiologia?.nacional || "—"}`);
+  SECCIONES.slice(1).forEach(([key, label]) => agregarSeccion(label, doc[key]));
 
   if (doc.referencias?.length) {
     children.push(new Paragraph({
@@ -97,14 +92,14 @@ function construirDocx(doc) {
   return new Document({ sections: [{ children }] });
 }
 
-function nombreArchivoSeguro(titulo) {
+function nombreArchivoSeguro(titulo, ext) {
   const base = (titulo || "documento")
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // quita tildes
-    .replace(/[^a-zA-Z0-9\s-]/g, "") // quita : ; , . etc.
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9\s-]/g, "")
     .trim()
-    .replace(/\s+/g, "_") // espacios -> guion bajo
+    .replace(/\s+/g, "_")
     .slice(0, 60);
-  return `${base || "documento"}.docx`;
+  return `${base || "documento"}.${ext}`;
 }
 
 async function descargarDocx(doc) {
@@ -113,7 +108,7 @@ async function descargarDocx(doc) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = nombreArchivoSeguro(doc.titulo);
+  a.download = nombreArchivoSeguro(doc.titulo, "docx");
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -128,6 +123,11 @@ export default function GenerarDocumento() {
   const [seleccionados, setSeleccionados] = useState(new Set());
   const [generando, setGenerando] = useState(false);
   const [documento, setDocumento] = useState(null);
+  const [descargando, setDescargando] = useState("");
+
+  useEffect(() => {
+    documentos.ping().catch(() => {});
+  }, []);
 
   async function handleBuscar() {
     if (tema.trim().length < 3) return;
@@ -165,11 +165,75 @@ export default function GenerarDocumento() {
     }
   }
 
+  // Edición: actualiza una sección de texto simple
+  function editarSeccion(key, valor) {
+    setDocumento(prev => ({ ...prev, [key]: valor }));
+  }
+
+  // Edición: actualiza título o autor
+  function editarCampo(key, valor) {
+    setDocumento(prev => ({ ...prev, [key]: valor }));
+  }
+
+  // Edición: actualiza epidemiología (internacional/nacional)
+  function editarEpidemiologia(sub, valor) {
+    setDocumento(prev => ({
+      ...prev,
+      epidemiologia: { ...(prev.epidemiologia || {}), [sub]: valor },
+    }));
+  }
+
+  // Edición: actualiza una referencia puntual
+  function editarReferencia(idx, valor) {
+    setDocumento(prev => {
+      const refs = [...(prev.referencias || [])];
+      refs[idx] = valor;
+      return { ...prev, referencias: refs };
+    });
+  }
+
+  async function handleDescargarPdf() {
+    setDescargando("pdf"); setError("");
+    try {
+      await documentos.descargarPdf(documento);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setDescargando("");
+    }
+  }
+
+  async function handleDescargarPpt() {
+    setDescargando("ppt"); setError("");
+    try {
+      await documentos.descargarPpt(documento);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setDescargando("");
+    }
+  }
+
   const inputStyle = {
     width: "100%", padding: ".75rem 1rem", boxSizing: "border-box",
     border: `1px solid ${C.border}`, borderRadius: 8, fontSize: ".9rem",
     outline: "none", color: C.text, background: C.bg,
   };
+
+  const textareaStyle = {
+    width: "100%", boxSizing: "border-box", padding: ".7rem .8rem",
+    border: `1px solid ${C.border}`, borderRadius: 8, fontSize: ".88rem",
+    outline: "none", color: C.text, background: C.bg, lineHeight: 1.6,
+    fontFamily: "inherit", resize: "vertical", minHeight: 90,
+  };
+
+  const btnDescarga = (activo) => ({
+    padding: ".6rem 1rem", border: "none", borderRadius: 8,
+    background: activo ? "#334155" : C.accent,
+    color: activo ? C.muted : C.bg,
+    fontWeight: 700, fontSize: ".82rem", cursor: activo ? "not-allowed" : "pointer",
+    whiteSpace: "nowrap",
+  });
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.text, padding: "20px 16px 40px", fontFamily: "sans-serif" }}>
@@ -286,40 +350,67 @@ export default function GenerarDocumento() {
           </>
         )}
 
-        {/* Documento generado: vista en pantalla + descarga */}
+        {/* Documento generado: EDITABLE + descarga en 3 formatos */}
         {documento && (
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "1.5rem", marginTop: "1.5rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem", flexWrap: "wrap", gap: 10 }}>
-              <div>
-                <h3 style={{ margin: "0 0 4px", color: C.text }}>{documento.titulo}</h3>
-                <p style={{ margin: 0, color: C.muted, fontSize: ".85rem", fontStyle: "italic" }}>Autor: {documento.autor}</p>
-              </div>
-              <button
-                onClick={() => descargarDocx(documento)}
-                style={{
-                  padding: ".6rem 1.2rem", border: "none", borderRadius: 8,
-                  background: C.accent, color: C.bg,
-                  fontWeight: 700, fontSize: ".85rem", cursor: "pointer", whiteSpace: "nowrap",
-                }}
-              >
-                ⬇️ Descargar Word
+            <label style={{ display: "block", fontWeight: 600, color: C.muted, fontSize: ".75rem", marginBottom: 4, textTransform: "uppercase" }}>Título</label>
+            <input
+              value={documento.titulo || ""}
+              onChange={e => editarCampo("titulo", e.target.value)}
+              style={{ ...inputStyle, fontSize: "1.1rem", fontWeight: 700, marginBottom: 10 }}
+            />
+
+            <label style={{ display: "block", fontWeight: 600, color: C.muted, fontSize: ".75rem", marginBottom: 4, textTransform: "uppercase" }}>Autor</label>
+            <input
+              value={documento.autor || ""}
+              onChange={e => editarCampo("autor", e.target.value)}
+              style={{ ...inputStyle, fontStyle: "italic", marginBottom: 20 }}
+            />
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: "1.5rem" }}>
+              <button onClick={descargarDocx.bind(null, documento)} style={btnDescarga(false)}>⬇️ Word</button>
+              <button onClick={handleDescargarPdf} disabled={descargando === "pdf"} style={btnDescarga(descargando === "pdf")}>
+                {descargando === "pdf" ? "⏳ Generando..." : "⬇️ PDF"}
+              </button>
+              <button onClick={handleDescargarPpt} disabled={descargando === "ppt"} style={btnDescarga(descargando === "ppt")}>
+                {descargando === "ppt" ? "⏳ Generando..." : "⬇️ PowerPoint"}
               </button>
             </div>
 
-            {SECCIONES.map(([key, label]) => (
+            {/* Introducción */}
+            <div style={{ marginBottom: "1.1rem" }}>
+              <h4 style={{ color: C.accent, fontSize: ".85rem", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: ".3px" }}>Introducción</h4>
+              <textarea value={documento.introduccion || ""} onChange={e => editarSeccion("introduccion", e.target.value)} style={textareaStyle} />
+            </div>
+
+            {/* Epidemiología (dos campos) */}
+            <div style={{ marginBottom: "1.1rem" }}>
+              <h4 style={{ color: C.accent, fontSize: ".85rem", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: ".3px" }}>Epidemiología internacional y nacional</h4>
+              <label style={{ display: "block", color: C.muted, fontSize: ".75rem", margin: "0 0 4px" }}>Internacional</label>
+              <textarea value={documento.epidemiologia?.internacional || ""} onChange={e => editarEpidemiologia("internacional", e.target.value)} style={{ ...textareaStyle, marginBottom: 10 }} />
+              <label style={{ display: "block", color: C.muted, fontSize: ".75rem", margin: "0 0 4px" }}>Nacional</label>
+              <textarea value={documento.epidemiologia?.nacional || ""} onChange={e => editarEpidemiologia("nacional", e.target.value)} style={textareaStyle} />
+            </div>
+
+            {/* Resto de secciones */}
+            {SECCIONES.slice(1).map(([key, label]) => (
               <div key={key} style={{ marginBottom: "1.1rem" }}>
                 <h4 style={{ color: C.accent, fontSize: ".85rem", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: ".3px" }}>{label}</h4>
-                <p style={{ color: C.text, fontSize: ".88rem", lineHeight: 1.6, whiteSpace: "pre-line", margin: 0, opacity: 0.9 }}>
-                  {textoSeccion(documento, key)}
-                </p>
+                <textarea value={documento[key] || ""} onChange={e => editarSeccion(key, e.target.value)} style={textareaStyle} />
               </div>
             ))}
 
+            {/* Referencias */}
             {documento.referencias?.length > 0 && (
               <div>
                 <h4 style={{ color: C.accent, fontSize: ".85rem", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: ".3px" }}>Referencias</h4>
                 {documento.referencias.map((ref, i) => (
-                  <p key={i} style={{ color: C.muted, fontSize: ".8rem", margin: "0 0 4px" }}>{ref}</p>
+                  <input
+                    key={i}
+                    value={ref}
+                    onChange={e => editarReferencia(i, e.target.value)}
+                    style={{ ...inputStyle, marginBottom: 6, fontSize: ".8rem", color: C.muted }}
+                  />
                 ))}
               </div>
             )}
@@ -328,5 +419,5 @@ export default function GenerarDocumento() {
       </div>
     </div>
   );
-              }
-                      
+                    }
+                            
