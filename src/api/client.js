@@ -90,3 +90,8 @@ export const examen = {
   finalizar: (instanciaId) => request(`/examen/${instanciaId}/finalizar`, { method: "POST" }),
   registrarSalida: (instanciaId) => request(`/examen/${instanciaId}/registrar-salida`, { method: "POST" }),
 };
+
+// ---------------- DOCUMENTOS ----------------
+export const documentos = {
+  generar: (papers, tema) => request("/documentos/generar", { method: "POST", body: { papers, tema }, auth: true }),
+};
