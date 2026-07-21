@@ -11,6 +11,9 @@ import AdminResultados from "./pages/admin/AdminResultados";
 import AdminAnalisis from "./pages/admin/AdminAnalisis";
 import GenerarDocumento from "./pages/documentos/GenerarDocumento";
 
+import AdminCasosVivo from "./pages/admin/AdminCasosVivo";
+import AdminCasoNuevo from "./pages/admin/AdminCasoNuevo";
+
 import AlumnoIngreso from "./pages/alumno/AlumnoIngreso";
 import AlumnoEspera from "./pages/alumno/AlumnoEspera";
 import AlumnoExamen from "./pages/alumno/AlumnoExamen";
@@ -35,6 +38,11 @@ export default function App() {
         <Route path="/admin/sesion/:sesionId/resultados" element={<AdminResultados />} />
         <Route path="/admin/sesion/:sesionId/analisis" element={<AdminAnalisis />} />
         <Route path="/admin/documentos" element={<GenerarDocumento />} />
+
+        {/* ---------- Presentación dinámica en vivo (casos clínicos) ---------- */}
+        <Route path="/admin/casos-vivo" element={<AdminCasosVivo />} />
+        <Route path="/admin/casos-vivo/nuevo" element={<AdminCasoNuevo />} />
+        <Route path="/admin/casos-vivo/:casoId" element={<AdminCasoNuevo />} />
 
         {/* ---------- Alumno (sin login, entra por el link de la sesión) ---------- */}
         <Route path="/alumno/:sesionId" element={<AlumnoIngreso />} />
