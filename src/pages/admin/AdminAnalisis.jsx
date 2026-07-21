@@ -3,6 +3,18 @@ import { useNavigate, useParams } from "react-router-dom";
 import { sesiones } from "../../api/client";
 
 const COMPLEJIDAD_LABEL = { basica: "Básica", intermedia: "Intermedia", compleja: "Compleja" };
+const REGION_LABEL = {
+  hombro: "Hombro",
+  codo: "Codo",
+  mano_muneca: "Mano y muñeca",
+  columna: "Columna",
+  cadera_pelvis: "Cadera y pelvis",
+  rodilla: "Rodilla",
+  tobillo_pie: "Tobillo y pie",
+  ortogeriatria: "Ortogeriatría",
+  imagenologia: "Imagenología",
+  ciencias_basicas: "Ciencias básicas",
+};
 
 export default function AdminAnalisis() {
   const { sesionId } = useParams();
@@ -92,7 +104,7 @@ export default function AdminAnalisis() {
               data.preguntas_mas_falladas.map((p) => (
                 <div key={p.pregunta_id} style={s.preguntaRow}>
                   <div style={{ flex: 1 }}>
-                    <p style={s.preguntaMeta}>{p.region} · {COMPLEJIDAD_LABEL[p.complejidad]}</p>
+                    <p style={s.preguntaMeta}>{REGION_LABEL[p.region] || p.region} · {COMPLEJIDAD_LABEL[p.complejidad]}</p>
                     <p style={s.preguntaTexto}>{p.pregunta}</p>
                   </div>
                   <span style={{ ...s.preguntaPct, color: p.pct_acierto < 50 ? "#D1495B" : "#E0793E" }}>
@@ -129,3 +141,4 @@ const s = {
   preguntaTexto: { color: "#F4F1EA", fontSize: 13, margin: "2px 0 0" },
   preguntaPct: { fontSize: 14, fontWeight: 700, flexShrink: 0 },
 };
+    
