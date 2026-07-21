@@ -187,6 +187,7 @@ export const casosVivoAdmin = {
   // Control de la sesion en vivo (panel de proyeccion)
   iniciarSesion: (presentacionId) =>
     request("/casos-vivo/vivo/iniciar", { method: "POST", body: { presentacion_id: presentacionId }, auth: true }),
+  obtenerSesion: (sesionId) => request(`/casos-vivo/vivo/${sesionId}`, { auth: true }),
   detalleVotos: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/detalle`, { auth: true }),
   accionSesion: (sesionId, accion) =>
     request(`/casos-vivo/vivo/${sesionId}/accion`, { method: "POST", body: { accion }, auth: true }),
