@@ -3,14 +3,25 @@ import { useNavigate } from "react-router-dom";
 import { preguntas, getToken } from "../../api/client";
 
 const API_URL = import.meta.env.VITE_API_URL;
-const REGIONES = ["hombro", "codo", "muneca", "columna", "cadera", "rodilla", "tobillo"];
+const REGIONES = [
+  { valor: "hombro", etiqueta: "Hombro" },
+  { valor: "codo", etiqueta: "Codo" },
+  { valor: "mano_muneca", etiqueta: "Mano y muñeca" },
+  { valor: "columna", etiqueta: "Columna" },
+  { valor: "cadera_pelvis", etiqueta: "Cadera y pelvis" },
+  { valor: "rodilla", etiqueta: "Rodilla" },
+  { valor: "tobillo_pie", etiqueta: "Tobillo y pie" },
+  { valor: "ortogeriatria", etiqueta: "Ortogeriatría" },
+  { valor: "imagenologia", etiqueta: "Imagenología" },
+  { valor: "ciencias_basicas", etiqueta: "Ciencias básicas" },
+];
 const COMPLEJIDADES = ["basica", "intermedia", "compleja"];
 const LETRAS = ["A", "B", "C", "D", "E"];
 
 export default function AdminPreguntas() {
   const navigate = useNavigate();
 
-  const [region, setRegion] = useState(REGIONES[0]);
+  const [region, setRegion] = useState(REGIONES[0].valor);
   const [complejidad, setComplejidad] = useState(COMPLEJIDADES[0]);
   const [pregunta, setPregunta] = useState("");
   const [respuestaCorrecta, setRespuestaCorrecta] = useState("");
@@ -159,6 +170,10 @@ export default function AdminPreguntas() {
     }
   }
 
+  function etiquetaDeRegion(valor) {
+    return REGIONES.find((r) => r.valor === valor)?.etiqueta || valor;
+  }
+
   return (
     <div style={s.wrap}>
       <div style={s.headerRow}>
@@ -169,7 +184,7 @@ export default function AdminPreguntas() {
       <div style={s.form}>
         <label style={s.label}>Región</label>
         <select value={region} onChange={(e) => setRegion(e.target.value)} style={s.input}>
-          {REGIONES.map((r) => <option key={r} value={r}>{r}</option>)}
+          {REGIONES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
         </select>
 
         <label style={s.label}>Complejidad</label>
@@ -237,7 +252,7 @@ export default function AdminPreguntas() {
         <h2 style={s.h2}>Preguntas cargadas ({lista.length})</h2>
         <select value={filtroRegion} onChange={(e) => setFiltroRegion(e.target.value)} style={s.filterSelect}>
           <option value="">Todas</option>
-          {REGIONES.map((r) => <option key={r} value={r}>{r}</option>)}
+          {REGIONES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
         </select>
       </div>
 
@@ -248,7 +263,7 @@ export default function AdminPreguntas() {
             <div key={p.id} style={s.cardExpandible}>
               <button onClick={() => toggleExpandir(p)} style={s.cardHeaderBtn}>
                 <div style={{ flex: 1, textAlign: "left" }}>
-                  <p style={s.cardMeta}>{p.region} · {p.complejidad}{p.media_tipo ? ` · ${p.media_tipo}` : ""}</p>
+                  <p style={s.cardMeta}>{etiquetaDeRegion(p.region)} · {p.complejidad}{p.media_tipo ? ` · ${p.media_tipo}` : ""}</p>
                   <p style={s.cardTitle}>{p.pregunta}</p>
                   {p.creado_por_nombre && <p style={s.autor}>Creada por {p.creado_por_nombre}</p>}
                 </div>
