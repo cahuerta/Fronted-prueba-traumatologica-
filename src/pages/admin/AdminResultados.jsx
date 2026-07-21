@@ -2,6 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { sesiones } from "../../api/client";
 
+const REGION_LABEL = {
+  hombro: "Hombro",
+  codo: "Codo",
+  mano_muneca: "Mano y muñeca",
+  columna: "Columna",
+  cadera_pelvis: "Cadera y pelvis",
+  rodilla: "Rodilla",
+  tobillo_pie: "Tobillo y pie",
+  ortogeriatria: "Ortogeriatría",
+  imagenologia: "Imagenología",
+  ciencias_basicas: "Ciencias básicas",
+};
+
 export default function AdminResultados() {
   const { sesionId } = useParams();
   const navigate = useNavigate();
@@ -64,7 +77,7 @@ export default function AdminResultados() {
                     <p style={s.resumen}>{r.n_correctas} correctas · {r.n_incorrectas} incorrectas · {r.n_preguntas_respondidas} respondidas</p>
                     {r.detalle_preguntas.map((d, j) => (
                       <div key={j} style={{ ...s.pregunta, borderColor: d.correcta ? "rgba(127,182,133,0.3)" : "rgba(209,73,91,0.3)" }}>
-                        <p style={s.preguntaMeta}>{d.region} · {d.complejidad}</p>
+                        <p style={s.preguntaMeta}>{REGION_LABEL[d.region] || d.region} · {d.complejidad}</p>
                         <p style={s.preguntaTexto}>{d.pregunta}</p>
                         <p style={{ ...s.respuesta, color: d.correcta ? "#7FB685" : "#D1495B" }}>
                           Respondió: {d.respuesta_alumno}
