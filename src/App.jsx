@@ -13,6 +13,9 @@ import GenerarDocumento from "./pages/documentos/GenerarDocumento";
 
 import AdminCasosVivo from "./pages/admin/AdminCasosVivo";
 import AdminCasoNuevo from "./pages/admin/AdminCasoNuevo";
+import AdminPresentaciones from "./pages/admin/AdminPresentaciones";
+import AdminPresentacionDetalle from "./pages/admin/AdminPresentacionDetalle";
+import AdminVivo from "./pages/admin/AdminVivo";
 
 import AlumnoIngreso from "./pages/alumno/AlumnoIngreso";
 import AlumnoEspera from "./pages/alumno/AlumnoEspera";
@@ -20,6 +23,9 @@ import AlumnoExamen from "./pages/alumno/AlumnoExamen";
 import AlumnoResultado from "./pages/alumno/AlumnoResultado";
 import AlumnoMaterialesIngreso from "./pages/alumno/AlumnoMaterialesIngreso";
 import AlumnoMateriales from "./pages/alumno/AlumnoMateriales";
+
+import AlumnoVivoIngreso from "./pages/alumno/AlumnoVivoIngreso";
+import AlumnoVivoVotar from "./pages/alumno/AlumnoVivoVotar";
 
 export default function App() {
   return (
@@ -39,16 +45,23 @@ export default function App() {
         <Route path="/admin/sesion/:sesionId/analisis" element={<AdminAnalisis />} />
         <Route path="/admin/documentos" element={<GenerarDocumento />} />
 
-        {/* ---------- Presentación dinámica en vivo (casos clínicos) ---------- */}
+        {/* ---------- Presentación dinámica en vivo (casos clínicos) — profesor ---------- */}
         <Route path="/admin/casos-vivo" element={<AdminCasosVivo />} />
         <Route path="/admin/casos-vivo/nuevo" element={<AdminCasoNuevo />} />
         <Route path="/admin/casos-vivo/:casoId" element={<AdminCasoNuevo />} />
+        <Route path="/admin/presentaciones" element={<AdminPresentaciones />} />
+        <Route path="/admin/presentaciones/:presentacionId" element={<AdminPresentacionDetalle />} />
+        <Route path="/admin/vivo/:sesionId" element={<AdminVivo />} />
 
         {/* ---------- Alumno (sin login, entra por el link de la sesión) ---------- */}
         <Route path="/alumno/:sesionId" element={<AlumnoIngreso />} />
         <Route path="/alumno/:sesionId/espera" element={<AlumnoEspera />} />
         <Route path="/alumno/:sesionId/examen" element={<AlumnoExamen />} />
         <Route path="/alumno/:sesionId/resultado" element={<AlumnoResultado />} />
+
+        {/* ---------- Alumno — presentación dinámica en vivo (casos clínicos) ---------- */}
+        <Route path="/alumno-vivo/:codigo" element={<AlumnoVivoIngreso />} />
+        <Route path="/alumno-vivo/:codigo/votar" element={<AlumnoVivoVotar />} />
 
         {/* ---------- Materiales (QR fijo, sin sesión asociada) ---------- */}
         <Route path="/materiales" element={<AlumnoMaterialesIngreso />} />
