@@ -3,12 +3,23 @@ import { useNavigate } from "react-router-dom";
 import { materiales, getToken } from "../../api/client";
 
 const API_URL = import.meta.env.VITE_API_URL;
-const REGIONES = ["hombro", "codo", "muneca", "columna", "cadera", "rodilla", "tobillo"];
+const REGIONES = [
+  { valor: "hombro", etiqueta: "Hombro" },
+  { valor: "codo", etiqueta: "Codo" },
+  { valor: "mano_muneca", etiqueta: "Mano y muñeca" },
+  { valor: "columna", etiqueta: "Columna" },
+  { valor: "cadera_pelvis", etiqueta: "Cadera y pelvis" },
+  { valor: "rodilla", etiqueta: "Rodilla" },
+  { valor: "tobillo_pie", etiqueta: "Tobillo y pie" },
+  { valor: "ortogeriatria", etiqueta: "Ortogeriatría" },
+  { valor: "imagenologia", etiqueta: "Imagenología" },
+  { valor: "ciencias_basicas", etiqueta: "Ciencias básicas" },
+];
 
 export default function AdminMateriales() {
   const navigate = useNavigate();
 
-  const [region, setRegion] = useState(REGIONES[0]);
+  const [region, setRegion] = useState(REGIONES[0].valor);
   const [tipo, setTipo] = useState("ppt");
   const [titulo, setTitulo] = useState("");
   const [archivo, setArchivo] = useState(null);
@@ -70,6 +81,10 @@ export default function AdminMateriales() {
     }
   }
 
+  function etiquetaDeRegion(valor) {
+    return REGIONES.find((r) => r.valor === valor)?.etiqueta || valor;
+  }
+
   return (
     <div style={s.wrap}>
       <div style={s.headerRow}>
@@ -80,7 +95,7 @@ export default function AdminMateriales() {
       <form onSubmit={handleSubir} style={s.form}>
         <label style={s.label}>Región</label>
         <select value={region} onChange={(e) => setRegion(e.target.value)} style={s.input}>
-          {REGIONES.map((r) => <option key={r} value={r}>{r}</option>)}
+          {REGIONES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
         </select>
 
         <label style={s.label}>Tipo</label>
@@ -107,7 +122,7 @@ export default function AdminMateriales() {
         <h2 style={s.h2}>Materiales cargados ({lista.length})</h2>
         <select value={filtroRegion} onChange={(e) => setFiltroRegion(e.target.value)} style={s.filterSelect}>
           <option value="">Todas</option>
-          {REGIONES.map((r) => <option key={r} value={r}>{r}</option>)}
+          {REGIONES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
         </select>
       </div>
 
@@ -115,7 +130,7 @@ export default function AdminMateriales() {
         {lista.map((m) => (
           <a key={m.id} href={m.url} target="_blank" rel="noreferrer" style={s.card}>
             <div>
-              <p style={s.cardMeta}>{m.region} · {m.tipo}</p>
+              <p style={s.cardMeta}>{etiquetaDeRegion(m.region)} · {m.tipo}</p>
               <p style={s.cardTitle}>{m.titulo}</p>
             </div>
             <span style={s.chevron}>↓</span>
