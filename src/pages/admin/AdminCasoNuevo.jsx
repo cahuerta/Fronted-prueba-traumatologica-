@@ -2,6 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { casosVivoAdmin, preguntas as preguntasApi } from "../../api/client";
 
+const REGIONES = [
+  { valor: "hombro", etiqueta: "Hombro" },
+  { valor: "codo", etiqueta: "Codo" },
+  { valor: "mano_muneca", etiqueta: "Mano y muñeca" },
+  { valor: "columna", etiqueta: "Columna" },
+  { valor: "cadera_pelvis", etiqueta: "Cadera y pelvis" },
+  { valor: "rodilla", etiqueta: "Rodilla" },
+  { valor: "tobillo_pie", etiqueta: "Tobillo y pie" },
+  { valor: "ortogeriatria", etiqueta: "Ortogeriatría" },
+  { valor: "imagenologia", etiqueta: "Imagenología" },
+  { valor: "ciencias_basicas", etiqueta: "Ciencias básicas" },
+];
+
 export default function AdminCasoNuevo() {
   const navigate = useNavigate();
   const { casoId: casoIdParam } = useParams();
@@ -162,8 +175,11 @@ export default function AdminCasoNuevo() {
       {/* ---------------- PASO 1 ---------------- */}
       {paso === 1 && (
         <form onSubmit={handleCrearCaso} style={s.form}>
-          <label style={s.label}>Región (ej. pelvis, cadera, rodilla)</label>
-          <input value={region} onChange={(e) => setRegion(e.target.value)} required style={s.input} />
+          <label style={s.label}>Región</label>
+          <select value={region} onChange={(e) => setRegion(e.target.value)} required style={s.input}>
+            <option value="" disabled>Selecciona una región</option>
+            {REGIONES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
+          </select>
 
           <label style={s.label}>Título del caso</label>
           <input value={titulo} onChange={(e) => setTitulo(e.target.value)} required style={s.input} />
@@ -211,7 +227,7 @@ export default function AdminCasoNuevo() {
           </div>
 
           <div>
-            <h3 style={s.h3}>Banco de preguntas — región "{region}"</h3>
+            <h3 style={s.h3}>Banco de preguntas — región "{REGIONES.find((r) => r.valor === region)?.etiqueta || region}"</h3>
             {cargandoBanco ? (
               <p style={s.muted}>Cargando...</p>
             ) : bancoPreguntas.length === 0 ? (
@@ -323,3 +339,4 @@ const s = {
   fuentes: { color: "#94A3B8", fontSize: 12, marginTop: 6 },
   finBtn: { marginTop: 10, background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#F4F1EA", padding: "11px 18px", fontSize: 14, cursor: "pointer" },
 };
+                      
