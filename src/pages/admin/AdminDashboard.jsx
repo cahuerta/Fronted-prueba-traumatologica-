@@ -92,6 +92,7 @@ export default function AdminDashboard() {
         <button onClick={() => navigate("/admin/preguntas")} style={s.actionBtn}>Banco de preguntas</button>
         <button onClick={() => navigate("/admin/materiales")} style={s.actionBtn}>Materiales</button>
         <button onClick={() => navigate("/admin/documentos")} style={s.actionBtn}>Documentos</button>
+        <button onClick={() => navigate("/admin/casos-vivo")} style={s.actionBtn}>Casos clínicos (en vivo)</button>
         {esAdmin && (
           <button onClick={() => navigate("/admin/interrogadores")} style={s.actionBtn}>Interrogadores</button>
         )}
@@ -179,4 +180,4 @@ const s = {
   cardMeta: { color: "#94A3B8", fontSize: 12, margin: "2px 0 0", textTransform: "capitalize" },
   chevron: { color: "#94A3B8", fontSize: 20 },
 };
-            
+    
