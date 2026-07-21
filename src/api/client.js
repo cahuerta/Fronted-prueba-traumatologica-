@@ -39,6 +39,21 @@ async function request(path, { method = "GET", body, auth = false } = {}) {
   return res.json();
 }
 
+// ---------------- FETCH DE ARCHIVOS (multipart, subida) ----------------
+async function requestArchivo(path, formData) {
+  const token = getToken();
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` }, // sin Content-Type: el browser pone el boundary solo
+    body: formData,
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.detail || `Error ${res.status}`);
+  }
+  return res.json();
+}
+
 // ---------------- AUTH ----------------
 export const auth = {
   login: (rut, password) => request("/auth/login", { method: "POST", body: { rut, password } }),
@@ -123,3 +138,67 @@ export const documentos = {
   descargarPdf: (doc) => descargarArchivo("/documentos/pdf", doc, "documento.pdf"),
   descargarPpt: (doc) => descargarArchivo("/documentos/ppt", doc, "documento.pptx"),
 };
+
+// ---------------- CASOS EN VIVO — PROFESOR (requieren login) ----------------
+export const casosVivoAdmin = {
+  // Casos clinicos
+  crearCaso: (data) => request("/casos-vivo/casos", { method: "POST", body: data, auth: true }),
+  listarCasos: (region) => request(`/casos-vivo/casos${region ? `?region=${region}` : ""}`, { auth: true }),
+  obtenerCaso: (casoId) => request(`/casos-vivo/casos/${casoId}`, { auth: true }),
+
+  subirMediaCaso: (tipo, archivo) => {
+    const formData = new FormData();
+    formData.append("tipo", tipo);
+    formData.append("archivo", archivo);
+    return requestArchivo("/casos-vivo/casos/media", formData);
+  },
+  asociarMediaCaso: (casoId, mediaUrl, mediaTipo) =>
+    request(`/casos-vivo/casos/${casoId}/media?media_url=${encodeURIComponent(mediaUrl)}&media_tipo=${mediaTipo}`, {
+      method: "POST",
+      auth: true,
+    }),
+  obtenerMediaCaso: (casoId) => request(`/casos-vivo/casos/${casoId}/media`, { auth: true }),
+
+  // Preguntas dentro de un caso (orden fijo 1-5, reusan banco_preguntas)
+  agregarPreguntaCaso: (casoId, preguntaId, orden) =>
+    request(`/casos-vivo/casos/${casoId}/preguntas`, { method: "POST", body: { pregunta_id: preguntaId, orden }, auth: true }),
+  quitarPreguntaCaso: (casoId, casoPreguntaId) =>
+    request(`/casos-vivo/casos/${casoId}/preguntas/${casoPreguntaId}`, { method: "DELETE", auth: true }),
+
+  // Fundamento: borrador (Claude) -> revision -> guardado
+  generarFundamentoBorrador: (casoId, casoPreguntaId) =>
+    request(`/casos-vivo/casos/${casoId}/preguntas/${casoPreguntaId}/generar-fundamento`, { method: "POST", auth: true }),
+  guardarFundamento: (casoId, casoPreguntaId, explicacion, fuentes) =>
+    request(`/casos-vivo/casos/${casoId}/preguntas/${casoPreguntaId}/fundamento`, {
+      method: "PUT",
+      body: { explicacion, fuentes },
+      auth: true,
+    }),
+
+  // Presentaciones (reemplazo reutilizable del PPT)
+  crearPresentacion: (data) => request("/casos-vivo/presentaciones", { method: "POST", body: data, auth: true }),
+  listarPresentaciones: () => request("/casos-vivo/presentaciones", { auth: true }),
+  obtenerPresentacion: (id) => request(`/casos-vivo/presentaciones/${id}`, { auth: true }),
+  agregarCasoPresentacion: (presentacionId, casoId, orden) =>
+    request(`/casos-vivo/presentaciones/${presentacionId}/casos`, { method: "POST", body: { caso_id: casoId, orden }, auth: true }),
+  quitarCasoPresentacion: (presentacionId, presentacionCasoId) =>
+    request(`/casos-vivo/presentaciones/${presentacionId}/casos/${presentacionCasoId}`, { method: "DELETE", auth: true }),
+
+  // Control de la sesion en vivo (panel de proyeccion)
+  iniciarSesion: (presentacionId) =>
+    request("/casos-vivo/vivo/iniciar", { method: "POST", body: { presentacion_id: presentacionId }, auth: true }),
+  detalleVotos: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/detalle`, { auth: true }),
+  accionSesion: (sesionId, accion) =>
+    request(`/casos-vivo/vivo/${sesionId}/accion`, { method: "POST", body: { accion }, auth: true }),
+};
+
+// ---------------- CASOS EN VIVO — ALUMNO (publico, sin login) ----------------
+export const casosVivoAlumno = {
+  ingreso: (codigo, nombre, rut) =>
+    request(`/casos-vivo/vivo/${codigo}/ingreso`, { method: "POST", body: { nombre, rut } }),
+  estadoActual: (codigo) => request(`/casos-vivo/vivo/${codigo}/actual`),
+  votar: (sesionId, alumnoId, preguntaId, opcion) =>
+    request("/casos-vivo/vivo/votar", { method: "POST", body: { sesion_id: sesionId, alumno_id: alumnoId, pregunta_id: preguntaId, opcion } }),
+  resultados: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/resultados`),
+};
+  
