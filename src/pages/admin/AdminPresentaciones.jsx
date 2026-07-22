@@ -21,7 +21,7 @@ export default function AdminPresentaciones() {
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
-  const [iniciandoId, setIniciandoId] = useState(null);
+  const [borrandoId, setBorrandoId] = useState(null);
 
   const [mostrarForm, setMostrarForm] = useState(false);
   const [titulo, setTitulo] = useState("");
@@ -62,16 +62,17 @@ export default function AdminPresentaciones() {
     }
   }
 
-  async function handleIniciar(presentacionId) {
+  async function handleBorrar(e, presentacionId) {
+    e.stopPropagation();
     setError("");
-    setIniciandoId(presentacionId);
+    setBorrandoId(presentacionId);
     try {
-      const sesion = await casosVivoAdmin.iniciarSesion(presentacionId);
-      navigate(`/admin/vivo/${sesion.id}`);
+      await casosVivoAdmin.borrarPresentacion(presentacionId);
+      cargar();
     } catch (err) {
       setError(err.message);
     } finally {
-      setIniciandoId(null);
+      setBorrandoId(null);
     }
   }
 
@@ -87,7 +88,6 @@ export default function AdminPresentaciones() {
       </header>
 
       <div style={s.actions}>
-        <button onClick={() => navigate("/admin/casos-vivo")} style={s.actionBtn}>Casos clínicos</button>
         <button onClick={() => setMostrarForm((v) => !v)} style={s.newBtn}>
           {mostrarForm ? "Cancelar" : "+ Nueva presentación"}
         </button>
@@ -125,11 +125,11 @@ export default function AdminPresentaciones() {
                 <p style={s.cardTitle}>{p.titulo}</p>
               </button>
               <button
-                onClick={() => handleIniciar(p.id)}
-                disabled={iniciandoId === p.id}
-                style={s.iniciarBtn}
+                onClick={(e) => handleBorrar(e, p.id)}
+                disabled={borrandoId === p.id}
+                style={s.borrarBtn}
               >
-                {iniciandoId === p.id ? "Iniciando..." : "▶ Iniciar"}
+                {borrandoId === p.id ? "Borrando..." : "Borrar"}
               </button>
             </div>
           ))}
@@ -144,8 +144,7 @@ const s = {
   header: { display: "flex", alignItems: "center", gap: 16, marginBottom: 24 },
   back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer" },
   h1: { fontSize: 20, margin: 0 },
-  actions: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12 },
-  actionBtn: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, color: "#F4F1EA", padding: "10px 16px", fontSize: 13, cursor: "pointer" },
+  actions: { display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 16, gap: 12 },
   newBtn: { background: "#4FC3D9", border: "none", borderRadius: 8, color: "#0E1526", padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
   form: { display: "flex", flexDirection: "column", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 20, maxWidth: 420, marginBottom: 20 },
   label: { fontSize: 11, color: "#94A3B8", marginTop: 10, marginBottom: 4 },
@@ -158,5 +157,5 @@ const s = {
   cardMain: { display: "flex", flexDirection: "column", gap: 6, background: "none", border: "none", padding: "16px 18px", cursor: "pointer", textAlign: "left" },
   cardRegion: { color: "#4FC3D9", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, margin: 0, fontWeight: 600 },
   cardTitle: { color: "#F4F1EA", fontSize: 15, fontWeight: 600, margin: 0 },
-  iniciarBtn: { background: "#4FC3D9", border: "none", borderTop: "1px solid rgba(0,0,0,0.15)", color: "#0E1526", padding: "10px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" },
+  borrarBtn: { background: "none", border: "none", borderTop: "1px solid rgba(209,73,91,0.25)", color: "#D1495B", padding: "10px 0", fontSize: 13, fontWeight: 600, cursor: "pointer" },
 };
