@@ -2,6 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { casosVivoAdmin } from "../../api/client";
 
+const REGIONES = [
+  { valor: "hombro", etiqueta: "Hombro" },
+  { valor: "codo", etiqueta: "Codo" },
+  { valor: "mano_muneca", etiqueta: "Mano y muñeca" },
+  { valor: "columna", etiqueta: "Columna" },
+  { valor: "cadera_pelvis", etiqueta: "Cadera y pelvis" },
+  { valor: "rodilla", etiqueta: "Rodilla" },
+  { valor: "tobillo_pie", etiqueta: "Tobillo y pie" },
+  { valor: "ortogeriatria", etiqueta: "Ortogeriatría" },
+  { valor: "imagenologia", etiqueta: "Imagenología" },
+  { valor: "ciencias_basicas", etiqueta: "Ciencias básicas" },
+];
+
 export default function AdminCasosVivo() {
   const navigate = useNavigate();
 
@@ -27,6 +40,10 @@ export default function AdminCasosVivo() {
     }
   }
 
+  function etiquetaDeRegion(valor) {
+    return REGIONES.find((r) => r.valor === valor)?.etiqueta || valor;
+  }
+
   return (
     <div style={s.wrap}>
       <header style={s.header}>
@@ -39,12 +56,10 @@ export default function AdminCasosVivo() {
         <button onClick={() => navigate("/admin/casos-vivo/nuevo")} style={s.newBtn}>+ Nuevo caso</button>
       </div>
 
-      <input
-        value={region}
-        onChange={(e) => setRegion(e.target.value)}
-        placeholder="Filtrar por región (ej. pelvis, cadera)..."
-        style={s.filtro}
-      />
+      <select value={region} onChange={(e) => setRegion(e.target.value)} style={s.filtro}>
+        <option value="">Todas las regiones</option>
+        {REGIONES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
+      </select>
 
       {error && <p style={s.error}>{error}</p>}
 
@@ -56,7 +71,7 @@ export default function AdminCasosVivo() {
         <div style={s.grid}>
           {lista.map((c) => (
             <button key={c.id} onClick={() => navigate(`/admin/casos-vivo/${c.id}`)} style={s.card}>
-              <p style={s.cardRegion}>{c.region}</p>
+              <p style={s.cardRegion}>{etiquetaDeRegion(c.region)}</p>
               <p style={s.cardTitle}>{c.titulo}</p>
               <p style={s.cardVineta}>{c.vineta_clinica?.slice(0, 100)}{c.vineta_clinica?.length > 100 ? "…" : ""}</p>
             </button>
