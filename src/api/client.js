@@ -159,9 +159,20 @@ export const casosVivoAdmin = {
     }),
   obtenerMediaCaso: (casoId) => request(`/casos-vivo/casos/${casoId}/media`, { auth: true }),
 
-  // Preguntas dentro de un caso (orden fijo 1-5, reusan banco_preguntas)
-  agregarPreguntaCaso: (casoId, preguntaId, orden) =>
-    request(`/casos-vivo/casos/${casoId}/preguntas`, { method: "POST", body: { pregunta_id: preguntaId, orden }, auth: true }),
+  // Preguntas del caso: independientes del banco de examen. Se escriben una a
+  // una, en orden, con Claude generando solo las 4 alternativas falsas.
+  generarAlternativasPreguntaCaso: (casoId, data) =>
+    request(`/casos-vivo/casos/${casoId}/preguntas/generar-alternativas`, { method: "POST", body: data, auth: true }),
+  subirMediaPreguntaCaso: (tipo, archivo) => {
+    const formData = new FormData();
+    formData.append("tipo", tipo);
+    formData.append("archivo", archivo);
+    return requestArchivo("/casos-vivo/casos/media-pregunta-placeholder", formData); // ver nota abajo
+  },
+  crearPreguntaCaso: (casoId, data) =>
+    request(`/casos-vivo/casos/${casoId}/preguntas`, { method: "POST", body: data, auth: true }),
+  actualizarPreguntaCaso: (casoId, casoPreguntaId, data) =>
+    request(`/casos-vivo/casos/${casoId}/preguntas/${casoPreguntaId}`, { method: "PUT", body: data, auth: true }),
   quitarPreguntaCaso: (casoId, casoPreguntaId) =>
     request(`/casos-vivo/casos/${casoId}/preguntas/${casoPreguntaId}`, { method: "DELETE", auth: true }),
 
