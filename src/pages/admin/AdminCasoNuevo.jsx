@@ -60,26 +60,31 @@ export default function AdminCasoNuevo() {
       const data = await casosVivoAdmin.obtenerCaso(id);
       setCaso(data);
       setRegion(data.region);
+      setTitulo(data.titulo);
+      setVineta(data.vineta_clinica);
     } catch (err) {
       setError(err.message);
     }
   }
 
-  // ---------------- PASO 1 ----------------
-  async function handleCrearCaso(e) {
+  // ---------------- PASO 1: crear o guardar cambios (mismo endpoint) ----------------
+  async function handleGuardarPaso1(e) {
     e.preventDefault();
     setError("");
     setGuardandoPaso1(true);
     try {
-      const nuevo = await casosVivoAdmin.crearCaso({ region, titulo, vineta_clinica: vineta });
+      const payload = { region, titulo, vineta_clinica: vineta };
+      if (casoId) payload.caso_id = casoId; // presente => actualiza; ausente => crea
+
+      const guardado = await casosVivoAdmin.crearCaso(payload);
 
       if (archivo) {
         const subida = await casosVivoAdmin.subirMediaCaso(tipoMedia, archivo);
-        await casosVivoAdmin.asociarMediaCaso(nuevo.id, subida.media_url, subida.media_tipo);
+        await casosVivoAdmin.asociarMediaCaso(guardado.id, subida.media_url, subida.media_tipo);
       }
 
-      setCasoId(nuevo.id);
-      await cargarCaso(nuevo.id);
+      setCasoId(guardado.id);
+      await cargarCaso(guardado.id);
       setPaso(2);
     } catch (err) {
       setError(err.message);
@@ -142,7 +147,6 @@ export default function AdminCasoNuevo() {
         media_tipo,
       });
 
-      // reset del formulario para la siguiente pregunta
       setPreguntaTexto("");
       setRespuestaCorrecta("");
       setOpciones(null);
@@ -207,16 +211,32 @@ export default function AdminCasoNuevo() {
       </header>
 
       <div style={s.pasos}>
-        <span style={paso === 1 ? s.pasoActivo : s.paso}>1. Datos del caso</span>
-        <span style={paso === 2 ? s.pasoActivo : s.paso}>2. Preguntas</span>
-        <span style={paso === 3 ? s.pasoActivo : s.paso}>3. Fundamento</span>
+        <button onClick={() => setPaso(1)} style={paso === 1 ? s.pasoActivo : s.paso}>
+          <span style={s.pasoNum}>1</span> Datos del caso
+        </button>
+        <button
+          onClick={() => casoId && setPaso(2)}
+          disabled={!casoId}
+          style={{ ...(paso === 2 ? s.pasoActivo : s.paso), ...(!casoId ? s.pasoDeshabilitado : {}) }}
+        >
+          <span style={s.pasoNum}>2</span> Preguntas {preguntasDelCaso.length > 0 && `(${preguntasDelCaso.length}/5)`}
+        </button>
+        <button
+          onClick={() => casoId && setPaso(3)}
+          disabled={!casoId}
+          style={{ ...(paso === 3 ? s.pasoActivo : s.paso), ...(!casoId ? s.pasoDeshabilitado : {}) }}
+        >
+          <span style={s.pasoNum}>3</span> Fundamento
+        </button>
       </div>
 
       {error && <p style={s.error}>{error}</p>}
 
       {/* ---------------- PASO 1 ---------------- */}
       {paso === 1 && (
-        <form onSubmit={handleCrearCaso} style={s.form}>
+        <form onSubmit={handleGuardarPaso1} style={s.form}>
+          {casoId && <p style={s.avisoEdicion}>Editando un caso ya creado — los cambios se guardan sobre el mismo caso.</p>}
+
           <label style={s.label}>Región</label>
           <select value={region} onChange={(e) => setRegion(e.target.value)} required style={s.input}>
             <option value="" disabled>Selecciona una región</option>
@@ -239,15 +259,15 @@ export default function AdminCasoNuevo() {
           </div>
 
           <button type="submit" disabled={guardandoPaso1} style={s.submitBtn}>
-            {guardandoPaso1 ? "Guardando..." : "Guardar y continuar →"}
+            {guardandoPaso1 ? "Guardando..." : casoId ? "Guardar cambios →" : "Guardar y continuar →"}
           </button>
         </form>
       )}
 
-      {/* ---------------- PASO 2: escribir cada pregunta, en orden, con contexto de las anteriores ---------------- */}
+      {/* ---------------- PASO 2 ---------------- */}
       {paso === 2 && (
         <div style={s.grid2}>
-          <div>
+          <div style={s.columna}>
             <h3 style={s.h3}>Secuencia del caso ({preguntasDelCaso.length}/5)</h3>
             {preguntasDelCaso.length === 0 && <p style={s.muted}>Ninguna pregunta creada todavía.</p>}
             <div style={s.list}>
@@ -271,7 +291,7 @@ export default function AdminCasoNuevo() {
             </button>
           </div>
 
-          <div>
+          <div style={s.columna}>
             <h3 style={s.h3}>
               {siguienteOrden ? `Escribir pregunta ${siguienteOrden}` : "Caso completo (5/5)"}
             </h3>
@@ -410,23 +430,27 @@ export default function AdminCasoNuevo() {
 
 const s = {
   wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "24px 32px 60px", fontFamily: "sans-serif" },
-  header: { display: "flex", alignItems: "center", gap: 16, marginBottom: 16 },
+  header: { display: "flex", alignItems: "center", gap: 16, marginBottom: 16, flexWrap: "wrap" },
   back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer" },
   h1: { fontSize: 20, margin: 0 },
-  pasos: { display: "flex", gap: 20, marginBottom: 24, borderBottom: "1px solid rgba(244,241,233,0.12)", paddingBottom: 12 },
-  paso: { color: "#94A3B8", fontSize: 13 },
-  pasoActivo: { color: "#4FC3D9", fontSize: 13, fontWeight: 600 },
+  pasos: { display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" },
+  paso: { display: "flex", alignItems: "center", gap: 8, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, color: "#94A3B8", fontSize: 13, cursor: "pointer", padding: "9px 14px" },
+  pasoActivo: { display: "flex", alignItems: "center", gap: 8, background: "rgba(79,195,217,0.12)", border: "1px solid #4FC3D9", borderRadius: 8, color: "#4FC3D9", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "9px 14px" },
+  pasoDeshabilitado: { opacity: 0.4, cursor: "not-allowed" },
+  pasoNum: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: "50%", background: "rgba(244,241,233,0.15)", fontSize: 11, fontWeight: 700 },
+  avisoEdicion: { color: "#4FC3D9", fontSize: 12.5, background: "#0E1526", border: "1px solid rgba(79,195,217,0.3)", borderRadius: 8, padding: "10px 12px", marginBottom: 6 },
   error: { color: "#D1495B", fontSize: 13, marginBottom: 12 },
   muted: { color: "#94A3B8", fontSize: 13 },
-  form: { display: "flex", flexDirection: "column", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 20, maxWidth: 560 },
+  form: { display: "flex", flexDirection: "column", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 20, maxWidth: "100%", boxSizing: "border-box" },
   label: { fontSize: 11, color: "#94A3B8", marginTop: 12, marginBottom: 4 },
-  input: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "9px 11px", color: "#F4F1EA", fontSize: 14, fontFamily: "sans-serif" },
-  mediaRow: { display: "flex", gap: 10 },
+  input: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "9px 11px", color: "#F4F1EA", fontSize: 14, fontFamily: "sans-serif", width: "100%", boxSizing: "border-box" },
+  mediaRow: { display: "flex", gap: 10, flexWrap: "wrap" },
   select: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "9px 11px", color: "#F4F1EA", fontSize: 14 },
-  fileInput: { flex: 1, color: "#94A3B8", fontSize: 13 },
+  fileInput: { flex: 1, color: "#94A3B8", fontSize: 13, minWidth: 160 },
   submitBtn: { marginTop: 16, background: "#4FC3D9", border: "none", borderRadius: 8, color: "#0E1526", padding: "11px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", alignSelf: "flex-start" },
   iaBtn: { marginTop: 16, background: "#4FC3D9", border: "none", borderRadius: 8, color: "#0E1526", padding: "11px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer" },
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 },
+  grid2: { display: "flex", flexWrap: "wrap", gap: 24 },
+  columna: { flex: "1 1 320px", minWidth: 0 },
   h3: { fontSize: 14, marginBottom: 10 },
   list: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 },
   itemOrdenado: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "10px 12px" },
@@ -436,13 +460,12 @@ const s = {
   opcionRow: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 },
   letraBtn: { width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(244,241,233,0.2)", background: "transparent", color: "#94A3B8", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 },
   letraBtnActiva: { background: "rgba(127,182,133,0.15)", borderColor: "#7FB685", color: "#7FB685" },
-  btnRow: { display: "flex", gap: 8, marginTop: 8 },
+  btnRow: { display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" },
   secondaryBtn: { flex: 1, background: "transparent", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "11px 0", fontSize: 14, cursor: "pointer" },
-  fundamentoCard: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 18, marginBottom: 14, maxWidth: 700 },
+  fundamentoCard: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 18, marginBottom: 14, maxWidth: "100%", boxSizing: "border-box" },
   ordenGrande: { color: "#4FC3D9", fontSize: 12, fontWeight: 700, margin: "0 0 6px", textTransform: "uppercase" },
   guardadoTexto: { color: "#7FD98F", fontSize: 13, margin: "8px 0" },
   actionBtn: { marginTop: 10, background: "#16213A", border: "1px solid #4FC3D9", borderRadius: 8, color: "#4FC3D9", padding: "9px 14px", fontSize: 13, cursor: "pointer" },
   fuentes: { color: "#94A3B8", fontSize: 12, marginTop: 6 },
   finBtn: { marginTop: 10, background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#F4F1EA", padding: "11px 18px", fontSize: 14, cursor: "pointer" },
 };
-    
