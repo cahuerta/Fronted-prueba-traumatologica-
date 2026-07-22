@@ -1,149 +1,256 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { sesiones } from "../../api/client";
+import { casosVivoAdmin, casosVivoAlumno } from "../../api/client";
 
-const PAQUETES = { agil: "Ágil", estandar: "Estándar", exigente: "Exigente" };
+const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 
-export default function AdminSesion() {
-  const { sesionId } = useParams();
+const ESTADO_LABEL = {
+  esperando: "Esperando",
+  votando: "Votación abierta",
+  discusion: "En discusión",
+  cerrada: "Respuesta revelada",
+};
+
+export default function AdminVivo() {
   const navigate = useNavigate();
-  const rol = localStorage.getItem("rol");
-  const esAdmin = rol === "admin";
+  const { sesionId } = useParams();
 
   const [sesion, setSesion] = useState(null);
-  const [asistencia, setAsistencia] = useState({ presentes: [], total_habilitados: 0, total_presentes: 0 });
-  const [encuesta, setEncuesta] = useState({ agil: 0, estandar: 0, exigente: 0 });
+  const [actual, setActual] = useState(null);
+  const [resultados, setResultados] = useState({ total: 0, conteo: {} });
+  const [detalle, setDetalle] = useState([]);
   const [error, setError] = useState("");
+  const [procesando, setProcesando] = useState(false);
 
   useEffect(() => {
-    cargar();
-    const interval = setInterval(cargar, 4000);
-    return () => clearInterval(interval);
+    cargarSesion();
   }, [sesionId]);
 
-  async function cargar() {
+  async function cargarSesion() {
     try {
-      const ses = await sesiones.ver(sesionId);
-      setSesion(ses);
-      if (ses.estado === "asistencia" || ses.estado === "encuesta" || ses.estado === "en_curso") {
-        const a = await sesiones.verAsistencia(sesionId);
-        setAsistencia(a);
-      }
-      if (ses.estado === "encuesta" || ses.estado === "en_curso") {
-        const e = await sesiones.verEncuesta(sesionId);
-        setEncuesta(e);
-      }
+      const data = await casosVivoAdmin.obtenerSesion(sesionId);
+      setSesion(data);
     } catch (err) {
       setError(err.message);
     }
   }
 
-  async function accion(fn) {
+  const refrescar = useCallback(async () => {
+    if (!sesion?.codigo_acceso) return;
+    try {
+      const [est, res, det] = await Promise.all([
+        casosVivoAlumno.estadoActual(sesion.codigo_acceso),
+        casosVivoAlumno.resultados(sesionId),
+        casosVivoAdmin.detalleVotos(sesionId),
+      ]);
+      setActual(est);
+      setResultados(res);
+      setDetalle(det);
+    } catch (err) {
+      setError(err.message);
+    }
+  }, [sesion, sesionId]);
+
+  useEffect(() => {
+    if (!sesion?.codigo_acceso) return;
+    refrescar();
+    const intervalo = setInterval(refrescar, 2000);
+    return () => clearInterval(intervalo);
+  }, [sesion, refrescar]);
+
+  async function ejecutarAccion(accion) {
     setError("");
+    setProcesando(true);
     try {
-      await fn();
-      cargar();
+      const nuevaSesion = await casosVivoAdmin.accionSesion(sesionId, accion);
+      setSesion(nuevaSesion);
+      await refrescar();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setProcesando(false);
     }
   }
 
-  if (!sesion) return <div style={s.wrap}><p style={s.muted}>Cargando...</p></div>;
-
-  const linkAlumno = `${window.location.origin}/alumno/${sesionId}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(linkAlumno)}`;
-  const totalVotos = encuesta.agil + encuesta.estandar + encuesta.exigente;
+  const estado = actual?.estado || sesion?.estado || "esperando";
+  const linkAlumno = sesion?.codigo_acceso ? `${APP_URL}/alumno-vivo/${sesion.codigo_acceso}` : "";
+  const qrUrl = linkAlumno
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(linkAlumno)}`
+    : "";
 
   return (
     <div style={s.wrap}>
-      <div style={s.headerRow}>
-        <button onClick={() => navigate("/admin/dashboard")} style={s.back}>‹ Volver</button>
-        <h1 style={s.title}>{sesion.nombre}</h1>
-      </div>
-      <p style={s.estado}>Estado: {sesion.estado}</p>
+      <header style={s.header}>
+        <button onClick={() => navigate("/admin/presentaciones")} style={s.back}>‹ Salir de la sesión</button>
+      </header>
 
-      <div style={s.qrBox}>
-        <img src={qrUrl} alt="QR del examen" style={s.qrImg} />
-        <p style={s.linkLabel}>Link para alumnos</p>
-        <p style={s.linkValue}>{linkAlumno}</p>
+      {sesion?.codigo_acceso && (
+        <div style={s.qrBox}>
+          <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
+          <p style={s.codigoLabel}>Código de acceso</p>
+          <p style={s.codigo}>{sesion.codigo_acceso}</p>
+          <p style={s.link}>{linkAlumno}</p>
+        </div>
+      )}
+
+      <div style={s.estadoBar}>
+        <span style={{ ...s.estadoBadge, ...(estado === "votando" ? s.estadoBadgeActiva : {}) }}>
+          ● {ESTADO_LABEL[estado] || estado}
+        </span>
+        {actual?.pregunta && (
+          <span style={s.estadoMeta}>
+            Caso {actual.caso_actual_orden} · Pregunta {actual.pregunta_actual_orden}
+          </span>
+        )}
+        <span style={s.estadoMeta}>{resultados.total} voto(s)</span>
       </div>
 
       {error && <p style={s.error}>{error}</p>}
 
-      {/* ---------- ASISTENCIA ---------- */}
-      <div style={s.card}>
-        <h2 style={s.h2}>Asistencia</h2>
-        <p style={s.big}>{asistencia.total_presentes} / {asistencia.total_habilitados}</p>
-        {esAdmin && sesion.estado === "creada" && (
-          <button onClick={() => accion(() => sesiones.abrirAsistencia(sesionId))} style={s.primaryBtn}>Abrir asistencia</button>
-        )}
-        {asistencia.presentes.length > 0 && (
-          <div style={s.miniList}>
-            {asistencia.presentes.map((p) => (
-              <p key={p.alumno_id} style={s.miniItem}>{p.alumnos?.nombre}</p>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ---------- ENCUESTA ---------- */}
-      <div style={s.card}>
-        <h2 style={s.h2}>Encuesta en vivo</h2>
-        {esAdmin && sesion.estado === "asistencia" && (
-          <button onClick={() => accion(() => sesiones.abrirEncuesta(sesionId))} style={s.primaryBtn}>Abrir encuesta</button>
-        )}
-        {(sesion.estado === "encuesta" || sesion.estado === "en_curso" || sesion.estado === "finalizada") && (
-          <>
-            {Object.entries(PAQUETES).map(([key, label]) => (
-              <div key={key} style={s.votoRow}>
-                <span style={s.votoLabel}>{label}</span>
-                <span style={s.votoCount}>{encuesta[key]}</span>
-              </div>
-            ))}
-            <p style={s.muted}>{totalVotos} votos totales</p>
-          </>
-        )}
-        {esAdmin && sesion.estado === "encuesta" && (
-          <button onClick={() => accion(() => sesiones.cerrarEncuesta(sesionId))} style={s.primaryBtn}>Cerrar encuesta e iniciar examen</button>
-        )}
-        {sesion.paquete_elegido && (
-          <p style={s.paqueteElegido}>Paquete elegido: {PAQUETES[sesion.paquete_elegido]}</p>
-        )}
-      </div>
-
-      {(sesion.estado === "en_curso" || sesion.estado === "finalizada") && (
-        <div style={s.linksRow}>
-          <button onClick={() => navigate(`/admin/sesion/${sesionId}/resultados`)} style={s.secondaryBtn}>Ver resultados</button>
-          <button onClick={() => navigate(`/admin/sesion/${sesionId}/analisis`)} style={s.secondaryBtn}>Ver análisis</button>
+      {actual?.caso && (
+        <div style={s.casoBox}>
+          <p style={s.casoTitulo}>{actual.caso.titulo}</p>
+          <p style={s.vineta}>{actual.caso.vineta_clinica}</p>
+          {actual.caso.media_url && (
+            <div style={s.mediaWrap}>
+              {actual.caso.media_tipo === "video" ? (
+                <video src={actual.caso.media_url} controls style={s.mediaCaso} />
+              ) : (
+                <img src={actual.caso.media_url} alt="" style={s.mediaCaso} />
+              )}
+            </div>
+          )}
         </div>
+      )}
+
+      {actual?.pregunta ? (
+        <div style={s.grid2}>
+          <div style={s.preguntaBox}>
+            <p style={s.pregunta}>{actual.pregunta}</p>
+
+            {actual.media_url && (
+              <div style={s.mediaWrap}>
+                {actual.media_tipo === "video" ? (
+                  <video src={actual.media_url} controls style={s.mediaPregunta} />
+                ) : (
+                  <img src={actual.media_url} alt="" style={s.mediaPregunta} />
+                )}
+              </div>
+            )}
+
+            <div style={s.opciones}>
+              {actual.opciones?.map((op, i) => {
+                const votosOpcion = resultados.conteo?.[i] || 0;
+                const esCorrecta = estado === "cerrada" && actual.correcta === i;
+                return (
+                  <div key={i} style={{ ...s.opcion, ...(esCorrecta ? s.opcionCorrecta : {}) }}>
+                    <span style={s.opcionTexto}>{op}</span>
+                    <span style={s.opcionVotos}>{votosOpcion}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {estado === "cerrada" && actual.explicacion && (
+              <div style={s.explicacionBox}>
+                <p style={s.explicacionTitulo}>Fundamento</p>
+                <p style={s.explicacionTexto}>{actual.explicacion}</p>
+                {actual.fuentes?.length > 0 && (
+                  <p style={s.fuentes}>Fuente: {actual.fuentes.join(", ")}</p>
+                )}
+              </div>
+            )}
+
+            <div style={s.controles}>
+              {estado === "esperando" && (
+                <button onClick={() => ejecutarAccion("abrir_votacion")} disabled={procesando} style={s.btnPrimario}>
+                  Abrir votación
+                </button>
+              )}
+              {estado === "votando" && (
+                <button onClick={() => ejecutarAccion("cerrar_votacion")} disabled={procesando} style={s.btnPrimario}>
+                  Cerrar votación → discusión
+                </button>
+              )}
+              {estado === "discusion" && (
+                <button onClick={() => ejecutarAccion("revelar")} disabled={procesando} style={s.btnPrimario}>
+                  Revelar respuesta
+                </button>
+              )}
+              {estado === "cerrada" && (
+                <button onClick={() => ejecutarAccion("siguiente")} disabled={procesando} style={s.btnPrimario}>
+                  Siguiente →
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div style={s.detalleBox}>
+            <h3 style={s.h3}>Quién ha votado</h3>
+            {detalle.length === 0 ? (
+              <p style={s.muted}>Nadie ha votado todavía.</p>
+            ) : (
+              <div style={s.detalleList}>
+                {detalle.map((v, i) => (
+                  <div key={i} style={s.detalleItem}>
+                    <span>{v.alumnos?.nombre}</span>
+                    <span style={s.detalleOpcion}>Opción {actual?.opciones?.[v.opcion]}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <p style={s.muted}>Sin pregunta activa (¿presentación finalizada?)</p>
       )}
     </div>
   );
 }
 
 const s = {
-  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "20px 16px 40px", fontFamily: "sans-serif" },
-  headerRow: { display: "flex", alignItems: "center", gap: 12, marginBottom: 4 },
-  back: { background: "none", border: "none", color: "#94A3B8", fontSize: 14, cursor: "pointer" },
-  title: { fontSize: 17, margin: 0 },
-  estado: { color: "#94A3B8", fontSize: 12, textTransform: "capitalize", marginBottom: 16 },
-  qrBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: 16, marginBottom: 18, textAlign: "center" },
-  qrImg: { width: 160, height: 160, borderRadius: 8, background: "#F4F1EA", padding: 8, marginBottom: 10 },
-  linkLabel: { fontSize: 10.5, color: "#4FC3D9", margin: 0, textTransform: "uppercase" },
-  linkValue: { fontSize: 12, color: "#F4F1EA", margin: "4px 0 0", wordBreak: "break-all" },
+  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "24px 32px 60px", fontFamily: "sans-serif" },
+  header: { display: "flex", alignItems: "center", marginBottom: 16 },
+  back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer" },
+
+  qrBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 20, marginBottom: 20, textAlign: "center", maxWidth: 280 },
+  qrImg: { width: 200, height: 200, borderRadius: 8, background: "#F4F1EA", padding: 10, marginBottom: 10 },
+  codigoLabel: { fontSize: 11, color: "#94A3B8", margin: 0 },
+  codigo: { fontSize: 26, fontWeight: 800, letterSpacing: 4, color: "#4FC3D9", margin: "2px 0" },
+  link: { fontSize: 11, color: "#94A3B8", margin: 0, wordBreak: "break-all" },
+
+  estadoBar: { display: "flex", alignItems: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" },
+  estadoBadge: { background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 20, padding: "6px 14px", fontSize: 13, fontWeight: 600, color: "#94A3B8" },
+  estadoBadgeActiva: { background: "rgba(79,195,217,0.15)", borderColor: "#4FC3D9", color: "#4FC3D9" },
+  estadoMeta: { fontSize: 13, color: "#94A3B8" },
+
   error: { color: "#D1495B", fontSize: 13, marginBottom: 12 },
-  card: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 16, marginBottom: 14 },
-  h2: { fontSize: 14, margin: "0 0 8px" },
-  big: { fontSize: 28, fontWeight: 700, margin: "0 0 10px" },
-  muted: { color: "#94A3B8", fontSize: 12.5 },
-  primaryBtn: { width: "100%", background: "#4FC3D9", border: "none", borderRadius: 8, color: "#0E1526", padding: "11px 0", fontSize: 14, fontWeight: 600, cursor: "pointer", marginBottom: 8 },
-  secondaryBtn: { flex: 1, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, color: "#F4F1EA", padding: "12px 8px", fontSize: 13, cursor: "pointer" },
-  linksRow: { display: "flex", gap: 8 },
-  miniList: { marginTop: 8, maxHeight: 140, overflowY: "auto" },
-  miniItem: { fontSize: 12.5, color: "#94A3B8", margin: "3px 0" },
-  votoRow: { display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(244,241,233,0.08)" },
-  votoLabel: { fontSize: 13.5 },
-  votoCount: { fontSize: 13.5, fontWeight: 600, color: "#4FC3D9" },
-  paqueteElegido: { marginTop: 10, fontSize: 13, color: "#7FB685" },
+  muted: { color: "#94A3B8", fontSize: 14 },
+  casoBox: { marginBottom: 20 },
+  casoTitulo: { fontSize: 22, fontWeight: 700, margin: "0 0 6px" },
+  vineta: { fontSize: 15, color: "#C7CDD9", lineHeight: 1.5, margin: 0, maxWidth: 800 },
+  mediaWrap: { marginTop: 12 },
+  mediaCaso: { maxWidth: "100%", maxHeight: 360, borderRadius: 10, background: "#000" },
+  mediaPregunta: { maxWidth: "100%", maxHeight: 420, borderRadius: 10, background: "#000", marginBottom: 4 },
+
+  grid2: { display: "flex", flexWrap: "wrap", gap: 20 },
+  preguntaBox: { flex: "2 1 420px", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 24 },
+  pregunta: { fontSize: 20, fontWeight: 600, margin: "0 0 12px" },
+  opciones: { display: "flex", flexDirection: "column", gap: 8, marginTop: 18 },
+  opcion: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "12px 16px" },
+  opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
+  opcionTexto: { fontSize: 15 },
+  opcionVotos: { background: "#4FC3D9", color: "#0E1526", fontWeight: 700, fontSize: 13, borderRadius: 20, padding: "2px 12px", minWidth: 20, textAlign: "center" },
+  explicacionBox: { marginTop: 18, paddingTop: 18, borderTop: "1px solid rgba(244,241,233,0.12)" },
+  explicacionTitulo: { fontSize: 12, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 6px" },
+  explicacionTexto: { fontSize: 15, lineHeight: 1.6, margin: 0, color: "#F4F1EA" },
+  fuentes: { fontSize: 12, color: "#94A3B8", marginTop: 8 },
+  controles: { marginTop: 20 },
+  btnPrimario: { background: "#4FC3D9", border: "none", borderRadius: 10, color: "#0E1526", padding: "14px 28px", fontSize: 16, fontWeight: 700, cursor: "pointer" },
+
+  detalleBox: { flex: "1 1 260px", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 18, alignSelf: "flex-start" },
+  h3: { fontSize: 13, marginBottom: 10 },
+  detalleList: { display: "flex", flexDirection: "column", gap: 6 },
+  detalleItem: { display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 0", borderBottom: "1px solid rgba(244,241,233,0.06)" },
+  detalleOpcion: { color: "#94A3B8" },
 };
-    
