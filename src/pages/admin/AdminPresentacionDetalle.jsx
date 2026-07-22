@@ -10,7 +10,6 @@ export default function AdminPresentacionDetalle() {
   const [todosLosCasos, setTodosLosCasos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
-  const [iniciando, setIniciando] = useState(false);
 
   useEffect(() => {
     cargar();
@@ -59,19 +58,6 @@ export default function AdminPresentacionDetalle() {
     }
   }
 
-  async function handleIniciarSesion() {
-    setError("");
-    setIniciando(true);
-    try {
-      const sesion = await casosVivoAdmin.iniciarSesion(presentacionId);
-      navigate(`/admin/vivo/${sesion.id}`);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIniciando(false);
-    }
-  }
-
   if (cargando) {
     return (
       <div style={s.wrap}>
@@ -110,14 +96,6 @@ export default function AdminPresentacionDetalle() {
                 </div>
               ))}
           </div>
-
-          <button
-            onClick={handleIniciarSesion}
-            disabled={casosDeLaPresentacion.length === 0 || iniciando}
-            style={s.iniciarBtn}
-          >
-            {iniciando ? "Iniciando..." : "▶ Iniciar sesión en vivo"}
-          </button>
         </div>
 
         <div>
@@ -166,6 +144,4 @@ const s = {
   quitarBtn: { background: "none", border: "1px solid rgba(209,73,91,0.4)", color: "#D1495B", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" },
   itemBanco: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "10px 12px" },
   agregarBtn: { background: "#4FC3D9", border: "none", borderRadius: 6, color: "#0E1526", padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" },
-  iniciarBtn: { background: "#4FC3D9", border: "none", borderRadius: 8, color: "#0E1526", padding: "13px 20px", fontSize: 15, fontWeight: 700, cursor: "pointer", width: "100%" },
 };
-      
