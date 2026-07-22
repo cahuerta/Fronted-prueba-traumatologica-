@@ -22,6 +22,7 @@ export default function AdminCasosVivo() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [region, setRegion] = useState("");
+  const [borrandoId, setBorrandoId] = useState(null);
 
   useEffect(() => {
     cargar();
@@ -44,15 +45,28 @@ export default function AdminCasosVivo() {
     return REGIONES.find((r) => r.valor === valor)?.etiqueta || valor;
   }
 
+  async function handleBorrar(e, casoId) {
+    e.stopPropagation();
+    setError("");
+    setBorrandoId(casoId);
+    try {
+      await casosVivoAdmin.borrarCaso(casoId);
+      cargar();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBorrandoId(null);
+    }
+  }
+
   return (
     <div style={s.wrap}>
       <header style={s.header}>
         <button onClick={() => navigate("/admin/dashboard")} style={s.back}>‹ Volver</button>
-        <h1 style={s.h1}>Casos clínicos — presentación en vivo</h1>
+        <h1 style={s.h1}>Casos clínicos</h1>
       </header>
 
       <div style={s.actions}>
-        <button onClick={() => navigate("/admin/presentaciones")} style={s.actionBtn}>Presentaciones</button>
         <button onClick={() => navigate("/admin/casos-vivo/nuevo")} style={s.newBtn}>+ Nuevo caso</button>
       </div>
 
@@ -70,11 +84,20 @@ export default function AdminCasosVivo() {
       ) : (
         <div style={s.grid}>
           {lista.map((c) => (
-            <button key={c.id} onClick={() => navigate(`/admin/casos-vivo/${c.id}`)} style={s.card}>
-              <p style={s.cardRegion}>{etiquetaDeRegion(c.region)}</p>
-              <p style={s.cardTitle}>{c.titulo}</p>
-              <p style={s.cardVineta}>{c.vineta_clinica?.slice(0, 100)}{c.vineta_clinica?.length > 100 ? "…" : ""}</p>
-            </button>
+            <div key={c.id} style={s.card}>
+              <button onClick={() => navigate(`/admin/casos-vivo/${c.id}`)} style={s.cardMain}>
+                <p style={s.cardRegion}>{etiquetaDeRegion(c.region)}</p>
+                <p style={s.cardTitle}>{c.titulo}</p>
+                <p style={s.cardVineta}>{c.vineta_clinica?.slice(0, 100)}{c.vineta_clinica?.length > 100 ? "…" : ""}</p>
+              </button>
+              <button
+                onClick={(e) => handleBorrar(e, c.id)}
+                disabled={borrandoId === c.id}
+                style={s.borrarBtn}
+              >
+                {borrandoId === c.id ? "Borrando..." : "Borrar caso"}
+              </button>
+            </div>
           ))}
         </div>
       )}
@@ -87,15 +110,16 @@ const s = {
   header: { display: "flex", alignItems: "center", gap: 16, marginBottom: 24 },
   back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer" },
   h1: { fontSize: 20, margin: 0 },
-  actions: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12 },
-  actionBtn: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, color: "#F4F1EA", padding: "10px 16px", fontSize: 13, cursor: "pointer" },
+  actions: { display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 16, gap: 12 },
   newBtn: { background: "#4FC3D9", border: "none", borderRadius: 8, color: "#0E1526", padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" },
   filtro: { width: "100%", maxWidth: 360, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "9px 12px", color: "#F4F1EA", fontSize: 14, marginBottom: 20 },
   error: { color: "#D1495B", fontSize: 13, marginBottom: 12 },
   muted: { color: "#94A3B8", fontSize: 13 },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 },
-  card: { display: "flex", flexDirection: "column", gap: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: "16px 18px", cursor: "pointer", textAlign: "left" },
+  card: { display: "flex", flexDirection: "column", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, overflow: "hidden" },
+  cardMain: { display: "flex", flexDirection: "column", gap: 6, background: "none", border: "none", padding: "16px 18px", cursor: "pointer", textAlign: "left" },
   cardRegion: { color: "#4FC3D9", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, margin: 0, fontWeight: 600 },
   cardTitle: { color: "#F4F1EA", fontSize: 15, fontWeight: 600, margin: 0 },
   cardVineta: { color: "#94A3B8", fontSize: 12, margin: 0, lineHeight: 1.4 },
+  borrarBtn: { background: "none", border: "none", borderTop: "1px solid rgba(209,73,91,0.25)", color: "#D1495B", padding: "10px 0", fontSize: 13, fontWeight: 600, cursor: "pointer" },
 };
