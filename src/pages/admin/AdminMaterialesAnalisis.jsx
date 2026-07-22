@@ -2,6 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { materiales } from "../../api/client";
 
+const REGION_LABEL = {
+  hombro: "Hombro",
+  codo: "Codo",
+  mano_muneca: "Mano y muñeca",
+  columna: "Columna",
+  cadera_pelvis: "Cadera y pelvis",
+  rodilla: "Rodilla",
+  tobillo_pie: "Tobillo y pie",
+  ortogeriatria: "Ortogeriatría",
+  imagenologia: "Imagenología",
+  ciencias_basicas: "Ciencias básicas",
+};
+
 export default function AdminMaterialesAnalisis() {
   const navigate = useNavigate();
 
@@ -41,7 +54,7 @@ export default function AdminMaterialesAnalisis() {
               {data.por_material.map((m) => (
                 <div key={m.material_id} style={s.card}>
                   <div>
-                    <p style={s.cardMeta}>{m.region} · {m.tipo}</p>
+                    <p style={s.cardMeta}>{REGION_LABEL[m.region] || m.region} · {m.tipo}</p>
                     <p style={s.cardTitle}>{m.titulo}</p>
                   </div>
                   <div style={{ textAlign: "right" }}>
