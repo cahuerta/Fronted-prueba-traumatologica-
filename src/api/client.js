@@ -163,11 +163,11 @@ export const casosVivoAdmin = {
   // una, en orden, con Claude generando solo las 4 alternativas falsas.
   generarAlternativasPreguntaCaso: (casoId, data) =>
     request(`/casos-vivo/casos/${casoId}/preguntas/generar-alternativas`, { method: "POST", body: data, auth: true }),
-  subirMediaPreguntaCaso: (tipo, archivo) => {
+  subirMediaPreguntaCaso: (casoId, tipo, archivo) => {
     const formData = new FormData();
     formData.append("tipo", tipo);
     formData.append("archivo", archivo);
-    return requestArchivo("/casos-vivo/casos/media-pregunta-placeholder", formData); // ver nota abajo
+    return requestArchivo(`/casos-vivo/casos/${casoId}/preguntas/media`, formData);
   },
   crearPreguntaCaso: (casoId, data) =>
     request(`/casos-vivo/casos/${casoId}/preguntas`, { method: "POST", body: data, auth: true }),
@@ -213,4 +213,4 @@ export const casosVivoAlumno = {
     request("/casos-vivo/vivo/votar", { method: "POST", body: { sesion_id: sesionId, alumno_id: alumnoId, pregunta_id: preguntaId, opcion } }),
   resultados: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/resultados`),
 };
-  
+                                                                             
