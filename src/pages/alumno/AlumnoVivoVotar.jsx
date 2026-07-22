@@ -71,7 +71,18 @@ export default function AlumnoVivoVotar() {
         <div style={s.casoBox}>
           <p style={s.casoTitulo}>{actual.caso.titulo}</p>
           {estado === "esperando" && actual.pregunta_actual_orden === 1 && (
-            <p style={s.vineta}>{actual.caso.vineta_clinica}</p>
+            <>
+              <p style={s.vineta}>{actual.caso.vineta_clinica}</p>
+              {actual.caso.media_url && (
+                <div style={s.mediaWrap}>
+                  {actual.caso.media_tipo === "video" ? (
+                    <video src={actual.caso.media_url} controls style={s.media} />
+                  ) : (
+                    <img src={actual.caso.media_url} alt="" style={s.media} />
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -83,6 +94,16 @@ export default function AlumnoVivoVotar() {
       {actual.pregunta && estado !== "esperando" && (
         <>
           <p style={s.pregunta}>{actual.pregunta}</p>
+
+          {actual.media_url && (
+            <div style={s.mediaWrap}>
+              {actual.media_tipo === "video" ? (
+                <video src={actual.media_url} controls style={s.media} />
+              ) : (
+                <img src={actual.media_url} alt="" style={s.media} />
+              )}
+            </div>
+          )}
 
           <div style={s.opciones}>
             {actual.opciones?.map((op, i) => {
@@ -131,9 +152,11 @@ const s = {
   casoBox: { marginBottom: 20 },
   casoTitulo: { fontSize: 17, fontWeight: 700, margin: "0 0 8px" },
   vineta: { fontSize: 14, color: "#C7CDD9", lineHeight: 1.5, margin: 0 },
+  mediaWrap: { marginTop: 12, marginBottom: 12 },
+  media: { width: "100%", maxHeight: 320, borderRadius: 10, background: "#000", objectFit: "cover" },
   esperando: { color: "#94A3B8", fontSize: 15, textAlign: "center", marginTop: 40 },
-  pregunta: { fontSize: 17, fontWeight: 600, lineHeight: 1.4, margin: "0 0 18px" },
-  opciones: { display: "flex", flexDirection: "column", gap: 10 },
+  pregunta: { fontSize: 17, fontWeight: 600, lineHeight: 1.4, margin: "0 0 12px" },
+  opciones: { display: "flex", flexDirection: "column", gap: 10, marginTop: 12 },
   opcion: { background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 10, color: "#F4F1EA", padding: "14px 16px", fontSize: 15, textAlign: "left", cursor: "pointer" },
   opcionDeshabilitada: { opacity: 0.5 },
   opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.1)" },
@@ -143,4 +166,4 @@ const s = {
   explicacionTexto: { fontSize: 14, lineHeight: 1.6, margin: 0 },
   error: { color: "#D1495B", fontSize: 13, marginTop: 12, textAlign: "center" },
 };
-            
+           
