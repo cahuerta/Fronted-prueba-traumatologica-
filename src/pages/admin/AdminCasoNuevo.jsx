@@ -128,7 +128,7 @@ export default function AdminCasoNuevo() {
       let media_url = null;
       let media_tipo = null;
       if (archivoPregunta) {
-        const subida = await casosVivoAdmin.subirMediaPreguntaCaso(tipoMediaPregunta, archivoPregunta);
+        const subida = await casosVivoAdmin.subirMediaPreguntaCaso(casoId, tipoMediaPregunta, archivoPregunta);
         media_url = subida.media_url;
         media_tipo = subida.media_tipo;
       }
@@ -445,4 +445,4 @@ const s = {
   fuentes: { color: "#94A3B8", fontSize: 12, marginTop: 6 },
   finBtn: { marginTop: 10, background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#F4F1EA", padding: "11px 18px", fontSize: 14, cursor: "pointer" },
 };
-                    
+    
