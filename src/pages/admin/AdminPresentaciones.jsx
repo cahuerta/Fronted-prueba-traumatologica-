@@ -21,6 +21,7 @@ export default function AdminPresentaciones() {
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [iniciandoId, setIniciandoId] = useState(null);
 
   const [mostrarForm, setMostrarForm] = useState(false);
   const [titulo, setTitulo] = useState("");
@@ -58,6 +59,19 @@ export default function AdminPresentaciones() {
       setError(err.message);
     } finally {
       setGuardando(false);
+    }
+  }
+
+  async function handleIniciar(presentacionId) {
+    setError("");
+    setIniciandoId(presentacionId);
+    try {
+      const sesion = await casosVivoAdmin.iniciarSesion(presentacionId);
+      navigate(`/admin/vivo/${sesion.id}`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIniciandoId(null);
     }
   }
 
@@ -105,10 +119,19 @@ export default function AdminPresentaciones() {
       ) : (
         <div style={s.grid}>
           {lista.map((p) => (
-            <button key={p.id} onClick={() => navigate(`/admin/presentaciones/${p.id}`)} style={s.card}>
-              {p.region && <p style={s.cardRegion}>{etiquetaDeRegion(p.region)}</p>}
-              <p style={s.cardTitle}>{p.titulo}</p>
-            </button>
+            <div key={p.id} style={s.card}>
+              <button onClick={() => navigate(`/admin/presentaciones/${p.id}`)} style={s.cardMain}>
+                {p.region && <p style={s.cardRegion}>{etiquetaDeRegion(p.region)}</p>}
+                <p style={s.cardTitle}>{p.titulo}</p>
+              </button>
+              <button
+                onClick={() => handleIniciar(p.id)}
+                disabled={iniciandoId === p.id}
+                style={s.iniciarBtn}
+              >
+                {iniciandoId === p.id ? "Iniciando..." : "▶ Iniciar"}
+              </button>
+            </div>
           ))}
         </div>
       )}
@@ -131,7 +154,9 @@ const s = {
   error: { color: "#D1495B", fontSize: 13, marginBottom: 12 },
   muted: { color: "#94A3B8", fontSize: 13 },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 },
-  card: { display: "flex", flexDirection: "column", gap: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: "16px 18px", cursor: "pointer", textAlign: "left" },
+  card: { display: "flex", flexDirection: "column", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, overflow: "hidden" },
+  cardMain: { display: "flex", flexDirection: "column", gap: 6, background: "none", border: "none", padding: "16px 18px", cursor: "pointer", textAlign: "left" },
   cardRegion: { color: "#4FC3D9", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, margin: 0, fontWeight: 600 },
   cardTitle: { color: "#F4F1EA", fontSize: 15, fontWeight: 600, margin: 0 },
+  iniciarBtn: { background: "#4FC3D9", border: "none", borderTop: "1px solid rgba(0,0,0,0.15)", color: "#0E1526", padding: "10px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" },
 };
