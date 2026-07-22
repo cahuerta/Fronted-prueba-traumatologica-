@@ -87,6 +87,15 @@ export default function AdminVivo() {
         <div style={s.casoBox}>
           <p style={s.casoTitulo}>{actual.caso.titulo}</p>
           <p style={s.vineta}>{actual.caso.vineta_clinica}</p>
+          {actual.caso.media_url && (
+            <div style={s.mediaWrap}>
+              {actual.caso.media_tipo === "video" ? (
+                <video src={actual.caso.media_url} controls style={s.mediaCaso} />
+              ) : (
+                <img src={actual.caso.media_url} alt="" style={s.mediaCaso} />
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -96,6 +105,16 @@ export default function AdminVivo() {
             Caso {actual.caso_actual_orden} · Pregunta {actual.pregunta_actual_orden}
           </p>
           <p style={s.pregunta}>{actual.pregunta}</p>
+
+          {actual.media_url && (
+            <div style={s.mediaWrap}>
+              {actual.media_tipo === "video" ? (
+                <video src={actual.media_url} controls style={s.mediaPregunta} />
+              ) : (
+                <img src={actual.media_url} alt="" style={s.mediaPregunta} />
+              )}
+            </div>
+          )}
 
           <div style={s.opciones}>
             {actual.opciones?.map((op, i) => {
@@ -180,10 +199,13 @@ const s = {
   casoBox: { marginBottom: 20 },
   casoTitulo: { fontSize: 22, fontWeight: 700, margin: "0 0 6px" },
   vineta: { fontSize: 15, color: "#C7CDD9", lineHeight: 1.5, margin: 0, maxWidth: 800 },
+  mediaWrap: { marginTop: 12 },
+  mediaCaso: { maxWidth: "100%", maxHeight: 360, borderRadius: 10, background: "#000" },
+  mediaPregunta: { maxWidth: "100%", maxHeight: 420, borderRadius: 10, background: "#000", marginBottom: 4 },
   preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 24, marginBottom: 20 },
   preguntaMeta: { fontSize: 12, color: "#4FC3D9", fontWeight: 600, margin: "0 0 8px", textTransform: "uppercase" },
-  pregunta: { fontSize: 20, fontWeight: 600, margin: "0 0 18px" },
-  opciones: { display: "flex", flexDirection: "column", gap: 8 },
+  pregunta: { fontSize: 20, fontWeight: 600, margin: "0 0 12px" },
+  opciones: { display: "flex", flexDirection: "column", gap: 8, marginTop: 18 },
   opcion: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "12px 16px" },
   opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
   opcionTexto: { fontSize: 15 },
@@ -201,4 +223,4 @@ const s = {
   detalleItem: { display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 0", borderBottom: "1px solid rgba(244,241,233,0.06)" },
   detalleOpcion: { color: "#94A3B8" },
 };
-    
+                
