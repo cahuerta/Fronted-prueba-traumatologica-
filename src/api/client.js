@@ -145,6 +145,7 @@ export const casosVivoAdmin = {
   crearCaso: (data) => request("/casos-vivo/casos", { method: "POST", body: data, auth: true }),
   listarCasos: (region) => request(`/casos-vivo/casos${region ? `?region=${region}` : ""}`, { auth: true }),
   obtenerCaso: (casoId) => request(`/casos-vivo/casos/${casoId}`, { auth: true }),
+  borrarCaso: (casoId) => request(`/casos-vivo/casos/${casoId}`, { method: "DELETE", auth: true }),
 
   subirMediaCaso: (tipo, archivo) => {
     const formData = new FormData();
@@ -190,6 +191,7 @@ export const casosVivoAdmin = {
   crearPresentacion: (data) => request("/casos-vivo/presentaciones", { method: "POST", body: data, auth: true }),
   listarPresentaciones: () => request("/casos-vivo/presentaciones", { auth: true }),
   obtenerPresentacion: (id) => request(`/casos-vivo/presentaciones/${id}`, { auth: true }),
+  borrarPresentacion: (presentacionId) => request(`/casos-vivo/presentaciones/${presentacionId}`, { method: "DELETE", auth: true }),
   agregarCasoPresentacion: (presentacionId, casoId, orden) =>
     request(`/casos-vivo/presentaciones/${presentacionId}/casos`, { method: "POST", body: { caso_id: casoId, orden }, auth: true }),
   quitarCasoPresentacion: (presentacionId, presentacionCasoId) =>
@@ -213,4 +215,3 @@ export const casosVivoAlumno = {
     request("/casos-vivo/vivo/votar", { method: "POST", body: { sesion_id: sesionId, alumno_id: alumnoId, pregunta_id: preguntaId, opcion } }),
   resultados: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/resultados`),
 };
-                                                                             
