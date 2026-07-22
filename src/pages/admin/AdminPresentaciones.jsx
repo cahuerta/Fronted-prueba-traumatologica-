@@ -2,6 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { casosVivoAdmin } from "../../api/client";
 
+const REGIONES = [
+  { valor: "hombro", etiqueta: "Hombro" },
+  { valor: "codo", etiqueta: "Codo" },
+  { valor: "mano_muneca", etiqueta: "Mano y muñeca" },
+  { valor: "columna", etiqueta: "Columna" },
+  { valor: "cadera_pelvis", etiqueta: "Cadera y pelvis" },
+  { valor: "rodilla", etiqueta: "Rodilla" },
+  { valor: "tobillo_pie", etiqueta: "Tobillo y pie" },
+  { valor: "ortogeriatria", etiqueta: "Ortogeriatría" },
+  { valor: "imagenologia", etiqueta: "Imagenología" },
+  { valor: "ciencias_basicas", etiqueta: "Ciencias básicas" },
+];
+
 export default function AdminPresentaciones() {
   const navigate = useNavigate();
 
@@ -48,6 +61,10 @@ export default function AdminPresentaciones() {
     }
   }
 
+  function etiquetaDeRegion(valor) {
+    return REGIONES.find((r) => r.valor === valor)?.etiqueta || valor;
+  }
+
   return (
     <div style={s.wrap}>
       <header style={s.header}>
@@ -68,7 +85,10 @@ export default function AdminPresentaciones() {
           <input value={titulo} onChange={(e) => setTitulo(e.target.value)} required style={s.input} />
 
           <label style={s.label}>Región (opcional)</label>
-          <input value={region} onChange={(e) => setRegion(e.target.value)} style={s.input} />
+          <select value={region} onChange={(e) => setRegion(e.target.value)} style={s.input}>
+            <option value="">Sin región específica</option>
+            {REGIONES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
+          </select>
 
           <button type="submit" disabled={guardando} style={s.submitBtn}>
             {guardando ? "Creando..." : "Crear y armar →"}
@@ -86,7 +106,7 @@ export default function AdminPresentaciones() {
         <div style={s.grid}>
           {lista.map((p) => (
             <button key={p.id} onClick={() => navigate(`/admin/presentaciones/${p.id}`)} style={s.card}>
-              {p.region && <p style={s.cardRegion}>{p.region}</p>}
+              {p.region && <p style={s.cardRegion}>{etiquetaDeRegion(p.region)}</p>}
               <p style={s.cardTitle}>{p.titulo}</p>
             </button>
           ))}
@@ -115,4 +135,3 @@ const s = {
   cardRegion: { color: "#4FC3D9", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, margin: 0, fontWeight: 600 },
   cardTitle: { color: "#F4F1EA", fontSize: 15, fontWeight: 600, margin: 0 },
 };
-  
