@@ -9,6 +9,7 @@ import AdminSesion from "./pages/admin/AdminSesion";
 import AdminInterrogadores from "./pages/admin/AdminInterrogadores";
 import AdminResultados from "./pages/admin/AdminResultados";
 import AdminAnalisis from "./pages/admin/AdminAnalisis";
+import AdminExamen from "./pages/admin/AdminExamen";
 import GenerarDocumento from "./pages/documentos/GenerarDocumento";
 
 import AdminCasosVivo from "./pages/admin/AdminCasosVivo";
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/admin/interrogadores" element={<AdminInterrogadores />} />
         <Route path="/admin/sesion/:sesionId/resultados" element={<AdminResultados />} />
         <Route path="/admin/sesion/:sesionId/analisis" element={<AdminAnalisis />} />
+        <Route path="/admin/examen" element={<AdminExamen />} />
         <Route path="/admin/documentos" element={<GenerarDocumento />} />
 
         {/* ---------- Presentación dinámica en vivo (casos clínicos) — profesor ---------- */}
