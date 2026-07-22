@@ -33,18 +33,21 @@ export default function AdminCasoNuevo() {
   const [tipoMedia, setTipoMedia] = useState("foto");
   const [guardandoPaso1, setGuardandoPaso1] = useState(false);
 
-  // ---------------- Paso 2: escribir cada pregunta, secuencial ----------------
+  // ---------------- Paso 2: escribir/editar cada pregunta ----------------
+  const [editandoId, setEditandoId] = useState(null);
   const [preguntaTexto, setPreguntaTexto] = useState("");
   const [respuestaCorrecta, setRespuestaCorrecta] = useState("");
   const [tipoMediaPregunta, setTipoMediaPregunta] = useState("");
   const [archivoPregunta, setArchivoPregunta] = useState(null);
-  const [opciones, setOpciones] = useState(null); // null hasta generar con IA
+  const [mediaActual, setMediaActual] = useState(null);
+  const [quitarMediaActual, setQuitarMediaActual] = useState(false);
+  const [opciones, setOpciones] = useState(null);
   const [correctaIdx, setCorrectaIdx] = useState(null);
   const [generandoAlternativas, setGenerandoAlternativas] = useState(false);
   const [guardandoPregunta, setGuardandoPregunta] = useState(false);
 
   // ---------------- Paso 3: fundamento por pregunta ----------------
-  const [borradores, setBorradores] = useState({}); // { caso_pregunta_id: { explicacion, fuentes } }
+  const [borradores, setBorradores] = useState({});
   const [generandoFundamento, setGenerandoFundamento] = useState(null);
 
   useEffect(() => {
@@ -74,7 +77,7 @@ export default function AdminCasoNuevo() {
     setGuardandoPaso1(true);
     try {
       const payload = { region, titulo, vineta_clinica: vineta };
-      if (casoId) payload.caso_id = casoId; // presente => actualiza; ausente => crea
+      if (casoId) payload.caso_id = casoId;
 
       const guardado = await casosVivoAdmin.crearCaso(payload);
 
@@ -97,6 +100,31 @@ export default function AdminCasoNuevo() {
   const preguntasDelCaso = caso?.preguntas || [];
   const ordenesUsados = preguntasDelCaso.map((p) => p.orden);
   const siguienteOrden = [1, 2, 3, 4, 5].find((n) => !ordenesUsados.includes(n));
+
+  function limpiarFormularioPregunta() {
+    setEditandoId(null);
+    setPreguntaTexto("");
+    setRespuestaCorrecta("");
+    setOpciones(null);
+    setCorrectaIdx(null);
+    setTipoMediaPregunta("");
+    setArchivoPregunta(null);
+    setMediaActual(null);
+    setQuitarMediaActual(false);
+  }
+
+  function handleEmpezarEdicion(p) {
+    setError("");
+    setEditandoId(p.id);
+    setPreguntaTexto(p.pregunta);
+    setRespuestaCorrecta("");
+    setOpciones(p.opciones);
+    setCorrectaIdx(p.correcta);
+    setMediaActual(p.media_url ? { url: p.media_url, tipo: p.media_tipo } : null);
+    setQuitarMediaActual(false);
+    setTipoMediaPregunta("");
+    setArchivoPregunta(null);
+  }
 
   async function handleGenerarAlternativas() {
     setError("");
@@ -126,33 +154,37 @@ export default function AdminCasoNuevo() {
   }
 
   async function handleGuardarPregunta() {
-    if (!siguienteOrden) return;
     setError("");
     setGuardandoPregunta(true);
     try {
-      let media_url = null;
-      let media_tipo = null;
+      let media_url = mediaActual?.url || null;
+      let media_tipo = mediaActual?.tipo || null;
+
+      if (quitarMediaActual) {
+        media_url = null;
+        media_tipo = null;
+      }
       if (archivoPregunta) {
         const subida = await casosVivoAdmin.subirMediaPreguntaCaso(casoId, tipoMediaPregunta, archivoPregunta);
         media_url = subida.media_url;
         media_tipo = subida.media_tipo;
       }
 
-      await casosVivoAdmin.crearPreguntaCaso(casoId, {
-        orden: siguienteOrden,
+      const payload = {
         pregunta: preguntaTexto.trim(),
         opciones,
         correcta: correctaIdx,
         media_url,
         media_tipo,
-      });
+      };
 
-      setPreguntaTexto("");
-      setRespuestaCorrecta("");
-      setOpciones(null);
-      setCorrectaIdx(null);
-      setTipoMediaPregunta("");
-      setArchivoPregunta(null);
+      if (editandoId) {
+        await casosVivoAdmin.actualizarPreguntaCaso(casoId, editandoId, payload);
+      } else {
+        await casosVivoAdmin.crearPreguntaCaso(casoId, { ...payload, orden: siguienteOrden });
+      }
+
+      limpiarFormularioPregunta();
       await cargarCaso(casoId);
     } catch (err) {
       setError(err.message);
@@ -164,6 +196,7 @@ export default function AdminCasoNuevo() {
   async function handleQuitarPregunta(casoPreguntaId) {
     try {
       await casosVivoAdmin.quitarPreguntaCaso(casoId, casoPreguntaId);
+      if (editandoId === casoPreguntaId) limpiarFormularioPregunta();
       await cargarCaso(casoId);
     } catch (err) {
       setError(err.message);
@@ -202,6 +235,9 @@ export default function AdminCasoNuevo() {
       [casoPreguntaId]: { ...prev[casoPreguntaId], explicacion: texto },
     }));
   }
+
+  const puedeEscribirNueva = !editandoId && siguienteOrden;
+  const mostrarFormularioPregunta = editandoId || puedeEscribirNueva;
 
   return (
     <div style={s.wrap}>
@@ -275,9 +311,10 @@ export default function AdminCasoNuevo() {
                 .slice()
                 .sort((a, b) => a.orden - b.orden)
                 .map((p) => (
-                  <div key={p.id} style={s.itemOrdenado}>
+                  <div key={p.id} style={{ ...s.itemOrdenado, ...(editandoId === p.id ? s.itemEnEdicion : {}) }}>
                     <span style={s.orden}>{p.orden}</span>
                     <p style={s.itemTexto}>{p.pregunta}{p.media_url ? " 📷" : ""}</p>
+                    <button onClick={() => handleEmpezarEdicion(p)} style={s.editarBtn}>Editar</button>
                     <button onClick={() => handleQuitarPregunta(p.id)} style={s.quitarBtn}>Quitar</button>
                   </div>
                 ))}
@@ -293,10 +330,14 @@ export default function AdminCasoNuevo() {
 
           <div style={s.columna}>
             <h3 style={s.h3}>
-              {siguienteOrden ? `Escribir pregunta ${siguienteOrden}` : "Caso completo (5/5)"}
+              {editandoId
+                ? `Editando pregunta ${preguntasDelCaso.find((p) => p.id === editandoId)?.orden ?? ""}`
+                : siguienteOrden
+                  ? `Escribir pregunta ${siguienteOrden}`
+                  : "Caso completo (5/5)"}
             </h3>
 
-            {siguienteOrden && (
+            {mostrarFormularioPregunta && (
               <div style={s.form}>
                 <label style={s.label}>Enunciado de la pregunta</label>
                 <textarea
@@ -304,21 +345,35 @@ export default function AdminCasoNuevo() {
                   onChange={(e) => setPreguntaTexto(e.target.value)}
                   rows={3}
                   style={s.input}
-                  disabled={opciones !== null}
                 />
 
-                <label style={s.label}>Respuesta correcta</label>
-                <input
-                  value={respuestaCorrecta}
-                  onChange={(e) => setRespuestaCorrecta(e.target.value)}
-                  style={s.input}
-                  disabled={opciones !== null}
-                />
+                {!editandoId && (
+                  <>
+                    <label style={s.label}>Respuesta correcta</label>
+                    <input
+                      value={respuestaCorrecta}
+                      onChange={(e) => setRespuestaCorrecta(e.target.value)}
+                      style={s.input}
+                      disabled={opciones !== null}
+                    />
+                  </>
+                )}
 
                 <label style={s.label}>Foto o video de esta pregunta (opcional)</label>
+
+                {mediaActual && !quitarMediaActual && !archivoPregunta && (
+                  <div style={s.mediaActualBox}>
+                    <span style={s.mediaActualTexto}>Ya tiene {mediaActual.tipo === "video" ? "un video" : "una foto"} guardado</span>
+                    <button type="button" onClick={() => setQuitarMediaActual(true)} style={s.quitarBtn}>Quitar</button>
+                  </div>
+                )}
+                {quitarMediaActual && (
+                  <p style={s.mediaActualTexto}>Se quitará la foto/video al guardar.</p>
+                )}
+
                 <div style={s.mediaRow}>
                   <select value={tipoMediaPregunta} onChange={(e) => setTipoMediaPregunta(e.target.value)} style={s.select}>
-                    <option value="">Sin foto/video</option>
+                    <option value="">{mediaActual && !quitarMediaActual ? "Reemplazar por..." : "Sin foto/video"}</option>
                     <option value="foto">Foto</option>
                     <option value="video">Video</option>
                   </select>
@@ -326,7 +381,7 @@ export default function AdminCasoNuevo() {
                     <input
                       type="file"
                       accept={tipoMediaPregunta === "foto" ? "image/*" : "video/*"}
-                      onChange={(e) => setArchivoPregunta(e.target.files?.[0] || null)}
+                      onChange={(e) => { setArchivoPregunta(e.target.files?.[0] || null); setQuitarMediaActual(false); }}
                       style={s.fileInput}
                     />
                   )}
@@ -338,7 +393,7 @@ export default function AdminCasoNuevo() {
                   </button>
                 ) : (
                   <>
-                    <label style={s.label}>Alternativas (edítalas si quieres)</label>
+                    <label style={s.label}>Alternativas</label>
                     {opciones.map((op, i) => (
                       <div key={i} style={s.opcionRow}>
                         <button
@@ -356,11 +411,18 @@ export default function AdminCasoNuevo() {
                     ))}
 
                     <div style={s.btnRow}>
-                      <button onClick={() => { setOpciones(null); setCorrectaIdx(null); }} style={s.secondaryBtn}>
-                        Regenerar
-                      </button>
+                      {!editandoId && (
+                        <button onClick={() => { setOpciones(null); setCorrectaIdx(null); }} style={s.secondaryBtn}>
+                          Regenerar
+                        </button>
+                      )}
+                      {editandoId && (
+                        <button onClick={limpiarFormularioPregunta} style={s.secondaryBtn}>
+                          Cancelar
+                        </button>
+                      )}
                       <button onClick={handleGuardarPregunta} disabled={guardandoPregunta} style={s.submitBtn}>
-                        {guardandoPregunta ? "Guardando..." : `Guardar pregunta ${siguienteOrden}`}
+                        {guardandoPregunta ? "Guardando..." : editandoId ? "Guardar cambios" : `Guardar pregunta ${siguienteOrden}`}
                       </button>
                     </div>
                   </>
@@ -445,6 +507,8 @@ const s = {
   label: { fontSize: 11, color: "#94A3B8", marginTop: 12, marginBottom: 4 },
   input: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "9px 11px", color: "#F4F1EA", fontSize: 14, fontFamily: "sans-serif", width: "100%", boxSizing: "border-box" },
   mediaRow: { display: "flex", gap: 10, flexWrap: "wrap" },
+  mediaActualBox: { display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "8px 12px", marginBottom: 8 },
+  mediaActualTexto: { color: "#94A3B8", fontSize: 12.5, margin: 0 },
   select: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "9px 11px", color: "#F4F1EA", fontSize: 14 },
   fileInput: { flex: 1, color: "#94A3B8", fontSize: 13, minWidth: 160 },
   submitBtn: { marginTop: 16, background: "#4FC3D9", border: "none", borderRadius: 8, color: "#0E1526", padding: "11px 18px", fontSize: 14, fontWeight: 600, cursor: "pointer", alignSelf: "flex-start" },
@@ -453,9 +517,11 @@ const s = {
   columna: { flex: "1 1 320px", minWidth: 0 },
   h3: { fontSize: 14, marginBottom: 10 },
   list: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 },
-  itemOrdenado: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "10px 12px" },
+  itemOrdenado: { display: "flex", alignItems: "center", gap: 8, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "10px 12px", flexWrap: "wrap" },
+  itemEnEdicion: { border: "1px solid #4FC3D9" },
   orden: { background: "#4FC3D9", color: "#0E1526", fontWeight: 700, fontSize: 12, borderRadius: 6, padding: "2px 8px" },
-  itemTexto: { flex: 1, fontSize: 13, margin: 0, color: "#F4F1EA" },
+  itemTexto: { flex: 1, fontSize: 13, margin: 0, color: "#F4F1EA", minWidth: 140 },
+  editarBtn: { background: "none", border: "1px solid rgba(79,195,217,0.4)", color: "#4FC3D9", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" },
   quitarBtn: { background: "none", border: "1px solid rgba(209,73,91,0.4)", color: "#D1495B", borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer" },
   opcionRow: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 },
   letraBtn: { width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(244,241,233,0.2)", background: "transparent", color: "#94A3B8", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 },
