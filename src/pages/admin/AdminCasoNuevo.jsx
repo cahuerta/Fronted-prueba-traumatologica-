@@ -217,17 +217,21 @@ export default function AdminCasoNuevo() {
     }
   }
 
-  async function handleGuardarFundamento(casoPreguntaId) {
-    const b = borradores[casoPreguntaId];
-    if (!b) return;
-    setError("");
-    try {
-      await casosVivoAdmin.guardarFundamento(casoId, casoPreguntaId, b.explicacion, b.fuentes);
-      await cargarCaso(casoId);
-    } catch (err) {
-      setError(err.message);
-    }
+async function handleGuardarFundamento(casoPreguntaId) {
+  const b = borradores[casoPreguntaId];
+  if (!b) return;
+  setError("");
+  try {
+    await casosVivoAdmin.guardarFundamento(casoId, casoPreguntaId, b.explicacion, b.fuentes);
+    setBorradores((prev) => {
+      const { [casoPreguntaId]: _, ...resto } = prev;
+      return resto;
+    });
+    await cargarCaso(casoId);
+  } catch (err) {
+    setError(err.message);
   }
+}
 
   function handleCambiarBorrador(casoPreguntaId, texto) {
     setBorradores((prev) => ({
