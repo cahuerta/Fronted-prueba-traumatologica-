@@ -74,19 +74,24 @@ export default function AdminVivo() {
 
   const estado = actual?.estado || sesion?.estado || "esperando";
   const linkAlumno = sesion?.codigo_acceso ? `${APP_URL}/alumno-vivo/${sesion.codigo_acceso}` : "";
+  const qrUrl = linkAlumno
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(linkAlumno)}`
+    : "";
 
   return (
     <div style={s.wrap}>
       <header style={s.header}>
-        <button onClick={() => navigate("/admin/presentaciones")} style={s.back}>‹ Salir de la sesión</button>
-        {sesion?.codigo_acceso && (
-          <div style={s.codigoBox}>
-            <span style={s.codigoLabel}>Código de acceso</span>
-            <span style={s.codigo}>{sesion.codigo_acceso}</span>
-            <span style={s.link}>{linkAlumno}</span>
-          </div>
-        )}
+        <button onClick={() => navigate(-1)} style={s.back}>‹ Salir de la sesión</button>
       </header>
+
+      {sesion?.codigo_acceso && (
+        <div style={s.qrBox}>
+          <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
+          <p style={s.codigoLabel}>Código de acceso</p>
+          <p style={s.codigo}>{sesion.codigo_acceso}</p>
+          <p style={s.link}>{linkAlumno}</p>
+        </div>
+      )}
 
       <div style={s.estadoBar}>
         <span style={{ ...s.estadoBadge, ...(estado === "votando" ? s.estadoBadgeActiva : {}) }}>
@@ -205,12 +210,14 @@ export default function AdminVivo() {
 
 const s = {
   wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "24px 32px 60px", fontFamily: "sans-serif" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
+  header: { display: "flex", alignItems: "center", marginBottom: 16 },
   back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer" },
-  codigoBox: { display: "flex", flexDirection: "column", alignItems: "flex-end" },
-  codigoLabel: { fontSize: 11, color: "#94A3B8" },
-  codigo: { fontSize: 28, fontWeight: 800, letterSpacing: 4, color: "#4FC3D9" },
-  link: { fontSize: 11, color: "#94A3B8" },
+
+  qrBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 20, marginBottom: 20, textAlign: "center", maxWidth: 280 },
+  qrImg: { width: 200, height: 200, borderRadius: 8, background: "#F4F1EA", padding: 10, marginBottom: 10 },
+  codigoLabel: { fontSize: 11, color: "#94A3B8", margin: 0 },
+  codigo: { fontSize: 26, fontWeight: 800, letterSpacing: 4, color: "#4FC3D9", margin: "2px 0" },
+  link: { fontSize: 11, color: "#94A3B8", margin: 0, wordBreak: "break-all" },
 
   estadoBar: { display: "flex", alignItems: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" },
   estadoBadge: { background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 20, padding: "6px 14px", fontSize: 13, fontWeight: 600, color: "#94A3B8" },
