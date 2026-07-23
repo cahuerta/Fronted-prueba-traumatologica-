@@ -200,6 +200,8 @@ export const casosVivoAdmin = {
   // Control de la sesion en vivo (panel de proyeccion)
   iniciarSesion: (presentacionId) =>
     request("/casos-vivo/vivo/iniciar", { method: "POST", body: { presentacion_id: presentacionId }, auth: true }),
+  listarSesionesActivas: () => request("/casos-vivo/vivo", { auth: true }),
+  borrarSesion: (sesionId) => request(`/casos-vivo/vivo/${sesionId}`, { method: "DELETE", auth: true }),
   obtenerSesion: (sesionId) => request(`/casos-vivo/vivo/${sesionId}`, { auth: true }),
   detalleVotos: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/detalle`, { auth: true }),
   accionSesion: (sesionId, accion) =>
@@ -215,3 +217,4 @@ export const casosVivoAlumno = {
     request("/casos-vivo/vivo/votar", { method: "POST", body: { sesion_id: sesionId, alumno_id: alumnoId, pregunta_id: preguntaId, opcion } }),
   resultados: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/resultados`),
 };
+  
