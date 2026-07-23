@@ -11,11 +11,11 @@ export default function AdminCasosVivoHub() {
       </header>
 
       <div style={s.list}>
-        <button onClick={() => navigate("/admin/casos-vivo/nuevo")} style={s.btn}>
+        <button onClick={() => navigate("/admin/casos-vivo/lista")} style={s.btn}>
           <span style={s.letra}>A</span>
           <div>
             <p style={s.btnTitulo}>Crear caso clínico</p>
-            <p style={s.btnDesc}>Escribe la viñeta y las preguntas de un caso nuevo</p>
+            <p style={s.btnDesc}>Ver, editar o crear casos clínicos y sus preguntas</p>
           </div>
         </button>
 
