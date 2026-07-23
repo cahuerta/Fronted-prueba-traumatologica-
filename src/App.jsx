@@ -12,10 +12,12 @@ import AdminAnalisis from "./pages/admin/AdminAnalisis";
 import AdminExamen from "./pages/admin/AdminExamen";
 import GenerarDocumento from "./pages/documentos/GenerarDocumento";
 
+import AdminCasosVivoHub from "./pages/admin/AdminCasosVivoHub";
 import AdminCasosVivo from "./pages/admin/AdminCasosVivo";
 import AdminCasoNuevo from "./pages/admin/AdminCasoNuevo";
 import AdminPresentaciones from "./pages/admin/AdminPresentaciones";
 import AdminPresentacionDetalle from "./pages/admin/AdminPresentacionDetalle";
+import AdminIniciarPresentacion from "./pages/admin/AdminIniciarPresentacion";
 import AdminVivo from "./pages/admin/AdminVivo";
 
 import AlumnoIngreso from "./pages/alumno/AlumnoIngreso";
@@ -48,10 +50,12 @@ export default function App() {
         <Route path="/admin/documentos" element={<GenerarDocumento />} />
 
         {/* ---------- Presentación dinámica en vivo (casos clínicos) — profesor ---------- */}
-        <Route path="/admin/casos-vivo" element={<AdminCasosVivo />} />
+        <Route path="/admin/casos-vivo" element={<AdminCasosVivoHub />} />
+        <Route path="/admin/casos-vivo/lista" element={<AdminCasosVivo />} />
         <Route path="/admin/casos-vivo/nuevo" element={<AdminCasoNuevo />} />
         <Route path="/admin/casos-vivo/:casoId" element={<AdminCasoNuevo />} />
         <Route path="/admin/presentaciones" element={<AdminPresentaciones />} />
+        <Route path="/admin/presentaciones/iniciar" element={<AdminIniciarPresentacion />} />
         <Route path="/admin/presentaciones/:presentacionId" element={<AdminPresentacionDetalle />} />
         <Route path="/admin/vivo/:sesionId" element={<AdminVivo />} />
 
