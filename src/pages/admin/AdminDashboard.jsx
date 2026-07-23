@@ -26,27 +26,10 @@ export default function AdminDashboard() {
 
       <p style={s.seccionLabel}>Docencia</p>
 
-      {/* Presentación casos clínicos — destacada, con A/B/C */}
-      <div style={s.bigCard}>
-        <div style={s.bigCardHead}>
-          <span style={s.bigCardIcono}>🩺</span>
-          <p style={s.bigCardTitulo}>Presentación casos clínicos</p>
-        </div>
-        <div style={s.subRow}>
-          <button onClick={() => navigate("/admin/casos-vivo/nuevo")} style={s.subBtn}>
-            <span style={s.subLetra}>A</span>
-            <span>Crear caso</span>
-          </button>
-          <button onClick={() => navigate("/admin/presentaciones")} style={s.subBtn}>
-            <span style={s.subLetra}>B</span>
-            <span>Crear presentación</span>
-          </button>
-          <button onClick={() => navigate("/admin/presentaciones")} style={s.subBtnDestacado}>
-            <span style={s.subLetraDestacada}>C</span>
-            <span>Iniciar presentación</span>
-          </button>
-        </div>
-      </div>
+      <button onClick={() => navigate("/admin/casos-vivo")} style={s.bigBtn}>
+        <span style={s.bigBtnIcono}>🩺</span>
+        <p style={s.bigBtnTitulo}>Presentación casos clínicos</p>
+      </button>
 
       <div style={s.grid}>
         <button onClick={() => navigate("/admin/preguntas")} style={s.card}>
@@ -95,15 +78,9 @@ const s = {
   seccionLabel: { fontSize: 11, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 10px", fontWeight: 700 },
   seccionLabelAdmin: { fontSize: 11, color: ACENTO_ADMIN, textTransform: "uppercase", letterSpacing: 1, margin: "26px 0 10px", fontWeight: 700 },
 
-  bigCard: { background: "#16213A", border: `1px solid ${ACENTO}55`, borderRadius: 16, padding: 18, marginBottom: 14 },
-  bigCardHead: { display: "flex", alignItems: "center", gap: 10, marginBottom: 14 },
-  bigCardIcono: { fontSize: 22 },
-  bigCardTitulo: { color: "#F4F1EA", fontSize: 16, fontWeight: 700, margin: 0 },
-  subRow: { display: "flex", flexDirection: "column", gap: 8 },
-  subBtn: { display: "flex", alignItems: "center", gap: 10, background: "#0E1526", border: "1px solid rgba(244,241,233,0.1)", borderRadius: 10, color: "#C7CDD9", fontSize: 14, cursor: "pointer", padding: "12px 14px", textAlign: "left" },
-  subBtnDestacado: { display: "flex", alignItems: "center", gap: 10, background: ACENTO, border: "none", borderRadius: 10, color: "#0E1526", fontSize: 14, fontWeight: 700, cursor: "pointer", padding: "12px 14px", textAlign: "left" },
-  subLetra: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, borderRadius: 6, background: "rgba(79,195,217,0.18)", color: ACENTO, fontSize: 12, fontWeight: 800, flexShrink: 0 },
-  subLetraDestacada: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, borderRadius: 6, background: "rgba(14,21,38,0.25)", color: "#0E1526", fontSize: 12, fontWeight: 800, flexShrink: 0 },
+  bigBtn: { display: "flex", alignItems: "center", gap: 12, width: "100%", background: "#16213A", border: `1px solid ${ACENTO}55`, borderRadius: 16, padding: "20px 18px", cursor: "pointer", marginBottom: 14, boxSizing: "border-box" },
+  bigBtnIcono: { fontSize: 26 },
+  bigBtnTitulo: { color: "#F4F1EA", fontSize: 16, fontWeight: 700, margin: 0 },
 
   grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
   card: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, background: "#16213A", border: "1px solid rgba(244,241,233,0.1)", borderRadius: 14, padding: "16px 14px", cursor: "pointer" },
