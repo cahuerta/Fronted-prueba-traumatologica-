@@ -242,7 +242,7 @@ export default function AdminCasoNuevo() {
   return (
     <div style={s.wrap}>
       <header style={s.header}>
-        <button onClick={() => navigate("/admin/casos-vivo")} style={s.back}>‹ Casos clínicos</button>
+        <button onClick={() => navigate(-1)} style={s.back}>‹ Casos clínicos</button>
         <h1 style={s.h1}>{titulo || caso?.titulo || "Nuevo caso clínico"}</h1>
       </header>
 
@@ -489,6 +489,7 @@ export default function AdminCasoNuevo() {
     </div>
   );
 }
+
 
 const s = {
   wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "24px 32px 60px", fontFamily: "sans-serif" },
