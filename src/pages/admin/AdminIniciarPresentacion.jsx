@@ -108,6 +108,9 @@ export default function AdminIniciarPresentacion() {
                     <button onClick={() => navigate(`/admin/vivo/${ses.id}`)} style={s.continuarBtn}>
                       Continuar
                     </button>
+                    <button onClick={() => navigate(`/proyeccion-vivo/${ses.id}`)} style={s.proyeccionBtn}>
+                      Proyección
+                    </button>
                     <button
                       onClick={() => handleBorrarSesion(ses.id)}
                       disabled={borrandoId === ses.id}
@@ -156,9 +159,10 @@ const s = {
   muted: { color: "#94A3B8", fontSize: 13 },
 
   listaActivas: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 },
-  cardActiva: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(127,217,143,0.35)", borderRadius: 12, padding: "12px 16px" },
+  cardActiva: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(127,217,143,0.35)", borderRadius: 12, padding: "12px 16px", flexWrap: "wrap" },
   cardEstado: { color: "#7FD98F", fontSize: 12, margin: "2px 0 0" },
   continuarBtn: { background: "#4FC3D9", border: "none", borderRadius: 8, color: "#0E1526", padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" },
+  proyeccionBtn: { background: "none", border: "1px solid #4FC3D9", borderRadius: 8, color: "#4FC3D9", padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" },
   borrarBtn: { background: "none", border: "1px solid rgba(209,73,91,0.4)", color: "#D1495B", borderRadius: 8, padding: "8px 12px", fontSize: 12, cursor: "pointer" },
 
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 },
