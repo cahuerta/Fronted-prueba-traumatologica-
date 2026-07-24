@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { casosVivoAdmin, casosVivoAlumno } from "../../api/client";
 
+const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 const LETRAS = ["A", "B", "C", "D", "E"];
 
 export default function ProyeccionVivo() {
@@ -43,6 +44,11 @@ export default function ProyeccionVivo() {
   const estado = actual?.estado || sesion?.estado || "esperando";
   const tieneImagen = Boolean(actual?.media_url);
 
+  const linkAlumno = sesion?.codigo_acceso ? `${APP_URL}/alumno-vivo/${sesion.codigo_acceso}` : "";
+  const qrUrl = linkAlumno
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(linkAlumno)}`
+    : "";
+
   const porcentajeVotado = totalPresentes > 0 ? resultados.total / totalPresentes : 0;
   const umbralAlcanzado = porcentajeVotado >= 0.5;
 
@@ -71,9 +77,19 @@ export default function ProyeccionVivo() {
     return (
       <div style={s.wrapCentrado}>
         {actual.caso && <p style={s.casoTitulo}>{actual.caso.titulo}</p>}
-        {actual.caso?.media_url ? (
+        {actual.caso?.media_url && (
           <img src={actual.caso.media_url} alt="" style={s.imagenGrande} />
-        ) : (
+        )}
+
+        {qrUrl && (
+          <div style={s.qrBox}>
+            <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
+            <p style={s.codigoLabel}>Código de acceso</p>
+            <p style={s.codigo}>{sesion.codigo_acceso}</p>
+          </div>
+        )}
+
+        {!actual.caso?.media_url && (
           <p style={s.esperando}>Esperando la siguiente pregunta...</p>
         )}
       </div>
@@ -141,7 +157,12 @@ const s = {
   esperando: { color: "#94A3B8", fontSize: 28 },
 
   casoTitulo: { color: "#F4F1EA", fontSize: 32, fontWeight: 700, marginBottom: 24, textAlign: "center" },
-  imagenGrande: { maxWidth: "92vw", maxHeight: "82vh", borderRadius: 12, objectFit: "contain" },
+  imagenGrande: { maxWidth: "92vw", maxHeight: "60vh", borderRadius: 12, objectFit: "contain" },
+
+  qrBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 18, padding: 28, marginTop: 32, textAlign: "center" },
+  qrImg: { width: 240, height: 240, borderRadius: 10, background: "#F4F1EA", padding: 12, marginBottom: 14 },
+  codigoLabel: { fontSize: 14, color: "#94A3B8", margin: 0 },
+  codigo: { fontSize: 34, fontWeight: 800, letterSpacing: 6, color: "#4FC3D9", margin: "4px 0 0" },
 
   contenido: { display: "flex", gap: 48, alignItems: "flex-start", maxWidth: 1400, margin: "0 auto" },
   imagenChica: { width: 340, maxHeight: "70vh", objectFit: "contain", borderRadius: 12, background: "#000", flexShrink: 0 },
@@ -164,4 +185,4 @@ const s = {
   explicacionTitulo: { fontSize: 16, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 10px" },
   explicacionTexto: { fontSize: 20, lineHeight: 1.6, margin: 0 },
 };
-          
+                 
