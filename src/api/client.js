@@ -61,6 +61,25 @@ export const auth = {
   me: () => request("/auth/me", { auth: true }),
 };
 
+// ---------------- CONJUNTOS (generación de alumnos activa, o conjunto de prueba) ----------------
+export const conjuntos = {
+  listar: () => request("/conjuntos", { auth: true }),
+  crear: (nombre, tipo = "oficial") => request("/conjuntos", { method: "POST", body: { nombre, tipo }, auth: true }),
+  activar: (conjuntoId) => request(`/conjuntos/${conjuntoId}/activar`, { method: "POST", auth: true }),
+};
+
+// ---------------- ALUMNOS (listado del conjunto activo) ----------------
+export const alumnos = {
+  listar: () => request("/alumnos", { auth: true }),
+  cargarJson: (listaAlumnos) => request("/alumnos", { method: "POST", body: { alumnos: listaAlumnos }, auth: true }),
+  cargarExcel: (archivo) => {
+    const formData = new FormData();
+    formData.append("archivo", archivo);
+    return requestArchivo("/alumnos/excel", formData);
+  },
+  borrar: (alumnoId) => request(`/alumnos/${alumnoId}`, { method: "DELETE", auth: true }),
+};
+
 // ---------------- PREGUNTAS ----------------
 export const preguntas = {
   generarAlternativas: (data) => request("/preguntas/generar-alternativas", { method: "POST", body: data, auth: true }),
@@ -204,6 +223,7 @@ export const casosVivoAdmin = {
   borrarSesion: (sesionId) => request(`/casos-vivo/vivo/${sesionId}`, { method: "DELETE", auth: true }),
   obtenerSesion: (sesionId) => request(`/casos-vivo/vivo/${sesionId}`, { auth: true }),
   detalleVotos: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/detalle`, { auth: true }),
+  verAsistenciaVivo: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/asistencia`, { auth: true }),
   accionSesion: (sesionId, accion) =>
     request(`/casos-vivo/vivo/${sesionId}/accion`, { method: "POST", body: { accion }, auth: true }),
 };
