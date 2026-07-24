@@ -83,7 +83,7 @@ export default function AdminPresentaciones() {
   return (
     <div style={s.wrap}>
       <header style={s.header}>
-        <button onClick={() => navigate("/admin/dashboard")} style={s.back}>‹ Volver</button>
+        <button onClick={() => navigate(-1)} style={s.back}>‹ Volver</button>
         <h1 style={s.h1}>Presentaciones — reemplazo del PPT</h1>
       </header>
 
@@ -159,3 +159,4 @@ const s = {
   cardTitle: { color: "#F4F1EA", fontSize: 15, fontWeight: 600, margin: 0 },
   borrarBtn: { background: "none", border: "none", borderTop: "1px solid rgba(209,73,91,0.25)", color: "#D1495B", padding: "10px 0", fontSize: 13, fontWeight: 600, cursor: "pointer" },
 };
+            
