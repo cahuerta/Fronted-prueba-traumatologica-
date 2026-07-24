@@ -2,8 +2,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { casosVivoAdmin, casosVivoAlumno } from "../../api/client";
 
-const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
-
 const ESTADO_LABEL = {
   esperando: "Esperando",
   votando: "Votación abierta",
@@ -73,11 +71,6 @@ export default function AdminVivo() {
   }
 
   const estado = actual?.estado || sesion?.estado || "esperando";
-  const linkAlumno = sesion?.codigo_acceso ? `${APP_URL}/alumno-vivo/${sesion.codigo_acceso}` : "";
-  const qrUrl = linkAlumno
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(linkAlumno)}`
-    : "";
-
   const maxVotos = Math.max(1, ...Object.values(resultados.conteo || {}));
 
   return (
@@ -85,15 +78,6 @@ export default function AdminVivo() {
       <header style={s.header}>
         <button onClick={() => navigate(-1)} style={s.back}>‹ Salir de la sesión</button>
       </header>
-
-      {sesion?.codigo_acceso && (
-        <div style={s.qrBox}>
-          <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
-          <p style={s.codigoLabel}>Código de acceso</p>
-          <p style={s.codigo}>{sesion.codigo_acceso}</p>
-          <p style={s.link}>{linkAlumno}</p>
-        </div>
-      )}
 
       <div style={s.estadoBar}>
         <span style={{ ...s.estadoBadge, ...(estado === "votando" ? s.estadoBadgeActiva : {}) }}>
@@ -174,47 +158,43 @@ export default function AdminVivo() {
               )}
             </div>
           )}
-
-          <div style={s.controles}>
-            {estado === "esperando" && (
-              <button onClick={() => ejecutarAccion("abrir_votacion")} disabled={procesando} style={s.btnPrimario}>
-                Abrir votación
-              </button>
-            )}
-            {estado === "votando" && (
-              <button onClick={() => ejecutarAccion("cerrar_votacion")} disabled={procesando} style={s.btnPrimario}>
-                Cerrar votación → discusión
-              </button>
-            )}
-            {estado === "discusion" && (
-              <button onClick={() => ejecutarAccion("revelar")} disabled={procesando} style={s.btnPrimario}>
-                Revelar respuesta
-              </button>
-            )}
-            {estado === "cerrada" && (
-              <button onClick={() => ejecutarAccion("siguiente")} disabled={procesando} style={s.btnPrimario}>
-                Siguiente →
-              </button>
-            )}
-          </div>
         </div>
       ) : (
         <p style={s.muted}>Sin pregunta activa (¿presentación finalizada?)</p>
+      )}
+
+      {actual?.pregunta && (
+        <div style={s.controlesFijos}>
+          {estado === "esperando" && (
+            <button onClick={() => ejecutarAccion("abrir_votacion")} disabled={procesando} style={s.btnPrimario}>
+              Abrir votación
+            </button>
+          )}
+          {estado === "votando" && (
+            <button onClick={() => ejecutarAccion("cerrar_votacion")} disabled={procesando} style={s.btnPrimario}>
+              Cerrar votación → discusión
+            </button>
+          )}
+          {estado === "discusion" && (
+            <button onClick={() => ejecutarAccion("revelar")} disabled={procesando} style={s.btnPrimario}>
+              Revelar respuesta
+            </button>
+          )}
+          {estado === "cerrada" && (
+            <button onClick={() => ejecutarAccion("siguiente")} disabled={procesando} style={s.btnPrimario}>
+              Siguiente →
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
 }
 
 const s = {
-  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "24px 32px 60px", fontFamily: "sans-serif" },
+  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "24px 32px 100px", fontFamily: "sans-serif" },
   header: { display: "flex", alignItems: "center", marginBottom: 16 },
   back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer" },
-
-  qrBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 20, marginBottom: 20, textAlign: "center", maxWidth: 280 },
-  qrImg: { width: 200, height: 200, borderRadius: 8, background: "#F4F1EA", padding: 10, marginBottom: 10 },
-  codigoLabel: { fontSize: 11, color: "#94A3B8", margin: 0 },
-  codigo: { fontSize: 26, fontWeight: 800, letterSpacing: 4, color: "#4FC3D9", margin: "2px 0" },
-  link: { fontSize: 11, color: "#94A3B8", margin: 0, wordBreak: "break-all" },
 
   estadoBar: { display: "flex", alignItems: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" },
   estadoBadge: { background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 20, padding: "6px 14px", fontSize: 13, fontWeight: 600, color: "#94A3B8" },
@@ -224,11 +204,11 @@ const s = {
   error: { color: "#D1495B", fontSize: 13, marginBottom: 12 },
   muted: { color: "#94A3B8", fontSize: 14 },
   casoBox: { marginBottom: 20 },
-  casoTitulo: { fontSize: 22, fontWeight: 700, margin: "0 0 6px" },
-  vineta: { fontSize: 15, color: "#C7CDD9", lineHeight: 1.5, margin: 0, maxWidth: 800 },
-  mediaWrap: { marginTop: 12 },
-  mediaCaso: { maxWidth: "100%", maxHeight: 360, borderRadius: 10, background: "#000" },
-  mediaPregunta: { maxWidth: "100%", maxHeight: 420, borderRadius: 10, background: "#000", marginBottom: 4 },
+  casoTitulo: { fontSize: 18, fontWeight: 700, margin: "0 0 4px" },
+  vineta: { fontSize: 13, color: "#C7CDD9", lineHeight: 1.4, margin: 0, maxWidth: 800 },
+  mediaWrap: { marginTop: 8 },
+  mediaCaso: { maxWidth: 140, maxHeight: 140, borderRadius: 8, background: "#000", objectFit: "cover" },
+  mediaPregunta: { maxWidth: 140, maxHeight: 140, borderRadius: 8, background: "#000", objectFit: "cover", marginBottom: 4 },
 
   preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 24, maxWidth: 720 },
   preguntaBtn: { display: "block", width: "100%", background: "none", border: "none", padding: 0, margin: 0, textAlign: "left", cursor: "pointer" },
@@ -249,7 +229,8 @@ const s = {
   explicacionTitulo: { fontSize: 12, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 6px" },
   explicacionTexto: { fontSize: 15, lineHeight: 1.6, margin: 0, color: "#F4F1EA" },
   fuentes: { fontSize: 12, color: "#94A3B8", marginTop: 8 },
-  controles: { marginTop: 20 },
-  btnPrimario: { background: "#4FC3D9", border: "none", borderRadius: 10, color: "#0E1526", padding: "14px 28px", fontSize: 16, fontWeight: 700, cursor: "pointer" },
+
+  controlesFijos: { position: "fixed", bottom: 0, left: 0, right: 0, background: "#16213A", borderTop: "1px solid rgba(244,241,233,0.15)", padding: "14px 20px", display: "flex", justifyContent: "center", boxSizing: "border-box" },
+  btnPrimario: { background: "#4FC3D9", border: "none", borderRadius: 10, color: "#0E1526", padding: "14px 28px", fontSize: 16, fontWeight: 700, cursor: "pointer", width: "100%", maxWidth: 480 },
 };
-            
+              
