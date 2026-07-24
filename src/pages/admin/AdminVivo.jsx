@@ -18,7 +18,7 @@ export default function AdminVivo() {
   const [sesion, setSesion] = useState(null);
   const [actual, setActual] = useState(null);
   const [resultados, setResultados] = useState({ total: 0, conteo: {} });
-  const [detalle, setDetalle] = useState([]);
+  const [asistencia, setAsistencia] = useState({ total_presentes: 0, total_habilitados: 0 });
   const [error, setError] = useState("");
   const [procesando, setProcesando] = useState(false);
 
@@ -38,14 +38,14 @@ export default function AdminVivo() {
   const refrescar = useCallback(async () => {
     if (!sesion?.codigo_acceso) return;
     try {
-      const [est, res, det] = await Promise.all([
+      const [est, res, asis] = await Promise.all([
         casosVivoAlumno.estadoActual(sesion.codigo_acceso),
         casosVivoAlumno.resultados(sesionId),
-        casosVivoAdmin.detalleVotos(sesionId),
+        casosVivoAdmin.verAsistenciaVivo(sesionId),
       ]);
       setActual(est);
       setResultados(res);
-      setDetalle(det);
+      setAsistencia(asis);
     } catch (err) {
       setError(err.message);
     }
@@ -78,6 +78,8 @@ export default function AdminVivo() {
     ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(linkAlumno)}`
     : "";
 
+  const maxVotos = Math.max(1, ...Object.values(resultados.conteo || {}));
+
   return (
     <div style={s.wrap}>
       <header style={s.header}>
@@ -103,6 +105,7 @@ export default function AdminVivo() {
           </span>
         )}
         <span style={s.estadoMeta}>{resultados.total} voto(s)</span>
+        <span style={s.estadoMeta}>{asistencia.total_presentes} de {asistencia.total_habilitados} presentes</span>
       </div>
 
       {error && <p style={s.error}>{error}</p>}
@@ -124,80 +127,74 @@ export default function AdminVivo() {
       )}
 
       {actual?.pregunta ? (
-        <div style={s.grid2}>
-          <div style={s.preguntaBox}>
+        <div style={s.preguntaBox}>
+          <button
+            onClick={() => navigate(`/admin/vivo/${sesionId}/detalle`)}
+            style={s.preguntaBtn}
+          >
             <p style={s.pregunta}>{actual.pregunta}</p>
+            <span style={s.verDetalle}>Ver quién votó →</span>
+          </button>
 
-            {actual.media_url && (
-              <div style={s.mediaWrap}>
-                {actual.media_tipo === "video" ? (
-                  <video src={actual.media_url} controls style={s.mediaPregunta} />
-                ) : (
-                  <img src={actual.media_url} alt="" style={s.mediaPregunta} />
-                )}
-              </div>
-            )}
+          {actual.media_url && (
+            <div style={s.mediaWrap}>
+              {actual.media_tipo === "video" ? (
+                <video src={actual.media_url} controls style={s.mediaPregunta} />
+              ) : (
+                <img src={actual.media_url} alt="" style={s.mediaPregunta} />
+              )}
+            </div>
+          )}
 
-            <div style={s.opciones}>
-              {actual.opciones?.map((op, i) => {
-                const votosOpcion = resultados.conteo?.[i] || 0;
-                const esCorrecta = estado === "cerrada" && actual.correcta === i;
-                return (
-                  <div key={i} style={{ ...s.opcion, ...(esCorrecta ? s.opcionCorrecta : {}) }}>
+          <div style={s.opciones}>
+            {actual.opciones?.map((op, i) => {
+              const votosOpcion = resultados.conteo?.[i] || 0;
+              const anchoPct = Math.round((votosOpcion / maxVotos) * 100);
+              const esCorrecta = estado === "cerrada" && actual.correcta === i;
+              return (
+                <div key={i} style={{ ...s.opcion, ...(esCorrecta ? s.opcionCorrecta : {}) }}>
+                  <div style={s.opcionHeader}>
                     <span style={s.opcionTexto}>{op}</span>
                     <span style={s.opcionVotos}>{votosOpcion}</span>
                   </div>
-                );
-              })}
-            </div>
-
-            {estado === "cerrada" && actual.explicacion && (
-              <div style={s.explicacionBox}>
-                <p style={s.explicacionTitulo}>Fundamento</p>
-                <p style={s.explicacionTexto}>{actual.explicacion}</p>
-                {actual.fuentes?.length > 0 && (
-                  <p style={s.fuentes}>Fuente: {actual.fuentes.join(", ")}</p>
-                )}
-              </div>
-            )}
-
-            <div style={s.controles}>
-              {estado === "esperando" && (
-                <button onClick={() => ejecutarAccion("abrir_votacion")} disabled={procesando} style={s.btnPrimario}>
-                  Abrir votación
-                </button>
-              )}
-              {estado === "votando" && (
-                <button onClick={() => ejecutarAccion("cerrar_votacion")} disabled={procesando} style={s.btnPrimario}>
-                  Cerrar votación → discusión
-                </button>
-              )}
-              {estado === "discusion" && (
-                <button onClick={() => ejecutarAccion("revelar")} disabled={procesando} style={s.btnPrimario}>
-                  Revelar respuesta
-                </button>
-              )}
-              {estado === "cerrada" && (
-                <button onClick={() => ejecutarAccion("siguiente")} disabled={procesando} style={s.btnPrimario}>
-                  Siguiente →
-                </button>
-              )}
-            </div>
+                  <div style={s.barraFondo}>
+                    <div style={{ ...s.barraLlena, width: `${anchoPct}%`, ...(esCorrecta ? s.barraLlenaCorrecta : {}) }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          <div style={s.detalleBox}>
-            <h3 style={s.h3}>Quién ha votado</h3>
-            {detalle.length === 0 ? (
-              <p style={s.muted}>Nadie ha votado todavía.</p>
-            ) : (
-              <div style={s.detalleList}>
-                {detalle.map((v, i) => (
-                  <div key={i} style={s.detalleItem}>
-                    <span>{v.alumnos?.nombre}</span>
-                    <span style={s.detalleOpcion}>Opción {actual?.opciones?.[v.opcion]}</span>
-                  </div>
-                ))}
-              </div>
+          {estado === "cerrada" && actual.explicacion && (
+            <div style={s.explicacionBox}>
+              <p style={s.explicacionTitulo}>Fundamento</p>
+              <p style={s.explicacionTexto}>{actual.explicacion}</p>
+              {actual.fuentes?.length > 0 && (
+                <p style={s.fuentes}>Fuente: {actual.fuentes.join(", ")}</p>
+              )}
+            </div>
+          )}
+
+          <div style={s.controles}>
+            {estado === "esperando" && (
+              <button onClick={() => ejecutarAccion("abrir_votacion")} disabled={procesando} style={s.btnPrimario}>
+                Abrir votación
+              </button>
+            )}
+            {estado === "votando" && (
+              <button onClick={() => ejecutarAccion("cerrar_votacion")} disabled={procesando} style={s.btnPrimario}>
+                Cerrar votación → discusión
+              </button>
+            )}
+            {estado === "discusion" && (
+              <button onClick={() => ejecutarAccion("revelar")} disabled={procesando} style={s.btnPrimario}>
+                Revelar respuesta
+              </button>
+            )}
+            {estado === "cerrada" && (
+              <button onClick={() => ejecutarAccion("siguiente")} disabled={procesando} style={s.btnPrimario}>
+                Siguiente →
+              </button>
             )}
           </div>
         </div>
@@ -233,24 +230,26 @@ const s = {
   mediaCaso: { maxWidth: "100%", maxHeight: 360, borderRadius: 10, background: "#000" },
   mediaPregunta: { maxWidth: "100%", maxHeight: 420, borderRadius: 10, background: "#000", marginBottom: 4 },
 
-  grid2: { display: "flex", flexWrap: "wrap", gap: 20 },
-  preguntaBox: { flex: "2 1 420px", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 24 },
-  pregunta: { fontSize: 20, fontWeight: 600, margin: "0 0 12px" },
-  opciones: { display: "flex", flexDirection: "column", gap: 8, marginTop: 18 },
-  opcion: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "12px 16px" },
+  preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 24, maxWidth: 720 },
+  preguntaBtn: { display: "block", width: "100%", background: "none", border: "none", padding: 0, margin: 0, textAlign: "left", cursor: "pointer" },
+  pregunta: { fontSize: 20, fontWeight: 600, margin: "0 0 6px", color: "#F4F1EA" },
+  verDetalle: { fontSize: 12.5, color: "#4FC3D9", fontWeight: 600 },
+
+  opciones: { display: "flex", flexDirection: "column", gap: 14, marginTop: 18 },
+  opcion: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "12px 16px" },
   opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
+  opcionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   opcionTexto: { fontSize: 15 },
   opcionVotos: { background: "#4FC3D9", color: "#0E1526", fontWeight: 700, fontSize: 13, borderRadius: 20, padding: "2px 12px", minWidth: 20, textAlign: "center" },
+  barraFondo: { height: 8, background: "#16213A", borderRadius: 6, overflow: "hidden" },
+  barraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 6, transition: "width 0.4s ease" },
+  barraLlenaCorrecta: { background: "#7FD98F" },
+
   explicacionBox: { marginTop: 18, paddingTop: 18, borderTop: "1px solid rgba(244,241,233,0.12)" },
   explicacionTitulo: { fontSize: 12, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 6px" },
   explicacionTexto: { fontSize: 15, lineHeight: 1.6, margin: 0, color: "#F4F1EA" },
   fuentes: { fontSize: 12, color: "#94A3B8", marginTop: 8 },
   controles: { marginTop: 20 },
   btnPrimario: { background: "#4FC3D9", border: "none", borderRadius: 10, color: "#0E1526", padding: "14px 28px", fontSize: 16, fontWeight: 700, cursor: "pointer" },
-
-  detalleBox: { flex: "1 1 260px", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 18, alignSelf: "flex-start" },
-  h3: { fontSize: 13, marginBottom: 10 },
-  detalleList: { display: "flex", flexDirection: "column", gap: 6 },
-  detalleItem: { display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 0", borderBottom: "1px solid rgba(244,241,233,0.06)" },
-  detalleOpcion: { color: "#94A3B8" },
 };
+            
