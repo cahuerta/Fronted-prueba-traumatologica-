@@ -62,7 +62,7 @@ export default function AdminCasosVivo() {
   return (
     <div style={s.wrap}>
       <header style={s.header}>
-        <button onClick={() => navigate("/admin/dashboard")} style={s.back}>‹ Volver</button>
+        <button onClick={() => navigate(-1)} style={s.back}>‹ Volver</button>
         <h1 style={s.h1}>Casos clínicos</h1>
       </header>
 
@@ -123,3 +123,4 @@ const s = {
   cardVineta: { color: "#94A3B8", fontSize: 12, margin: 0, lineHeight: 1.4 },
   borrarBtn: { background: "none", border: "none", borderTop: "1px solid rgba(209,73,91,0.25)", color: "#D1495B", padding: "10px 0", fontSize: 13, fontWeight: 600, cursor: "pointer" },
 };
+           
