@@ -50,7 +50,7 @@ export default function AdminDashboard() {
         <>
           <p style={s.seccionLabelAdmin}>Administración</p>
           <div style={s.grid}>
-            <button onClick={() => navigate("/admin/interrogadores")} style={s.cardAdmin}>
+            <button onClick={() => navigate("/admin/configuracion")} style={s.cardAdmin}>
               <span style={s.cardIcono}>⚙️</span>
               <p style={s.cardTitulo}>Configuración</p>
             </button>
