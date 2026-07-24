@@ -78,7 +78,7 @@ export default function AdminInterrogadores() {
   return (
     <div style={s.wrap}>
       <div style={s.headerRow}>
-        <button onClick={() => navigate("/admin/dashboard")} style={s.back}>‹ Volver</button>
+        <button onClick={() => navigate(-1)} style={s.back}>‹ Volver</button>
         <h1 style={s.title}>Interrogadores</h1>
       </div>
 
@@ -147,3 +147,4 @@ const s = {
   cardRol: { color: "#4FC3D9", fontWeight: 400, fontSize: 12, textTransform: "capitalize" },
   cardDato: { color: "#94A3B8", fontSize: 12.5, margin: "3px 0 0", fontFamily: "monospace" },
 };
+      
