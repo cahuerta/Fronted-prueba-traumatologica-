@@ -159,7 +159,7 @@ export default function AdminVivo() {
 }
 
 const s = {
-  wrap: { height: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "10px 12px", fontFamily: "sans-serif", boxSizing: "border-box", display: "flex", flexDirection: "column", overflow: "hidden" },
+  wrap: { height: "100dvh", background: "#0E1526", color: "#F4F1EA", padding: "10px 12px", fontFamily: "sans-serif", boxSizing: "border-box", display: "flex", flexDirection: "column", overflow: "hidden" },
 
   topBar: { display: "flex", alignItems: "center", gap: 12, marginBottom: "1vh", background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 12, padding: "8px 12px", flexShrink: 0 },
   back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 6, color: "#94A3B8", padding: "4px 10px", fontSize: 14, cursor: "pointer" },
@@ -177,7 +177,7 @@ const s = {
   thumb: { width: 40, height: 40, borderRadius: 8, objectFit: "cover", background: "#000", flexShrink: 0 },
   pregunta: { fontSize: "clamp(15px, 2.6vh, 20px)", fontWeight: 800, margin: 0, color: "#F4F1EA", lineHeight: 1.2, flex: 1 },
 
-  opciones: { display: "flex", flexDirection: "column", gap: "1vh", flex: 1, minHeight: 0, justifyContent: "center" },
+  opciones: { display: "flex", flexDirection: "column", gap: "1vh", flex: 1, minHeight: 0, justifyContent: "space-evenly" },
   opcion: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "1.2vh 14px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
   opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
   opcionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6vh" },
