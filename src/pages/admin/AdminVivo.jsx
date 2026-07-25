@@ -93,7 +93,6 @@ export default function AdminVivo() {
   }
 
   const estado = actual?.estado || sesion?.estado || "esperando";
-  const maxVotos = Math.max(1, ...Object.values(resultados.conteo || {}));
   const thumbUrl = actual?.media_url || actual?.caso?.media_url;
 
   const totalPresentes = asistencia.total_presentes || 0;
@@ -137,7 +136,6 @@ export default function AdminVivo() {
           <div style={s.opciones}>
             {actual.opciones?.map((op, i) => {
               const votosOpcion = resultados.conteo?.[i] || 0;
-              const anchoPct = Math.round((votosOpcion / maxVotos) * 100);
               const esCorrecta = estado === "cerrada" && actual.correcta === i;
               return (
                 <button
@@ -145,13 +143,8 @@ export default function AdminVivo() {
                   onClick={() => navigate(`/admin/vivo/${sesionId}/detalle?opcion=${i}`)}
                   style={{ ...s.opcion, ...(esCorrecta ? s.opcionCorrecta : {}) }}
                 >
-                  <div style={s.opcionHeader}>
-                    <span style={s.opcionTexto}>{op}</span>
-                    <span style={s.opcionVotos}>{votosOpcion}</span>
-                  </div>
-                  <div style={s.barraFondo}>
-                    <div style={{ ...s.barraLlena, width: `${anchoPct}%`, ...(esCorrecta ? s.barraLlenaCorrecta : {}) }} />
-                  </div>
+                  <span style={s.opcionTexto}>{op}</span>
+                  <span style={s.opcionVotos}>{votosOpcion}</span>
                 </button>
               );
             })}
@@ -205,19 +198,15 @@ const s = {
   thumb: { width: 34, height: 34, borderRadius: 8, objectFit: "cover", background: "#000", flexShrink: 0, opacity: 0.8 },
   pregunta: { fontSize: "clamp(16px, 2.4vh, 20px)", fontWeight: 800, margin: 0, color: "#F4F1EA", lineHeight: 1.25, flex: 1 },
 
-  opciones: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, justifyContent: "flex-start", overflow: "hidden" },
-  opcion: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "1vh 14px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
+  opciones: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0 },
+  opcion: { flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "0 16px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
   opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
-  opcionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5vh" },
-  opcionTexto: { fontSize: "clamp(15px, 2.1vh, 18px)", color: "#F4F1EA" },
-  opcionVotos: { fontSize: "clamp(18px, 2.8vh, 24px)", fontWeight: 800, color: "#4FC3D9", minWidth: 34, textAlign: "right" },
-  barraFondo: { height: 6, background: "#16213A", borderRadius: 4, overflow: "hidden" },
-  barraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 4, transition: "width 0.4s ease" },
-  barraLlenaCorrecta: { background: "#7FD98F" },
+  opcionTexto: { fontSize: "clamp(16px, 2.6vh, 21px)", color: "#F4F1EA", lineHeight: 1.2 },
+  opcionVotos: { fontSize: "clamp(24px, 4vh, 34px)", fontWeight: 800, color: "#4FC3D9", minWidth: 40, textAlign: "right", flexShrink: 0 },
 
   controlWrap: { flexShrink: 0, paddingTop: "1vh" },
   controlBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 12, width: "100%", background: "#4FC3D9", border: "none", borderRadius: 14, padding: "1.8vh 0", cursor: "pointer" },
   controlBtnSimbolo: { fontSize: 24, fontWeight: 900, color: "#0E1526" },
   controlBtnTexto: { fontSize: 17, fontWeight: 800, color: "#0E1526" },
 };
-              
+    
