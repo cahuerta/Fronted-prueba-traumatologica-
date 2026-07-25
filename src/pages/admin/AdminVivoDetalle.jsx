@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { casosVivoAdmin, casosVivoAlumno } from "../../api/client";
 
 const LETRAS = ["A", "B", "C", "D", "E"];
@@ -7,6 +7,8 @@ const LETRAS = ["A", "B", "C", "D", "E"];
 export default function AdminVivoDetalle() {
   const navigate = useNavigate();
   const { sesionId } = useParams();
+  const [searchParams] = useSearchParams();
+  const opcionIdx = Number(searchParams.get("opcion"));
 
   const [sesion, setSesion] = useState(null);
   const [actual, setActual] = useState(null);
@@ -66,56 +68,43 @@ export default function AdminVivoDetalle() {
     );
   }
 
-  const porOpcion = (actual.opciones || []).map((_, i) =>
-    detalle.filter((v) => v.opcion === i)
-  );
+  const opcionTexto = actual.opciones?.[opcionIdx] || "";
+  const votantes = detalle.filter((v) => v.opcion === opcionIdx);
 
   return (
     <div style={s.wrap}>
       <button onClick={() => navigate(-1)} style={s.back}>‹ Volver</button>
 
-      <p style={s.pregunta}>{actual.pregunta}</p>
-
-      <div style={s.grupos}>
-        {actual.opciones?.map((op, i) => (
-          <div key={i} style={s.grupo}>
-            <div style={s.grupoHeader}>
-              <span style={s.letra}>{LETRAS[i]}</span>
-              <span style={s.opcionTexto}>{op}</span>
-              <span style={s.opcionCantidad}>{porOpcion[i].length}</span>
-            </div>
-
-            {porOpcion[i].length === 0 ? (
-              <p style={s.muted}>Nadie ha votado esta opción.</p>
-            ) : (
-              <div style={s.nombresList}>
-                {porOpcion[i].map((v, j) => (
-                  <span key={j} style={s.nombre}>{v.alumnos?.nombre}</span>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+      <div style={s.encabezado}>
+        <span style={s.letra}>{LETRAS[opcionIdx]}</span>
+        <p style={s.opcionTexto}>{opcionTexto}</p>
+        <span style={s.contador}>{votantes.length}</span>
       </div>
+
+      {votantes.length === 0 ? (
+        <p style={s.muted}>Nadie ha votado esta opción.</p>
+      ) : (
+        <div style={s.listaNombres}>
+          {votantes.map((v, i) => (
+            <p key={i} style={s.nombreGrande}>{v.alumnos?.nombre}</p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 const s = {
-  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "24px 18px 40px", fontFamily: "sans-serif" },
-  back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer", marginBottom: 20 },
+  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "24px 20px 40px", fontFamily: "sans-serif" },
+  back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer", marginBottom: 24 },
   error: { color: "#D1495B", fontSize: 14 },
-  muted: { color: "#94A3B8", fontSize: 13 },
+  muted: { color: "#94A3B8", fontSize: 16, textAlign: "center", marginTop: 40 },
 
-  pregunta: { fontSize: 18, fontWeight: 700, margin: "0 0 20px", lineHeight: 1.4 },
+  encabezado: { display: "flex", alignItems: "center", gap: 14, marginBottom: 28, paddingBottom: 20, borderBottom: "1px solid rgba(244,241,233,0.15)" },
+  letra: { width: 44, height: 44, borderRadius: "50%", background: "rgba(79,195,217,0.15)", color: "#4FC3D9", fontWeight: 800, fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  opcionTexto: { flex: 1, fontSize: 20, fontWeight: 700, margin: 0, lineHeight: 1.3 },
+  contador: { background: "#4FC3D9", color: "#0E1526", fontWeight: 800, fontSize: 20, borderRadius: 20, padding: "4px 16px", flexShrink: 0 },
 
-  grupos: { display: "flex", flexDirection: "column", gap: 14 },
-  grupo: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 16 },
-  grupoHeader: { display: "flex", alignItems: "center", gap: 10, marginBottom: 10 },
-  letra: { width: 28, height: 28, borderRadius: "50%", background: "rgba(79,195,217,0.15)", color: "#4FC3D9", fontWeight: 800, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  opcionTexto: { flex: 1, fontSize: 14 },
-  opcionCantidad: { background: "#4FC3D9", color: "#0E1526", fontWeight: 700, fontSize: 12, borderRadius: 20, padding: "2px 10px", minWidth: 18, textAlign: "center" },
-
-  nombresList: { display: "flex", flexWrap: "wrap", gap: 8 },
-  nombre: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.1)", borderRadius: 8, padding: "5px 10px", fontSize: 13 },
+  listaNombres: { display: "flex", flexDirection: "column", gap: 4 },
+  nombreGrande: { fontSize: 28, fontWeight: 700, margin: "10px 0", padding: "12px 4px", borderBottom: "1px solid rgba(244,241,233,0.08)" },
 };
