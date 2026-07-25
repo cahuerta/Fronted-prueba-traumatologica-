@@ -46,7 +46,7 @@ export default function ProyeccionVivo() {
 
   const linkAlumno = sesion?.codigo_acceso ? `${APP_URL}/alumno-vivo/${sesion.codigo_acceso}` : "";
   const qrUrl = linkAlumno
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(linkAlumno)}`
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(linkAlumno)}`
     : "";
 
   const porcentajeVotado = totalPresentes > 0 ? resultados.total / totalPresentes : 0;
@@ -59,7 +59,7 @@ export default function ProyeccionVivo() {
 
   if (error) {
     return (
-      <div style={s.wrap}>
+      <div style={s.wrapCentrado}>
         <p style={s.error}>{error}</p>
       </div>
     );
@@ -67,30 +67,24 @@ export default function ProyeccionVivo() {
 
   if (!sesion || !actual) {
     return (
-      <div style={s.wrap}>
+      <div style={s.wrapCentrado}>
         <p style={s.muted}>Cargando...</p>
       </div>
     );
   }
 
+  // Esperando: SOLO el QR. Nada de título ni imagen del caso aquí.
   if (estado === "esperando" || !actual.pregunta) {
     return (
       <div style={s.wrapCentrado}>
-        {actual.caso && <p style={s.casoTitulo}>{actual.caso.titulo}</p>}
-        {actual.caso?.media_url && (
-          <img src={actual.caso.media_url} alt="" style={s.imagenGrande} />
-        )}
-
-        {qrUrl && (
+        {qrUrl ? (
           <div style={s.qrBox}>
             <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
             <p style={s.codigoLabel}>Código de acceso</p>
             <p style={s.codigo}>{sesion.codigo_acceso}</p>
           </div>
-        )}
-
-        {!actual.caso?.media_url && (
-          <p style={s.esperando}>Esperando la siguiente pregunta...</p>
+        ) : (
+          <p style={s.esperando}>Esperando...</p>
         )}
       </div>
     );
@@ -149,40 +143,39 @@ export default function ProyeccionVivo() {
 }
 
 const s = {
-  wrap: { minHeight: "100vh", width: "100vw", background: "#0E1526", color: "#F4F1EA", fontFamily: "sans-serif", padding: "48px 60px", boxSizing: "border-box" },
-  wrapCentrado: { minHeight: "100vh", width: "100vw", background: "#000", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, boxSizing: "border-box" },
+  wrap: { height: "100vh", width: "100vw", background: "#0E1526", color: "#F4F1EA", fontFamily: "sans-serif", padding: "32px 48px", boxSizing: "border-box", overflow: "hidden", display: "flex", alignItems: "center" },
+  wrapCentrado: { height: "100vh", width: "100vw", background: "#000", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, boxSizing: "border-box", overflow: "hidden" },
 
   muted: { color: "#94A3B8", fontSize: 20, textAlign: "center" },
   error: { color: "#D1495B", fontSize: 20, textAlign: "center" },
   esperando: { color: "#94A3B8", fontSize: 28 },
 
-  casoTitulo: { color: "#F4F1EA", fontSize: 32, fontWeight: 700, marginBottom: 24, textAlign: "center" },
-  imagenGrande: { maxWidth: "92vw", maxHeight: "60vh", borderRadius: 12, objectFit: "contain" },
+  imagenGrande: { maxWidth: "92vw", maxHeight: "92vh", borderRadius: 12, objectFit: "contain" },
 
-  qrBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 18, padding: 28, marginTop: 32, textAlign: "center" },
-  qrImg: { width: 240, height: 240, borderRadius: 10, background: "#F4F1EA", padding: 12, marginBottom: 14 },
-  codigoLabel: { fontSize: 14, color: "#94A3B8", margin: 0 },
-  codigo: { fontSize: 34, fontWeight: 800, letterSpacing: 6, color: "#4FC3D9", margin: "4px 0 0" },
+  qrBox: { textAlign: "center" },
+  qrImg: { width: "min(40vw, 40vh)", height: "min(40vw, 40vh)", borderRadius: 14, background: "#F4F1EA", padding: 14, marginBottom: 18 },
+  codigoLabel: { fontSize: "1.4vw", color: "#94A3B8", margin: 0 },
+  codigo: { fontSize: "3vw", fontWeight: 800, letterSpacing: 6, color: "#4FC3D9", margin: "6px 0 0" },
 
-  contenido: { display: "flex", gap: 48, alignItems: "flex-start", maxWidth: 1400, margin: "0 auto" },
-  imagenChica: { width: 340, maxHeight: "70vh", objectFit: "contain", borderRadius: 12, background: "#000", flexShrink: 0 },
+  contenido: { display: "flex", gap: 40, alignItems: "center", maxWidth: 1400, width: "100%", margin: "0 auto", maxHeight: "88vh" },
+  imagenChica: { width: "26vw", maxHeight: "80vh", objectFit: "contain", borderRadius: 12, background: "#000", flexShrink: 0 },
 
   preguntaBox: { flex: 1, minWidth: 0 },
-  pregunta: { fontSize: 34, fontWeight: 700, lineHeight: 1.3, margin: "0 0 32px" },
+  pregunta: { fontSize: "clamp(20px, 2.6vw, 34px)", fontWeight: 700, lineHeight: 1.25, margin: "0 0 24px" },
 
-  opciones: { display: "flex", flexDirection: "column", gap: 20 },
-  opcionRow: { background: "#16213A", border: "2px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: "18px 22px" },
+  opciones: { display: "flex", flexDirection: "column", gap: "1.4vh" },
+  opcionRow: { background: "#16213A", border: "2px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: "1.2vh 22px" },
   opcionRowCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
-  opcionHeader: { display: "flex", alignItems: "center", gap: 16, marginBottom: 12 },
-  opcionLetra: { width: 40, height: 40, borderRadius: "50%", background: "rgba(79,195,217,0.15)", color: "#4FC3D9", fontWeight: 800, fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  opcionTexto: { flex: 1, fontSize: 24 },
-  opcionNumero: { fontSize: 26, fontWeight: 800, color: "#4FC3D9", minWidth: 40, textAlign: "right" },
-  barraFondo: { height: 16, background: "#0E1526", borderRadius: 8, overflow: "hidden" },
+  opcionHeader: { display: "flex", alignItems: "center", gap: 16, marginBottom: 8 },
+  opcionLetra: { width: 36, height: 36, borderRadius: "50%", background: "rgba(79,195,217,0.15)", color: "#4FC3D9", fontWeight: 800, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  opcionTexto: { flex: 1, fontSize: "clamp(14px, 1.6vw, 22px)" },
+  opcionNumero: { fontSize: "clamp(16px, 1.8vw, 24px)", fontWeight: 800, color: "#4FC3D9", minWidth: 36, textAlign: "right" },
+  barraFondo: { height: 12, background: "#0E1526", borderRadius: 8, overflow: "hidden" },
   barraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 8, transition: "width 0.4s ease" },
   barraLlenaCorrecta: { background: "#7FD98F" },
 
-  explicacionBox: { marginTop: 32, paddingTop: 28, borderTop: "1px solid rgba(244,241,233,0.15)" },
-  explicacionTitulo: { fontSize: 16, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 10px" },
-  explicacionTexto: { fontSize: 20, lineHeight: 1.6, margin: 0 },
+  explicacionBox: { marginTop: 18, paddingTop: 16, borderTop: "1px solid rgba(244,241,233,0.15)" },
+  explicacionTitulo: { fontSize: 13, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 8px" },
+  explicacionTexto: { fontSize: "clamp(13px, 1.3vw, 17px)", lineHeight: 1.5, margin: 0 },
 };
-                 
+            
