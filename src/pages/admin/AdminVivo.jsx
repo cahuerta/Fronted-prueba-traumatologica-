@@ -13,7 +13,14 @@ const ACCION_LABEL = {
   esperando: "Abrir votación",
   votando: "Cerrar votación",
   discusion: "Revelar respuesta",
-  cerrada: "Siguiente pregunta →",
+  cerrada: "Siguiente pregunta",
+};
+
+const ACCION_SIMBOLO = {
+  esperando: "▶",
+  votando: "⏹",
+  discusion: "✓",
+  cerrada: "→",
 };
 
 const ACCION_KEY = {
@@ -89,6 +96,10 @@ export default function AdminVivo() {
   const maxVotos = Math.max(1, ...Object.values(resultados.conteo || {}));
   const thumbUrl = actual?.media_url || actual?.caso?.media_url;
 
+  const totalPresentes = asistencia.total_presentes || 0;
+  const totalVotos = resultados.total || 0;
+  const pctVotado = totalPresentes > 0 ? Math.min(100, Math.round((totalVotos / totalPresentes) * 100)) : 0;
+
   return (
     <div style={s.wrap}>
       <div style={s.topBar}>
@@ -96,13 +107,22 @@ export default function AdminVivo() {
         <span style={{ ...s.estadoBadge, ...(estado === "votando" ? s.estadoBadgeActiva : {}) }}>
           ● {ESTADO_LABEL[estado] || estado}
         </span>
-      </div>
-      <div style={s.datosBar}>
         {actual?.pregunta && (
-          <span style={s.estadoDato}>Caso {actual.caso_actual_orden} · Pregunta {actual.pregunta_actual_orden}</span>
+          <span style={s.posicion}>C{actual.caso_actual_orden}·P{actual.pregunta_actual_orden}</span>
         )}
-        <span style={s.estadoDato}>{resultados.total} votos</span>
-        <span style={s.estadoDato}>{asistencia.total_presentes}/{asistencia.total_habilitados} presentes</span>
+      </div>
+
+      {/* DATO PROTAGONISTA: cuántos han votado de los presentes — lo que decide cuándo cortar */}
+      <div style={s.heroBox}>
+        <div style={s.heroNumeros}>
+          <span style={s.heroVotos}>{totalVotos}</span>
+          <span style={s.heroSeparador}>/</span>
+          <span style={s.heroPresentes}>{totalPresentes}</span>
+          <span style={s.heroLabel}>votaron</span>
+        </div>
+        <div style={s.heroBarraFondo}>
+          <div style={{ ...s.heroBarraLlena, width: `${pctVotado}%` }} />
+        </div>
       </div>
 
       {error && <p style={s.error}>{error}</p>}
@@ -148,8 +168,9 @@ export default function AdminVivo() {
             disabled={procesando}
             style={s.controlBtn}
           >
+            <span style={s.controlBtnSimbolo}>{procesando ? "…" : ACCION_SIMBOLO[estado]}</span>
             <span style={s.controlBtnTexto}>
-              {procesando ? "..." : ACCION_LABEL[estado]}
+              {procesando ? "Procesando" : ACCION_LABEL[estado]}
             </span>
           </button>
         </div>
@@ -161,33 +182,42 @@ export default function AdminVivo() {
 const s = {
   wrap: { height: "100dvh", background: "#0E1526", color: "#F4F1EA", padding: "10px 12px", fontFamily: "sans-serif", boxSizing: "border-box", display: "flex", flexDirection: "column", overflow: "hidden" },
 
-  topBar: { display: "flex", alignItems: "center", gap: 12, marginBottom: "1vh", background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 12, padding: "8px 12px", flexShrink: 0 },
+  topBar: { display: "flex", alignItems: "center", gap: 10, marginBottom: "1vh", flexShrink: 0 },
   back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 6, color: "#94A3B8", padding: "4px 10px", fontSize: 14, cursor: "pointer" },
-  estadoBadge: { fontSize: 15, fontWeight: 800, color: "#94A3B8" },
+  estadoBadge: { fontSize: 14, fontWeight: 800, color: "#94A3B8" },
   estadoBadgeActiva: { color: "#4FC3D9" },
+  posicion: { fontSize: 13, color: "#94A3B8", fontWeight: 700, marginLeft: "auto" },
 
-  datosBar: { display: "flex", flexWrap: "wrap", gap: "4px 14px", marginBottom: "1vh", padding: "0 4px", flexShrink: 0 },
-  estadoDato: { fontSize: 16, color: "#F4F1EA", fontWeight: 800 },
+  heroBox: { background: "#16213A", border: "2px solid rgba(79,195,217,0.4)", borderRadius: 16, padding: "1.4vh 18px", marginBottom: "1vh", flexShrink: 0 },
+  heroNumeros: { display: "flex", alignItems: "baseline", gap: 6, marginBottom: "0.8vh" },
+  heroVotos: { fontSize: "clamp(38px, 8vh, 56px)", fontWeight: 900, color: "#4FC3D9", lineHeight: 1 },
+  heroSeparador: { fontSize: "clamp(24px, 5vh, 34px)", fontWeight: 700, color: "#94A3B8" },
+  heroPresentes: { fontSize: "clamp(24px, 5vh, 34px)", fontWeight: 700, color: "#F4F1EA" },
+  heroLabel: { fontSize: 15, color: "#94A3B8", fontWeight: 700, marginLeft: 4 },
+  heroBarraFondo: { height: 14, background: "#0E1526", borderRadius: 8, overflow: "hidden" },
+  heroBarraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 8, transition: "width 0.4s ease" },
 
   error: { color: "#D1495B", fontSize: 13, marginBottom: "1vh", flexShrink: 0 },
   muted: { color: "#94A3B8", fontSize: 14 },
 
-  preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: "2vh 16px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" },
-  preguntaHeader: { display: "flex", alignItems: "center", gap: 10, marginBottom: "1.6vh", flexShrink: 0 },
-  thumb: { width: 40, height: 40, borderRadius: 8, objectFit: "cover", background: "#000", flexShrink: 0 },
-  pregunta: { fontSize: "clamp(15px, 2.6vh, 20px)", fontWeight: 800, margin: 0, color: "#F4F1EA", lineHeight: 1.2, flex: 1 },
+  preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: "1.6vh 16px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" },
+  preguntaHeader: { display: "flex", alignItems: "center", gap: 10, marginBottom: "1.2vh", flexShrink: 0 },
+  thumb: { width: 34, height: 34, borderRadius: 8, objectFit: "cover", background: "#000", flexShrink: 0, opacity: 0.8 },
+  pregunta: { fontSize: "clamp(16px, 2.4vh, 20px)", fontWeight: 800, margin: 0, color: "#F4F1EA", lineHeight: 1.25, flex: 1 },
 
-  opciones: { display: "flex", flexDirection: "column", gap: "1vh", flex: 1, minHeight: 0, justifyContent: "space-evenly" },
-  opcion: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "1.2vh 14px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
+  opciones: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, justifyContent: "flex-start", overflow: "hidden" },
+  opcion: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "1vh 14px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
   opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
-  opcionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6vh" },
-  opcionTexto: { fontSize: "clamp(13px, 1.9vh, 16px)", color: "#F4F1EA" },
-  opcionVotos: { fontSize: "clamp(20px, 3.4vh, 30px)", fontWeight: 800, color: "#4FC3D9", minWidth: 40, textAlign: "right" },
-  barraFondo: { height: 8, background: "#16213A", borderRadius: 5, overflow: "hidden" },
-  barraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 5, transition: "width 0.4s ease" },
+  opcionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5vh" },
+  opcionTexto: { fontSize: "clamp(15px, 2.1vh, 18px)", color: "#F4F1EA" },
+  opcionVotos: { fontSize: "clamp(18px, 2.8vh, 24px)", fontWeight: 800, color: "#4FC3D9", minWidth: 34, textAlign: "right" },
+  barraFondo: { height: 6, background: "#16213A", borderRadius: 4, overflow: "hidden" },
+  barraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 4, transition: "width 0.4s ease" },
   barraLlenaCorrecta: { background: "#7FD98F" },
 
   controlWrap: { flexShrink: 0, paddingTop: "1vh" },
-  controlBtn: { display: "block", width: "100%", background: "#4FC3D9", border: "none", borderRadius: 14, padding: "1.8vh 0", cursor: "pointer" },
+  controlBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 12, width: "100%", background: "#4FC3D9", border: "none", borderRadius: 14, padding: "1.8vh 0", cursor: "pointer" },
+  controlBtnSimbolo: { fontSize: 24, fontWeight: 900, color: "#0E1526" },
   controlBtnTexto: { fontSize: 17, fontWeight: 800, color: "#0E1526" },
 };
+              
