@@ -31,7 +31,6 @@ export default function ProyeccionVivo() {
   const estado = panel?.estado || "esperando";
   const tieneImagen = Boolean(panel?.media_url);
 
-  const codigoAcceso = panel?.sesion_id ? null : null; // placeholder no usado
   const linkAlumno = panel?.codigo_acceso ? `${APP_URL}/alumno-vivo/${panel.codigo_acceso}` : "";
   const qrUrl = linkAlumno
     ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(linkAlumno)}`
@@ -44,7 +43,11 @@ export default function ProyeccionVivo() {
 
   // Con imagen: se muestra grande y sola hasta llegar al 50% de votos.
   // Sin imagen: se muestra pregunta+opciones de inmediato, no hay nada que mostrar grande.
-  const mostrarSoloImagen = tieneImagen && estado === "votando" && !umbralAlcanzado;
+  const esInicioAbsoluto = estado === "esperando" && panel.caso_actual_orden === 1 && panel.pregunta_actual_orden === 1;
+  const mostrarSoloImagen = tieneImagen && (
+    (estado === "votando" && !umbralAlcanzado) ||
+    (estado === "esperando" && !esInicioAbsoluto)
+  );
   const mostrarImagenChica = tieneImagen && (estado !== "votando" || umbralAlcanzado) && estado !== "esperando";
 
   if (error && !panel) {
@@ -63,8 +66,10 @@ export default function ProyeccionVivo() {
     );
   }
 
-  // Esperando: SOLO el QR. Nada de título ni imagen del caso aquí.
-  if (estado === "esperando" || !panel.pregunta) {
+  // Solo el arranque absoluto de la sesion (antes de abrir la primera
+  // pregunta) muestra el QR. En "esperando" de preguntas siguientes -que
+  // pasa cada vez que el admin avanza- ya no se repite el QR.
+  if (esInicioAbsoluto || !panel.pregunta) {
     return (
       <div style={s.wrapCentrado}>
         {qrUrl ? (
@@ -168,3 +173,4 @@ const s = {
   explicacionTitulo: { fontSize: 13, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 8px" },
   explicacionTexto: { fontSize: "clamp(13px, 1.3vw, 17px)", lineHeight: 1.5, margin: 0 },
 };
+          
