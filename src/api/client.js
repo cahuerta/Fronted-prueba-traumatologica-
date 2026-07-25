@@ -224,6 +224,7 @@ export const casosVivoAdmin = {
   obtenerSesion: (sesionId) => request(`/casos-vivo/vivo/${sesionId}`, { auth: true }),
   detalleVotos: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/detalle`, { auth: true }),
   verAsistenciaVivo: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/asistencia`, { auth: true }),
+  panelSesion: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/panel`, { auth: true }),
   accionSesion: (sesionId, accion) =>
     request(`/casos-vivo/vivo/${sesionId}/accion`, { method: "POST", body: { accion }, auth: true }),
 };
