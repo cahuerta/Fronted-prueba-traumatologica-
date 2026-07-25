@@ -30,6 +30,7 @@ export default function ProyeccionVivo() {
         setResultados(res);
         setTotalPresentes(asistencia.total_presentes);
       }
+      setError("");
     } catch (err) {
       setError(err.message);
     }
@@ -57,7 +58,7 @@ export default function ProyeccionVivo() {
   const mostrarSoloImagen = tieneImagen && estado === "votando" && !umbralAlcanzado;
   const mostrarImagenChica = tieneImagen && (estado !== "votando" || umbralAlcanzado) && estado !== "esperando";
 
-  if (error) {
+  if (error && !actual) {
     return (
       <div style={s.wrapCentrado}>
         <p style={s.error}>{error}</p>
@@ -178,4 +179,3 @@ const s = {
   explicacionTitulo: { fontSize: 13, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 8px" },
   explicacionTexto: { fontSize: "clamp(13px, 1.3vw, 17px)", lineHeight: 1.5, margin: 0 },
 };
-            
