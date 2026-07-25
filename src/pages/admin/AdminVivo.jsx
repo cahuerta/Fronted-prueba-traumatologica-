@@ -128,7 +128,7 @@ export default function AdminVivo() {
 
       {actual?.pregunta ? (
         <div style={s.preguntaBox}>
-          <div style={s.preguntaHeader}>
+          <div style={s.preguntaCaja}>
             {thumbUrl && <img src={thumbUrl} alt="" style={s.thumb} />}
             <p style={s.pregunta}>{actual.pregunta}</p>
           </div>
@@ -194,7 +194,7 @@ const s = {
   muted: { color: "#94A3B8", fontSize: 14 },
 
   preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: "1.6vh 16px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" },
-  preguntaHeader: { display: "flex", alignItems: "center", gap: 10, marginBottom: "1.2vh", flexShrink: 0 },
+  preguntaCaja: { display: "flex", alignItems: "center", gap: 10, marginBottom: "1.2vh", flexShrink: 0, border: "1px solid rgba(244,241,233,0.25)", borderRadius: 10, padding: "1vh 12px" },
   thumb: { width: 34, height: 34, borderRadius: 8, objectFit: "cover", background: "#000", flexShrink: 0, opacity: 0.8 },
   pregunta: { fontSize: "clamp(16px, 2.4vh, 20px)", fontWeight: 800, margin: 0, color: "#F4F1EA", lineHeight: 1.25, flex: 1 },
 
@@ -202,11 +202,10 @@ const s = {
   opcion: { flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "0 16px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
   opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
   opcionTexto: { fontSize: "clamp(16px, 2.6vh, 21px)", color: "#F4F1EA", lineHeight: 1.2 },
-  opcionVotos: { fontSize: "clamp(24px, 4vh, 34px)", fontWeight: 800, color: "#4FC3D9", minWidth: 40, textAlign: "right", flexShrink: 0 },
+  opcionVotos: { fontSize: "clamp(18px, 2.8vh, 26px)", fontWeight: 800, color: "#4FC3D9", minWidth: 36, textAlign: "center", flexShrink: 0 },
 
   controlWrap: { flexShrink: 0, paddingTop: "1vh" },
   controlBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 12, width: "100%", background: "#4FC3D9", border: "none", borderRadius: 14, padding: "1.8vh 0", cursor: "pointer" },
   controlBtnSimbolo: { fontSize: 24, fontWeight: 900, color: "#0E1526" },
   controlBtnTexto: { fontSize: 17, fontWeight: 800, color: "#0E1526" },
 };
-    
