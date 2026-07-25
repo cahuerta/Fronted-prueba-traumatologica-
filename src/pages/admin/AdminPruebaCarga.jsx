@@ -83,16 +83,14 @@ export default function AdminPruebaCarga() {
     }
   }
 
-  async function simularPanelTriple(hasta, codigoAcceso, sesionId, metrica) {
-    // Reproduce el Promise.all de 3 llamadas que hoy hacen AdminVivo y ProyeccionVivo.
+  async function simularPanel(hasta, sesionId, metrica) {
+    // Refleja la arquitectura real: admin y proyeccion hacen UNA sola
+    // llamada al endpoint combinado /panel, no 3 en paralelo (eso era
+    // el comportamiento viejo, ya reemplazado).
     while (Date.now() < hasta && !cancelarRef.current) {
       const inicio = performance.now();
       try {
-        await Promise.all([
-          casosVivoAlumno.estadoActual(codigoAcceso),
-          casosVivoAlumno.resultados(sesionId),
-          casosVivoAdmin.verAsistenciaVivo(sesionId),
-        ]);
+        await casosVivoAdmin.panelSesion(sesionId);
         registrarOk(metrica, performance.now() - inicio);
       } catch (err) {
         registrarError(metrica, err);
@@ -111,8 +109,8 @@ export default function AdminPruebaCarga() {
 
     const { codigo_acceso, id: sesionId } = sesionElegida;
     const metricaAlumnos = nuevaMetrica(`Alumnos (${N_ALUMNOS_DEFAULT}, público)`);
-    const metricaAdmin = nuevaMetrica("Admin (3 llamadas en paralelo)");
-    const metricaProyeccion = nuevaMetrica("Proyección (3 llamadas en paralelo)");
+    const metricaAdmin = nuevaMetrica("Admin (1 llamada a /panel)");
+    const metricaProyeccion = nuevaMetrica("Proyección (1 llamada a /panel)");
 
     const hasta = Date.now() + DURACION_SEG_DEFAULT * 1000;
 
@@ -125,8 +123,8 @@ export default function AdminPruebaCarga() {
     for (let i = 0; i < N_ALUMNOS_DEFAULT; i++) {
       tareas.push(simularAlumno(hasta, codigo_acceso, metricaAlumnos));
     }
-    tareas.push(simularPanelTriple(hasta, codigo_acceso, sesionId, metricaAdmin));
-    tareas.push(simularPanelTriple(hasta, codigo_acceso, sesionId, metricaProyeccion));
+    tareas.push(simularPanel(hasta, sesionId, metricaAdmin));
+    tareas.push(simularPanel(hasta, sesionId, metricaProyeccion));
 
     await Promise.all(tareas);
     clearInterval(cronometro);
@@ -149,8 +147,8 @@ export default function AdminPruebaCarga() {
 
       <p style={s.ayuda}>
         Simula, desde este navegador, el tráfico de una clase real: {N_ALUMNOS_DEFAULT} alumnos pidiendo el
-        estado cada 6s, más admin y proyección haciendo sus 3 llamadas en paralelo cada 2s — igual a como
-        funciona hoy. Usa automáticamente una sesión en vivo ya activa.
+        estado cada 6s, más admin y proyección pidiendo el panel combinado cada 2s — igual a como funciona
+        hoy. Usa automáticamente una sesión en vivo ya activa.
       </p>
 
       {cargandoSesiones ? (
@@ -253,4 +251,3 @@ const s = {
   erroresDetalleBox: { marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(244,241,233,0.1)" },
   erroresDetalleLinea: { fontSize: 11, color: "#94A3B8", margin: "2px 0", fontFamily: "monospace" },
 };
-      
