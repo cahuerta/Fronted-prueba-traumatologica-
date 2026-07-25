@@ -14,6 +14,7 @@ import GenerarDocumento from "./pages/documentos/GenerarDocumento";
 
 import AdminConfiguracion from "./pages/admin/AdminConfiguracion";
 import AdminConjuntos from "./pages/admin/AdminConjuntos";
+import AdminPruebaCarga from "./pages/admin/AdminPruebaCarga";
 
 import AdminCasosVivoHub from "./pages/admin/AdminCasosVivoHub";
 import AdminCasosVivo from "./pages/admin/AdminCasosVivo";
@@ -57,6 +58,7 @@ export default function App() {
         {/* ---------- Configuración ---------- */}
         <Route path="/admin/configuracion" element={<AdminConfiguracion />} />
         <Route path="/admin/conjuntos" element={<AdminConjuntos />} />
+        <Route path="/admin/prueba-carga" element={<AdminPruebaCarga />} />
 
         {/* ---------- Presentación dinámica en vivo (casos clínicos) — profesor ---------- */}
         <Route path="/admin/casos-vivo" element={<AdminCasosVivoHub />} />
