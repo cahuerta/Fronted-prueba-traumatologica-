@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { casosVivoAdmin, casosVivoAlumno } from "../../api/client";
+import { casosVivoAdmin } from "../../api/client";
 
 const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 const LETRAS = ["A", "B", "C", "D", "E"];
@@ -9,27 +9,13 @@ export default function ProyeccionVivo() {
   const navigate = useNavigate();
   const { sesionId } = useParams();
 
-  const [sesion, setSesion] = useState(null);
-  const [actual, setActual] = useState(null);
-  const [resultados, setResultados] = useState({ total: 0, conteo: {} });
-  const [totalPresentes, setTotalPresentes] = useState(0);
+  const [panel, setPanel] = useState(null);
   const [error, setError] = useState("");
 
   const refrescar = useCallback(async () => {
     try {
-      const nuevaSesion = await casosVivoAdmin.obtenerSesion(sesionId);
-      setSesion(nuevaSesion);
-
-      if (nuevaSesion.codigo_acceso) {
-        const [est, res, asistencia] = await Promise.all([
-          casosVivoAlumno.estadoActual(nuevaSesion.codigo_acceso),
-          casosVivoAlumno.resultados(sesionId),
-          casosVivoAdmin.verAsistenciaVivo(sesionId),
-        ]);
-        setActual(est);
-        setResultados(res);
-        setTotalPresentes(asistencia.total_presentes);
-      }
+      const data = await casosVivoAdmin.panelSesion(sesionId);
+      setPanel(data);
       setError("");
     } catch (err) {
       setError(err.message);
@@ -42,15 +28,18 @@ export default function ProyeccionVivo() {
     return () => clearInterval(intervalo);
   }, [refrescar]);
 
-  const estado = actual?.estado || sesion?.estado || "esperando";
-  const tieneImagen = Boolean(actual?.media_url);
+  const estado = panel?.estado || "esperando";
+  const tieneImagen = Boolean(panel?.media_url);
 
-  const linkAlumno = sesion?.codigo_acceso ? `${APP_URL}/alumno-vivo/${sesion.codigo_acceso}` : "";
+  const codigoAcceso = panel?.sesion_id ? null : null; // placeholder no usado
+  const linkAlumno = panel?.codigo_acceso ? `${APP_URL}/alumno-vivo/${panel.codigo_acceso}` : "";
   const qrUrl = linkAlumno
     ? `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(linkAlumno)}`
     : "";
 
-  const porcentajeVotado = totalPresentes > 0 ? resultados.total / totalPresentes : 0;
+  const totalPresentes = panel?.asistencia?.total_presentes || 0;
+  const totalVotos = panel?.resultados?.total || 0;
+  const porcentajeVotado = totalPresentes > 0 ? totalVotos / totalPresentes : 0;
   const umbralAlcanzado = porcentajeVotado >= 0.5;
 
   // Con imagen: se muestra grande y sola hasta llegar al 50% de votos.
@@ -58,7 +47,7 @@ export default function ProyeccionVivo() {
   const mostrarSoloImagen = tieneImagen && estado === "votando" && !umbralAlcanzado;
   const mostrarImagenChica = tieneImagen && (estado !== "votando" || umbralAlcanzado) && estado !== "esperando";
 
-  if (error && !actual) {
+  if (error && !panel) {
     return (
       <div style={s.wrapCentrado}>
         <p style={s.error}>{error}</p>
@@ -66,7 +55,7 @@ export default function ProyeccionVivo() {
     );
   }
 
-  if (!sesion || !actual) {
+  if (!panel) {
     return (
       <div style={s.wrapCentrado}>
         <p style={s.muted}>Cargando...</p>
@@ -75,14 +64,14 @@ export default function ProyeccionVivo() {
   }
 
   // Esperando: SOLO el QR. Nada de título ni imagen del caso aquí.
-  if (estado === "esperando" || !actual.pregunta) {
+  if (estado === "esperando" || !panel.pregunta) {
     return (
       <div style={s.wrapCentrado}>
         {qrUrl ? (
           <div style={s.qrBox}>
             <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
             <p style={s.codigoLabel}>Código de acceso</p>
-            <p style={s.codigo}>{sesion.codigo_acceso}</p>
+            <p style={s.codigo}>{panel.codigo_acceso}</p>
           </div>
         ) : (
           <p style={s.esperando}>Esperando...</p>
@@ -94,28 +83,28 @@ export default function ProyeccionVivo() {
   if (mostrarSoloImagen) {
     return (
       <div style={s.wrapCentrado}>
-        <img src={actual.media_url} alt="" style={s.imagenGrande} />
+        <img src={panel.media_url} alt="" style={s.imagenGrande} />
       </div>
     );
   }
 
-  const maxVotos = Math.max(1, ...Object.values(resultados.conteo || {}));
+  const maxVotos = Math.max(1, ...Object.values(panel?.resultados?.conteo || {}));
 
   return (
     <div style={s.wrap}>
       <div style={s.contenido}>
         {mostrarImagenChica && (
-          <img src={actual.media_url} alt="" style={s.imagenChica} />
+          <img src={panel.media_url} alt="" style={s.imagenChica} />
         )}
 
         <div style={s.preguntaBox}>
-          <p style={s.pregunta}>{actual.pregunta}</p>
+          <p style={s.pregunta}>{panel.pregunta}</p>
 
           <div style={s.opciones}>
-            {actual.opciones?.map((op, i) => {
-              const votos = resultados.conteo?.[i] || 0;
+            {panel.opciones?.map((op, i) => {
+              const votos = panel?.resultados?.conteo?.[i] || 0;
               const anchoPct = Math.round((votos / maxVotos) * 100);
-              const esCorrecta = estado === "cerrada" && actual.correcta === i;
+              const esCorrecta = estado === "cerrada" && panel.correcta === i;
               return (
                 <div key={i} style={{ ...s.opcionRow, ...(esCorrecta ? s.opcionRowCorrecta : {}) }}>
                   <div style={s.opcionHeader}>
@@ -131,10 +120,10 @@ export default function ProyeccionVivo() {
             })}
           </div>
 
-          {estado === "cerrada" && actual.explicacion && (
+          {estado === "cerrada" && panel.explicacion && (
             <div style={s.explicacionBox}>
               <p style={s.explicacionTitulo}>Fundamento</p>
-              <p style={s.explicacionTexto}>{actual.explicacion}</p>
+              <p style={s.explicacionTexto}>{panel.explicacion}</p>
             </div>
           )}
         </div>
