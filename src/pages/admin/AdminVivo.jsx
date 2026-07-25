@@ -90,21 +90,16 @@ export default function AdminVivo() {
 
   return (
     <div style={s.wrap}>
-      <header style={s.header}>
-        <button onClick={() => navigate(-1)} style={s.back}>‹ Salir</button>
-      </header>
-
-      <div style={s.estadoPanel}>
+      <div style={s.topBar}>
+        <button onClick={() => navigate(-1)} style={s.back}>‹</button>
         <span style={{ ...s.estadoBadge, ...(estado === "votando" ? s.estadoBadgeActiva : {}) }}>
           ● {ESTADO_LABEL[estado] || estado}
         </span>
-        <div style={s.estadoDatos}>
-          {actual?.pregunta && (
-            <span style={s.estadoDato}>Caso {actual.caso_actual_orden} · Pregunta {actual.pregunta_actual_orden}</span>
-          )}
-          <span style={s.estadoDato}>{resultados.total} voto(s)</span>
-          <span style={s.estadoDato}>{asistencia.total_presentes}/{asistencia.total_habilitados} presentes</span>
-        </div>
+        {actual?.pregunta && (
+          <span style={s.estadoDato}>C{actual.caso_actual_orden}·P{actual.pregunta_actual_orden}</span>
+        )}
+        <span style={s.estadoDato}>{resultados.total} votos</span>
+        <span style={s.estadoDato}>{asistencia.total_presentes}/{asistencia.total_habilitados}</span>
       </div>
 
       {error && <p style={s.error}>{error}</p>}
@@ -112,8 +107,8 @@ export default function AdminVivo() {
       {actual?.pregunta ? (
         <div style={s.preguntaBox}>
           <div style={s.preguntaHeader}>
-            {thumbUrl && <img src={thumbUrl} alt="" style={s.thumb} />}
             <p style={s.pregunta}>{actual.pregunta}</p>
+            {thumbUrl && <img src={thumbUrl} alt="" style={s.thumb} />}
           </div>
 
           <div style={s.opciones}>
@@ -138,16 +133,6 @@ export default function AdminVivo() {
               );
             })}
           </div>
-
-          {estado === "cerrada" && actual.explicacion && (
-            <div style={s.explicacionBox}>
-              <p style={s.explicacionTitulo}>Fundamento</p>
-              <p style={s.explicacionTexto}>{actual.explicacion}</p>
-              {actual.fuentes?.length > 0 && (
-                <p style={s.fuentes}>Fuente: {actual.fuentes.join(", ")}</p>
-              )}
-            </div>
-          )}
         </div>
       ) : (
         <p style={s.muted}>Sin pregunta activa (¿presentación finalizada?)</p>
@@ -171,40 +156,33 @@ export default function AdminVivo() {
 }
 
 const s = {
-  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "20px 16px 120px", fontFamily: "sans-serif" },
-  header: { display: "flex", alignItems: "center", marginBottom: 14 },
-  back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer" },
+  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "10px 12px 96px", fontFamily: "sans-serif", boxSizing: "border-box" },
 
-  estadoPanel: { background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 16, padding: "16px 18px", marginBottom: 18 },
-  estadoBadge: { display: "inline-block", fontSize: 18, fontWeight: 800, color: "#94A3B8", marginBottom: 10 },
+  topBar: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12, background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 12, padding: "8px 12px" },
+  back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 6, color: "#94A3B8", padding: "4px 10px", fontSize: 14, cursor: "pointer" },
+  estadoBadge: { fontSize: 14, fontWeight: 800, color: "#94A3B8" },
   estadoBadgeActiva: { color: "#4FC3D9" },
-  estadoDatos: { display: "flex", flexWrap: "wrap", gap: 14 },
-  estadoDato: { fontSize: 14, color: "#C7CDD9", fontWeight: 600 },
+  estadoDato: { fontSize: 12.5, color: "#C7CDD9", fontWeight: 600 },
 
-  error: { color: "#D1495B", fontSize: 13, marginBottom: 12 },
+  error: { color: "#D1495B", fontSize: 13, marginBottom: 10 },
   muted: { color: "#94A3B8", fontSize: 14 },
 
-  preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 18 },
-  preguntaHeader: { display: "flex", alignItems: "center", gap: 12, marginBottom: 18 },
-  thumb: { width: 44, height: 44, borderRadius: 8, objectFit: "cover", background: "#000", flexShrink: 0 },
-  pregunta: { fontSize: 17, fontWeight: 700, margin: 0, color: "#F4F1EA", lineHeight: 1.3 },
+  preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 14 },
+  preguntaHeader: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 12 },
+  thumb: { width: 30, height: 30, borderRadius: 6, objectFit: "cover", background: "#000", flexShrink: 0, opacity: 0.85 },
+  pregunta: { fontSize: 19, fontWeight: 800, margin: 0, color: "#F4F1EA", lineHeight: 1.25, flex: 1 },
 
-  opciones: { display: "flex", flexDirection: "column", gap: 12 },
-  opcion: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
+  opciones: { display: "flex", flexDirection: "column", gap: 8 },
+  opcion: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "9px 12px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
   opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
-  opcionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
-  opcionTexto: { fontSize: 15, color: "#F4F1EA" },
-  opcionVotos: { fontSize: 26, fontWeight: 800, color: "#4FC3D9", minWidth: 40, textAlign: "right" },
-  barraFondo: { height: 10, background: "#16213A", borderRadius: 6, overflow: "hidden" },
-  barraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 6, transition: "width 0.4s ease" },
+  opcionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  opcionTexto: { fontSize: 14, color: "#F4F1EA" },
+  opcionVotos: { fontSize: 22, fontWeight: 800, color: "#4FC3D9", minWidth: 36, textAlign: "right" },
+  barraFondo: { height: 7, background: "#16213A", borderRadius: 5, overflow: "hidden" },
+  barraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 5, transition: "width 0.4s ease" },
   barraLlenaCorrecta: { background: "#7FD98F" },
 
-  explicacionBox: { marginTop: 18, paddingTop: 18, borderTop: "1px solid rgba(244,241,233,0.12)" },
-  explicacionTitulo: { fontSize: 12, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 6px" },
-  explicacionTexto: { fontSize: 15, lineHeight: 1.6, margin: 0, color: "#F4F1EA" },
-  fuentes: { fontSize: 12, color: "#94A3B8", marginTop: 8 },
-
-  controlWrap: { position: "fixed", bottom: 0, left: 0, right: 0, background: "#0E1526", borderTop: "1px solid rgba(244,241,233,0.15)", padding: "16px", boxSizing: "border-box" },
-  controlBtn: { display: "block", width: "100%", background: "#4FC3D9", border: "none", borderRadius: 14, padding: "20px 0", cursor: "pointer" },
-  controlBtnTexto: { fontSize: 19, fontWeight: 800, color: "#0E1526" },
+  controlWrap: { position: "fixed", bottom: 0, left: 0, right: 0, background: "#0E1526", borderTop: "1px solid rgba(244,241,233,0.15)", padding: "12px", boxSizing: "border-box" },
+  controlBtn: { display: "block", width: "100%", background: "#4FC3D9", border: "none", borderRadius: 14, padding: "16px 0", cursor: "pointer" },
+  controlBtnTexto: { fontSize: 18, fontWeight: 800, color: "#0E1526" },
 };
