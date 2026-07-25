@@ -159,35 +159,35 @@ export default function AdminVivo() {
 }
 
 const s = {
-  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "10px 12px 96px", fontFamily: "sans-serif", boxSizing: "border-box", display: "flex", flexDirection: "column" },
+  wrap: { height: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "10px 12px", fontFamily: "sans-serif", boxSizing: "border-box", display: "flex", flexDirection: "column", overflow: "hidden" },
 
-  topBar: { display: "flex", alignItems: "center", gap: 12, marginBottom: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 12, padding: "10px 12px" },
+  topBar: { display: "flex", alignItems: "center", gap: 12, marginBottom: "1vh", background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 12, padding: "8px 12px", flexShrink: 0 },
   back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 6, color: "#94A3B8", padding: "4px 10px", fontSize: 14, cursor: "pointer" },
-  estadoBadge: { fontSize: 16, fontWeight: 800, color: "#94A3B8" },
+  estadoBadge: { fontSize: 15, fontWeight: 800, color: "#94A3B8" },
   estadoBadgeActiva: { color: "#4FC3D9" },
 
-  datosBar: { display: "flex", flexWrap: "wrap", gap: "6px 14px", marginBottom: 12, padding: "0 4px" },
-  estadoDato: { fontSize: 14, color: "#F4F1EA", fontWeight: 700 },
+  datosBar: { display: "flex", flexWrap: "wrap", gap: "4px 14px", marginBottom: "1vh", padding: "0 4px", flexShrink: 0 },
+  estadoDato: { fontSize: 16, color: "#F4F1EA", fontWeight: 800 },
 
-  error: { color: "#D1495B", fontSize: 13, marginBottom: 10 },
+  error: { color: "#D1495B", fontSize: 13, marginBottom: "1vh", flexShrink: 0 },
   muted: { color: "#94A3B8", fontSize: 14 },
 
-  preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: 20, flex: 1, display: "flex", flexDirection: "column" },
-  preguntaHeader: { display: "flex", alignItems: "center", gap: 16, marginBottom: 24 },
-  thumb: { width: 88, height: 88, borderRadius: 12, objectFit: "cover", background: "#000", flexShrink: 0 },
-  pregunta: { fontSize: 22, fontWeight: 800, margin: 0, color: "#F4F1EA", lineHeight: 1.3, flex: 1 },
+  preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: "2vh 16px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" },
+  preguntaHeader: { display: "flex", alignItems: "center", gap: 10, marginBottom: "1.6vh", flexShrink: 0 },
+  thumb: { width: 40, height: 40, borderRadius: 8, objectFit: "cover", background: "#000", flexShrink: 0 },
+  pregunta: { fontSize: "clamp(15px, 2.6vh, 20px)", fontWeight: 800, margin: 0, color: "#F4F1EA", lineHeight: 1.2, flex: 1 },
 
-  opciones: { display: "flex", flexDirection: "column", gap: 14, flex: 1, justifyContent: "center" },
-  opcion: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: "16px 18px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
+  opciones: { display: "flex", flexDirection: "column", gap: "1vh", flex: 1, minHeight: 0, justifyContent: "center" },
+  opcion: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "1.2vh 14px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
   opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
-  opcionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
-  opcionTexto: { fontSize: 16, color: "#F4F1EA" },
-  opcionVotos: { fontSize: 28, fontWeight: 800, color: "#4FC3D9", minWidth: 40, textAlign: "right" },
-  barraFondo: { height: 10, background: "#16213A", borderRadius: 6, overflow: "hidden" },
-  barraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 6, transition: "width 0.4s ease" },
+  opcionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6vh" },
+  opcionTexto: { fontSize: "clamp(13px, 1.9vh, 16px)", color: "#F4F1EA" },
+  opcionVotos: { fontSize: "clamp(20px, 3.4vh, 30px)", fontWeight: 800, color: "#4FC3D9", minWidth: 40, textAlign: "right" },
+  barraFondo: { height: 8, background: "#16213A", borderRadius: 5, overflow: "hidden" },
+  barraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 5, transition: "width 0.4s ease" },
   barraLlenaCorrecta: { background: "#7FD98F" },
 
-  controlWrap: { position: "fixed", bottom: 0, left: 0, right: 0, background: "#0E1526", borderTop: "1px solid rgba(244,241,233,0.15)", padding: "12px", boxSizing: "border-box" },
-  controlBtn: { display: "block", width: "100%", background: "#4FC3D9", border: "none", borderRadius: 14, padding: "16px 0", cursor: "pointer" },
-  controlBtnTexto: { fontSize: 18, fontWeight: 800, color: "#0E1526" },
+  controlWrap: { flexShrink: 0, paddingTop: "1vh" },
+  controlBtn: { display: "block", width: "100%", background: "#4FC3D9", border: "none", borderRadius: 14, padding: "1.8vh 0", cursor: "pointer" },
+  controlBtnTexto: { fontSize: 17, fontWeight: 800, color: "#0E1526" },
 };
