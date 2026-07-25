@@ -35,6 +35,7 @@ export default function AdminVivoDetalle() {
       ]);
       setActual(est);
       setDetalle(det);
+      setError("");
     } catch (err) {
       setError(err.message);
     }
@@ -47,7 +48,7 @@ export default function AdminVivoDetalle() {
     return () => clearInterval(intervalo);
   }, [sesion, refrescar]);
 
-  if (error) {
+  if (error && !actual?.pregunta) {
     return (
       <div style={s.wrap}>
         <button onClick={() => navigate(-1)} style={s.back}>‹ Volver</button>
@@ -118,4 +119,3 @@ const s = {
   nombresList: { display: "flex", flexWrap: "wrap", gap: 8 },
   nombre: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.1)", borderRadius: 8, padding: "5px 10px", fontSize: 13 },
 };
-    
