@@ -26,12 +26,11 @@ export default function AdminDashboard() {
 
       <p style={s.seccionLabel}>Docencia</p>
 
-      <button onClick={() => navigate("/admin/casos-vivo")} style={s.bigBtn}>
-        <span style={s.bigBtnIcono}>🩺</span>
-        <p style={s.bigBtnTitulo}>Presentación casos clínicos</p>
-      </button>
-
       <div style={s.grid}>
+        <button onClick={() => navigate("/admin/casos-vivo")} style={s.cardDestacada}>
+          <span style={s.cardIcono}>🩺</span>
+          <p style={s.cardTitulo}>Presentación casos clínicos</p>
+        </button>
         <button onClick={() => navigate("/admin/preguntas")} style={s.card}>
           <span style={s.cardIcono}>📝</span>
           <p style={s.cardTitulo}>Preguntas exámenes</p>
@@ -78,12 +77,9 @@ const s = {
   seccionLabel: { fontSize: 11, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 10px", fontWeight: 700 },
   seccionLabelAdmin: { fontSize: 11, color: ACENTO_ADMIN, textTransform: "uppercase", letterSpacing: 1, margin: "26px 0 10px", fontWeight: 700 },
 
-  bigBtn: { display: "flex", alignItems: "center", gap: 12, width: "100%", background: "#16213A", border: `1px solid ${ACENTO}55`, borderRadius: 16, padding: "20px 18px", cursor: "pointer", marginBottom: 14, boxSizing: "border-box" },
-  bigBtnIcono: { fontSize: 26 },
-  bigBtnTitulo: { color: "#F4F1EA", fontSize: 16, fontWeight: 700, margin: 0 },
-
   grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 },
   card: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, background: "#16213A", border: "1px solid rgba(244,241,233,0.1)", borderRadius: 14, padding: "16px 14px", cursor: "pointer" },
+  cardDestacada: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, background: "#16213A", border: `1px solid ${ACENTO}55`, borderRadius: 14, padding: "16px 14px", cursor: "pointer" },
   cardAdmin: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, background: "#16213A", border: `1px solid ${ACENTO_ADMIN}40`, borderRadius: 14, padding: "16px 14px", cursor: "pointer" },
   cardIcono: { fontSize: 22 },
   cardTitulo: { color: "#F4F1EA", fontSize: 13.5, fontWeight: 600, margin: 0, lineHeight: 1.3 },
