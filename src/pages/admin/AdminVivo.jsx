@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { casosVivoAdmin, casosVivoAlumno } from "../../api/client";
+import { casosVivoAdmin } from "../../api/client";
 
 const ESTADO_LABEL = {
   esperando: "Esperando",
@@ -34,56 +34,31 @@ export default function AdminVivo() {
   const navigate = useNavigate();
   const { sesionId } = useParams();
 
-  const [sesion, setSesion] = useState(null);
-  const [actual, setActual] = useState(null);
-  const [resultados, setResultados] = useState({ total: 0, conteo: {} });
-  const [asistencia, setAsistencia] = useState({ total_presentes: 0, total_habilitados: 0 });
+  const [panel, setPanel] = useState(null);
   const [error, setError] = useState("");
   const [procesando, setProcesando] = useState(false);
 
-  useEffect(() => {
-    cargarSesion();
-  }, [sesionId]);
-
-  async function cargarSesion() {
-    try {
-      const data = await casosVivoAdmin.obtenerSesion(sesionId);
-      setSesion(data);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
   const refrescar = useCallback(async () => {
-    if (!sesion?.codigo_acceso) return;
     try {
-      const [est, res, asis] = await Promise.all([
-        casosVivoAlumno.estadoActual(sesion.codigo_acceso),
-        casosVivoAlumno.resultados(sesionId),
-        casosVivoAdmin.verAsistenciaVivo(sesionId),
-      ]);
-      setActual(est);
-      setResultados(res);
-      setAsistencia(asis);
+      const data = await casosVivoAdmin.panelSesion(sesionId);
+      setPanel(data);
       setError("");
     } catch (err) {
       setError(err.message);
     }
-  }, [sesion, sesionId]);
+  }, [sesionId]);
 
   useEffect(() => {
-    if (!sesion?.codigo_acceso) return;
     refrescar();
     const intervalo = setInterval(refrescar, 2000);
     return () => clearInterval(intervalo);
-  }, [sesion, refrescar]);
+  }, [refrescar]);
 
   async function ejecutarAccion(accion) {
     setError("");
     setProcesando(true);
     try {
-      const nuevaSesion = await casosVivoAdmin.accionSesion(sesionId, accion);
-      setSesion(nuevaSesion);
+      await casosVivoAdmin.accionSesion(sesionId, accion);
       await refrescar();
     } catch (err) {
       setError(err.message);
@@ -92,8 +67,10 @@ export default function AdminVivo() {
     }
   }
 
-  const estado = actual?.estado || sesion?.estado || "esperando";
-  const thumbUrl = actual?.media_url || actual?.caso?.media_url;
+  const estado = panel?.estado || "esperando";
+  const resultados = panel?.resultados || { total: 0, conteo: {} };
+  const asistencia = panel?.asistencia || { total_presentes: 0, total_habilitados: 0 };
+  const thumbUrl = panel?.media_url || panel?.caso?.media_url;
 
   const totalPresentes = asistencia.total_presentes || 0;
   const totalVotos = resultados.total || 0;
@@ -106,37 +83,46 @@ export default function AdminVivo() {
         <span style={{ ...s.estadoBadge, ...(estado === "votando" ? s.estadoBadgeActiva : {}) }}>
           ● {ESTADO_LABEL[estado] || estado}
         </span>
-        {actual?.pregunta && (
-          <span style={s.posicion}>C{actual.caso_actual_orden}·P{actual.pregunta_actual_orden}</span>
+        {panel?.pregunta && (
+          <span style={s.posicion}>C{panel.caso_actual_orden}·P{panel.pregunta_actual_orden}</span>
         )}
       </div>
 
-      {/* DATO PROTAGONISTA: cuántos han votado de los presentes — lo que decide cuándo cortar */}
-      <div style={s.heroBox}>
-        <div style={s.heroNumeros}>
-          <span style={s.heroVotos}>{totalVotos}</span>
-          <span style={s.heroSeparador}>/</span>
-          <span style={s.heroPresentes}>{totalPresentes}</span>
-          <span style={s.heroLabel}>votaron</span>
+      {/* DATO PROTAGONISTA: cuántos han votado de los presentes — lo que decide cuándo cortar.
+          A la derecha, caja de tamaño fijo: foto o mensaje de error, nunca ambos a la vez,
+          para que el layout no se mueva al aparecer/desaparecer cualquiera de los dos. */}
+      <div style={s.heroRow}>
+        <div style={s.heroBox}>
+          <div style={s.heroNumeros}>
+            <span style={s.heroVotos}>{totalVotos}</span>
+            <span style={s.heroSeparador}>/</span>
+            <span style={s.heroPresentes}>{totalPresentes}</span>
+            <span style={s.heroLabel}>votaron</span>
+          </div>
+          <div style={s.heroBarraFondo}>
+            <div style={{ ...s.heroBarraLlena, width: `${pctVotado}%` }} />
+          </div>
         </div>
-        <div style={s.heroBarraFondo}>
-          <div style={{ ...s.heroBarraLlena, width: `${pctVotado}%` }} />
+
+        <div style={s.heroSide}>
+          {error ? (
+            <span style={s.heroSideError} title={error}>⚠</span>
+          ) : thumbUrl ? (
+            <img src={thumbUrl} alt="" style={s.thumb} />
+          ) : null}
         </div>
       </div>
 
-      {error && <p style={s.error}>{error}</p>}
-
-      {actual?.pregunta ? (
+      {panel?.pregunta ? (
         <div style={s.preguntaBox}>
           <div style={s.preguntaCaja}>
-            {thumbUrl && <img src={thumbUrl} alt="" style={s.thumb} />}
-            <p style={s.pregunta}>{actual.pregunta}</p>
+            <p style={s.pregunta}>{panel.pregunta}</p>
           </div>
 
           <div style={s.opciones}>
-            {actual.opciones?.map((op, i) => {
+            {panel.opciones?.map((op, i) => {
               const votosOpcion = resultados.conteo?.[i] || 0;
-              const esCorrecta = estado === "cerrada" && actual.correcta === i;
+              const esCorrecta = estado === "cerrada" && panel.correcta === i;
               return (
                 <button
                   key={i}
@@ -154,7 +140,7 @@ export default function AdminVivo() {
         <p style={s.muted}>Sin pregunta activa (¿presentación finalizada?)</p>
       )}
 
-      {actual?.pregunta && (
+      {panel?.pregunta && (
         <div style={s.controlWrap}>
           <button
             onClick={() => ejecutarAccion(ACCION_KEY[estado])}
@@ -181,7 +167,8 @@ const s = {
   estadoBadgeActiva: { color: "#4FC3D9" },
   posicion: { fontSize: 13, color: "#94A3B8", fontWeight: 700, marginLeft: "auto" },
 
-  heroBox: { background: "#16213A", border: "2px solid rgba(79,195,217,0.4)", borderRadius: 16, padding: "1.4vh 18px", marginBottom: "1vh", flexShrink: 0 },
+  heroRow: { display: "flex", gap: 10, marginBottom: "1vh", flexShrink: 0 },
+  heroBox: { background: "#16213A", border: "2px solid rgba(79,195,217,0.4)", borderRadius: 16, padding: "1.4vh 18px", flex: 1, minWidth: 0 },
   heroNumeros: { display: "flex", alignItems: "baseline", gap: 6, marginBottom: "0.8vh" },
   heroVotos: { fontSize: "clamp(38px, 8vh, 56px)", fontWeight: 900, color: "#4FC3D9", lineHeight: 1 },
   heroSeparador: { fontSize: "clamp(24px, 5vh, 34px)", fontWeight: 700, color: "#94A3B8" },
@@ -190,12 +177,14 @@ const s = {
   heroBarraFondo: { height: 14, background: "#0E1526", borderRadius: 8, overflow: "hidden" },
   heroBarraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 8, transition: "width 0.4s ease" },
 
-  error: { color: "#D1495B", fontSize: 13, marginBottom: "1vh", flexShrink: 0 },
+  heroSide: { width: 66, flexShrink: 0, borderRadius: 14, background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", display: "flex", alignItems: "center", justifyContent: "center" },
+  heroSideError: { fontSize: 30, color: "#D1495B", cursor: "help" },
+  thumb: { width: "100%", height: "100%", borderRadius: 13, objectFit: "cover" },
+
   muted: { color: "#94A3B8", fontSize: 14 },
 
   preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: "1.6vh 16px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" },
   preguntaCaja: { display: "flex", alignItems: "center", gap: 10, marginBottom: "1.2vh", flexShrink: 0, border: "1px solid rgba(244,241,233,0.25)", borderRadius: 10, padding: "1vh 12px" },
-  thumb: { width: 34, height: 34, borderRadius: 8, objectFit: "cover", background: "#000", flexShrink: 0, opacity: 0.8 },
   pregunta: { fontSize: "clamp(16px, 2.4vh, 20px)", fontWeight: 800, margin: 0, color: "#F4F1EA", lineHeight: 1.25, flex: 1 },
 
   opciones: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0 },
@@ -204,8 +193,9 @@ const s = {
   opcionTexto: { fontSize: "clamp(16px, 2.6vh, 21px)", color: "#F4F1EA", lineHeight: 1.2 },
   opcionVotos: { fontSize: "clamp(18px, 2.8vh, 26px)", fontWeight: 800, color: "#4FC3D9", minWidth: 36, textAlign: "center", flexShrink: 0 },
 
-  controlWrap: { flexShrink: 0, paddingTop: "1vh" },
-  controlBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 12, width: "100%", background: "#4FC3D9", border: "none", borderRadius: 14, padding: "1.8vh 0", cursor: "pointer" },
-  controlBtnSimbolo: { fontSize: 24, fontWeight: 900, color: "#0E1526" },
-  controlBtnTexto: { fontSize: 17, fontWeight: 800, color: "#0E1526" },
+  controlWrap: { flexShrink: 0, paddingTop: "0.6vh" },
+  controlBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", background: "#4FC3D9", border: "none", borderRadius: 12, padding: "1.1vh 0", cursor: "pointer" },
+  controlBtnSimbolo: { fontSize: 18, fontWeight: 900, color: "#0E1526" },
+  controlBtnTexto: { fontSize: 15, fontWeight: 800, color: "#0E1526" },
 };
+  
