@@ -13,7 +13,13 @@ export function clearToken() {
 
 // ---------------- FETCH BASE ----------------
 async function request(path, { method = "GET", body, auth = false } = {}) {
-  const headers = { "Content-Type": "application/json" };
+  // Content-Type solo si realmente hay body: los GET sin body ni Authorization
+  // quedan como peticion "simple" para el navegador y evitan el preflight
+  // OPTIONS -esto reduce a la mitad el trafico real hacia el backend en las
+  // llamadas publicas de alto volumen (estadoActual, resultados), que son
+  // las que usan los 90 alumnos en la clase en vivo-.
+  const headers = {};
+  if (body) headers["Content-Type"] = "application/json";
   if (auth) {
     const token = getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
