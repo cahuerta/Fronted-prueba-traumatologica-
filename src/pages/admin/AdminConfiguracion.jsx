@@ -26,6 +26,14 @@ export default function AdminConfiguracion() {
             <p style={s.btnDesc}>Elegir la generación activa y cargar su listado de alumnos</p>
           </div>
         </button>
+
+        <button onClick={() => navigate("/admin/prueba-carga")} style={s.btn}>
+          <span style={s.letra}>C</span>
+          <div>
+            <p style={s.btnTitulo}>Prueba de carga</p>
+            <p style={s.btnDesc}>Simular una clase en vivo con 90 alumnos para verificar que el sistema aguante</p>
+          </div>
+        </button>
       </div>
     </div>
   );
