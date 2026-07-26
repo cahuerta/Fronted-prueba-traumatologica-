@@ -73,8 +73,61 @@ export default function AdminVivo() {
   const thumbUrl = panel?.media_url || panel?.caso?.media_url;
 
   const totalPresentes = asistencia.total_presentes || 0;
+  const totalHabilitados = asistencia.total_habilitados || 0;
   const totalVotos = resultados.total || 0;
   const pctVotado = totalPresentes > 0 ? Math.min(100, Math.round((totalVotos / totalPresentes) * 100)) : 0;
+
+  // Inicio absoluto de la sesión: primera pregunta del primer caso, aún no se ha
+  // abierto la votación. En este momento Proyección está mostrando el QR, y Admin
+  // debe mostrar la asistencia (presentes vs. habilitados) con el botón que
+  // arranca la sesión de verdad (misma acción "abrir_votacion" de siempre).
+  const esInicioAbsoluto =
+    estado === "esperando" &&
+    panel?.caso_actual_orden === 1 &&
+    panel?.pregunta_actual_orden === 1;
+
+  const pctAsistencia = totalHabilitados > 0 ? Math.min(100, Math.round((totalPresentes / totalHabilitados) * 100)) : 0;
+
+  if (esInicioAbsoluto) {
+    return (
+      <div style={s.wrap}>
+        <div style={s.topBar}>
+          <button onClick={() => navigate(-1)} style={s.back}>‹</button>
+          <span style={s.estadoBadge}>● {ESTADO_LABEL.esperando}</span>
+        </div>
+
+        <div style={s.asistenciaWrap}>
+          <p style={s.asistenciaTitulo}>Asistencia</p>
+
+          <div style={s.asistenciaNumeros}>
+            <span style={s.asistenciaPresentes}>{totalPresentes}</span>
+            <span style={s.asistenciaSeparador}>/</span>
+            <span style={s.asistenciaTotal}>{totalHabilitados}</span>
+          </div>
+          <p style={s.asistenciaLabel}>han ingresado con el código</p>
+
+          <div style={s.asistenciaBarraFondo}>
+            <div style={{ ...s.asistenciaBarraLlena, width: `${pctAsistencia}%` }} />
+          </div>
+
+          {error && <p style={s.errorTexto}>{error}</p>}
+        </div>
+
+        <div style={s.controlWrap}>
+          <button
+            onClick={() => ejecutarAccion("abrir_votacion")}
+            disabled={procesando}
+            style={s.controlBtn}
+          >
+            <span style={s.controlBtnSimbolo}>{procesando ? "…" : "▶"}</span>
+            <span style={s.controlBtnTexto}>
+              {procesando ? "Procesando" : "Iniciar sesión"}
+            </span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={s.wrap}>
@@ -197,5 +250,16 @@ const s = {
   controlBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", background: "#4FC3D9", border: "none", borderRadius: 12, padding: "1.1vh 0", cursor: "pointer" },
   controlBtnSimbolo: { fontSize: 18, fontWeight: 900, color: "#0E1526" },
   controlBtnTexto: { fontSize: 15, fontWeight: 800, color: "#0E1526" },
+
+  asistenciaWrap: { flex: 1, minHeight: 0, background: "#16213A", border: "2px solid rgba(79,195,217,0.4)", borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "3vh 20px", textAlign: "center" },
+  asistenciaTitulo: { fontSize: 15, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 2vh" },
+  asistenciaNumeros: { display: "flex", alignItems: "baseline", gap: 8 },
+  asistenciaPresentes: { fontSize: "clamp(56px, 14vh, 96px)", fontWeight: 900, color: "#4FC3D9", lineHeight: 1 },
+  asistenciaSeparador: { fontSize: "clamp(30px, 7vh, 48px)", fontWeight: 700, color: "#94A3B8" },
+  asistenciaTotal: { fontSize: "clamp(30px, 7vh, 48px)", fontWeight: 700, color: "#F4F1EA" },
+  asistenciaLabel: { fontSize: 14, color: "#94A3B8", fontWeight: 700, margin: "1vh 0 3vh" },
+  asistenciaBarraFondo: { width: "100%", maxWidth: 360, height: 14, background: "#0E1526", borderRadius: 8, overflow: "hidden" },
+  asistenciaBarraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 8, transition: "width 0.4s ease" },
+  errorTexto: { color: "#D1495B", fontSize: 13, marginTop: "2vh" },
 };
-  
+                   
