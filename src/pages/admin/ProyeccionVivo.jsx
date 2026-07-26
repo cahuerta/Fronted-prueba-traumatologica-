@@ -43,7 +43,7 @@ export default function ProyeccionVivo() {
 
   // Con imagen: se muestra grande y sola hasta llegar al 50% de votos.
   // Sin imagen: se muestra pregunta+opciones de inmediato, no hay nada que mostrar grande.
-  const esInicioAbsoluto = estado === "esperando" && panel.caso_actual_orden === 1 && panel.pregunta_actual_orden === 1;
+  const esInicioAbsoluto = estado === "esperando" && panel?.caso_actual_orden === 1 && panel?.pregunta_actual_orden === 1;
   const mostrarSoloImagen = tieneImagen && (
     (estado === "votando" && !umbralAlcanzado) ||
     (estado === "esperando" && !esInicioAbsoluto)
@@ -173,4 +173,3 @@ const s = {
   explicacionTitulo: { fontSize: 13, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 8px" },
   explicacionTexto: { fontSize: "clamp(13px, 1.3vw, 17px)", lineHeight: 1.5, margin: 0 },
 };
-          
