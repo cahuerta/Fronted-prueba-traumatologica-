@@ -67,12 +67,14 @@ export default function AlumnoVivoVotar() {
 
   return (
     <div style={s.wrap}>
-      {actual.caso && (
+      {/* Antes de "presentando" (esperando) no se muestra nada del caso
+          todavia: el alumno recien entrando ve solo la pantalla de espera. */}
+      {actual.caso && estado !== "esperando" && (
         <div style={s.casoBox}>
           <p style={s.casoTitulo}>{actual.caso.titulo}</p>
-          {estado === "esperando" && actual.pregunta_actual_orden === 1 && (
+          {estado === "presentando" && (
             <>
-              <p style={s.vineta}>{actual.caso.vineta_clinica}</p>
+              {actual.caso.vineta_clinica && <p style={s.vineta}>{actual.caso.vineta_clinica}</p>}
               {actual.caso.media_url && (
                 <div style={s.mediaWrap}>
                   {actual.caso.media_tipo === "video" ? (
@@ -88,10 +90,14 @@ export default function AlumnoVivoVotar() {
       )}
 
       {estado === "esperando" && (
+        <p style={s.esperando}>Esperando...</p>
+      )}
+
+      {estado === "presentando" && (
         <p style={s.esperando}>Esperando que el profesor abra la votación...</p>
       )}
 
-      {actual.pregunta && estado !== "esperando" && (
+      {actual.pregunta && estado !== "esperando" && estado !== "presentando" && (
         <>
           <p style={s.pregunta}>{actual.pregunta}</p>
 
@@ -107,6 +113,9 @@ export default function AlumnoVivoVotar() {
 
           <div style={s.opciones}>
             {actual.opciones?.map((op, i) => {
+              // En el reveal ("cerrada") solo se muestra la opcion correcta.
+              if (estado === "cerrada" && actual.correcta !== i) return null;
+
               const esCorrecta = estado === "cerrada" && actual.correcta === i;
               const deshabilitado = estado !== "votando" || yaVoto || votando;
               return (
@@ -166,4 +175,4 @@ const s = {
   explicacionTexto: { fontSize: 14, lineHeight: 1.6, margin: 0 },
   error: { color: "#D1495B", fontSize: 13, marginTop: 12, textAlign: "center" },
 };
-           
+                                             
