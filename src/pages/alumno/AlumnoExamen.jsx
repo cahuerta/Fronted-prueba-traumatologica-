@@ -8,6 +8,9 @@ export default function AlumnoExamen() {
   const { sesionId } = useParams();
   const navigate = useNavigate();
   const alumnoId = sessionStorage.getItem(`alumno_id_${sesionId}`);
+  // Guardado por AlumnoIngreso desde el ?item= de la URL; nunca se
+  // persiste en ninguna tabla, solo viaja de pantalla en pantalla.
+  const item = sessionStorage.getItem(`item_${sesionId}`) || "clinico";
 
   const [instanciaId, setInstanciaId] = useState(null);
   const [preguntas, setPreguntas] = useState([]);
@@ -85,7 +88,7 @@ export default function AlumnoExamen() {
   async function iniciar() {
     setCargando(true);
     try {
-      const res = await examen.iniciar(sesionId, alumnoId);
+      const res = await examen.iniciar(sesionId, alumnoId, item);
       setInstanciaId(res.instancia_id);
       setPreguntas(res.preguntas);
       setMinutosTotales(res.minutos_totales);
@@ -366,4 +369,4 @@ const s = {
   confirmCancelBtn: { background: "transparent", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 10, color: "#F4F1EA", padding: "12px 0", fontSize: 14, cursor: "pointer" },
   confirmFinalBtn: { background: "#D1495B", border: "none", borderRadius: 10, color: "#F4F1EA", padding: "12px 0", fontSize: 14, fontWeight: 600, cursor: "pointer" },
 };
-                    
+        
