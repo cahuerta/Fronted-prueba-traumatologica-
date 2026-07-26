@@ -124,7 +124,8 @@ export const sesiones = {
 
 // ---------------- EXAMEN ----------------
 export const examen = {
-  iniciar: (sesionId, alumnoId) => request("/examen/iniciar", { method: "POST", body: { sesion_id: sesionId, alumno_id: alumnoId } }),
+  iniciar: (sesionId, alumnoId, item = "clinico") =>
+    request("/examen/iniciar", { method: "POST", body: { sesion_id: sesionId, alumno_id: alumnoId, item } }),
   responder: (instanciaId, preguntaId, opcionElegida) =>
     request(`/examen/${instanciaId}/responder`, { method: "POST", body: { pregunta_id: preguntaId, opcion_elegida: opcionElegida } }),
   finalizar: (instanciaId) => request(`/examen/${instanciaId}/finalizar`, { method: "POST" }),
