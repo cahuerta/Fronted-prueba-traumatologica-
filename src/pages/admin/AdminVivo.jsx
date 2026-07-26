@@ -160,7 +160,6 @@ export default function AdminVivo() {
 
         <div style={s.casoNuevoWrap}>
           <p style={s.casoNuevoTitulo}>Caso siguiente listo</p>
-          {panel?.caso?.titulo && <p style={s.casoNuevoNombre}>{panel.caso.titulo}</p>}
           {error && <p style={s.errorTexto}>{error}</p>}
         </div>
 
@@ -191,7 +190,6 @@ export default function AdminVivo() {
 
         <div style={s.casoNuevoWrap}>
           <p style={s.casoNuevoTitulo}>Mostrando el caso en proyección</p>
-          {panel?.caso?.titulo && <p style={s.casoNuevoNombre}>{panel.caso.titulo}</p>}
           {error && <p style={s.errorTexto}>{error}</p>}
         </div>
 
@@ -362,3 +360,4 @@ const s = {
   casoNuevoTitulo: { fontSize: 15, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, margin: 0 },
   casoNuevoNombre: { fontSize: "clamp(20px, 3.4vh, 30px)", fontWeight: 800, color: "#F4F1EA", margin: "1.4vh 0 0" },
 };
+        
