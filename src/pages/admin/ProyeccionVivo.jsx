@@ -90,7 +90,6 @@ export default function ProyeccionVivo() {
     return (
       <div style={s.wrapCentrado}>
         <div style={s.casoBox}>
-          {panel?.caso?.titulo && <p style={s.casoTitulo}>{panel.caso.titulo}</p>}
           {panel?.caso?.media_url && (
             panel.caso.media_tipo === "video" ? (
               <video src={panel.caso.media_url} controls style={s.casoMedia} />
@@ -209,4 +208,3 @@ const s = {
   explicacionTitulo: { fontSize: 13, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 8px" },
   explicacionTexto: { fontSize: "clamp(13px, 1.3vw, 17px)", lineHeight: 1.5, margin: 0 },
 };
-  
