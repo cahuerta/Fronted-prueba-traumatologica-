@@ -4,27 +4,28 @@ import { casosVivoAdmin } from "../../api/client";
 
 const ESTADO_LABEL = {
   esperando: "Esperando",
+  presentando: "Presentando caso",
   votando: "Votación abierta",
   discusion: "En discusión",
   cerrada: "Respuesta revelada",
 };
 
 const ACCION_LABEL = {
-  esperando: "Abrir votación",
+  presentando: "Abrir votación",
   votando: "Cerrar votación",
   discusion: "Revelar respuesta",
   cerrada: "Siguiente pregunta",
 };
 
 const ACCION_SIMBOLO = {
-  esperando: "▶",
+  presentando: "▶",
   votando: "⏹",
   discusion: "✓",
   cerrada: "→",
 };
 
 const ACCION_KEY = {
-  esperando: "abrir_votacion",
+  presentando: "abrir_votacion",
   votando: "cerrar_votacion",
   discusion: "revelar",
   cerrada: "siguiente",
@@ -58,7 +59,20 @@ export default function AdminVivo() {
     setError("");
     setProcesando(true);
     try {
-      await casosVivoAdmin.accionSesion(sesionId, accion);
+      const resultado = await casosVivoAdmin.accionSesion(sesionId, accion);
+
+      // Si "siguiente" avanzo a otra pregunta DENTRO del mismo caso (no la
+      // primera de un caso nuevo), abrimos la votacion de inmediato sin
+      // esperar un segundo click: solo la primera pregunta de cada caso
+      // requiere el paso manual de "Mostrar caso" + "Abrir votación".
+      if (
+        accion === "siguiente" &&
+        !resultado?.finalizada &&
+        resultado?.pregunta_actual_orden !== 1
+      ) {
+        await casosVivoAdmin.accionSesion(sesionId, "abrir_votacion");
+      }
+
       await refrescar();
     } catch (err) {
       setError(err.message);
@@ -76,19 +90,25 @@ export default function AdminVivo() {
   const totalHabilitados = asistencia.total_habilitados || 0;
   const totalVotos = resultados.total || 0;
   const pctVotado = totalPresentes > 0 ? Math.min(100, Math.round((totalVotos / totalPresentes) * 100)) : 0;
+  const pctAsistencia = totalHabilitados > 0 ? Math.min(100, Math.round((totalPresentes / totalHabilitados) * 100)) : 0;
 
-  // Inicio absoluto de la sesión: primera pregunta del primer caso, aún no se ha
-  // abierto la votación. En este momento Proyección está mostrando el QR, y Admin
-  // debe mostrar la asistencia (presentes vs. habilitados) con el botón que
-  // arranca la sesión de verdad (misma acción "abrir_votacion" de siempre).
-  const esInicioAbsoluto =
+  // Arranque absoluto de la sesion: primera pregunta del primer caso, sin
+  // haber mostrado nada todavia. Aca se ve la asistencia (presentes vs.
+  // habilitados) en vez de la pregunta.
+  const esInicioSesion =
     estado === "esperando" &&
     panel?.caso_actual_orden === 1 &&
     panel?.pregunta_actual_orden === 1;
 
-  const pctAsistencia = totalHabilitados > 0 ? Math.min(100, Math.round((totalPresentes / totalHabilitados) * 100)) : 0;
+  // Arranque de un caso NUEVO (caso 2, 3...), primera pregunta, todavia sin
+  // mostrar la vineta. Ya no hace falta la asistencia (ya se trackeo al
+  // inicio de la sesion), solo el boton para mostrar el caso.
+  const esInicioCaso =
+    estado === "esperando" &&
+    panel?.pregunta_actual_orden === 1 &&
+    !esInicioSesion;
 
-  if (esInicioAbsoluto) {
+  if (esInicioSesion) {
     return (
       <div style={s.wrap}>
         <div style={s.topBar}>
@@ -115,16 +135,92 @@ export default function AdminVivo() {
 
         <div style={s.controlWrap}>
           <button
+            onClick={() => ejecutarAccion("mostrar_caso")}
+            disabled={procesando}
+            style={s.controlBtn}
+          >
+            <span style={s.controlBtnSimbolo}>{procesando ? "…" : "▶"}</span>
+            <span style={s.controlBtnTexto}>
+              {procesando ? "Procesando" : "Mostrar caso"}
+            </span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (esInicioCaso) {
+    return (
+      <div style={s.wrap}>
+        <div style={s.topBar}>
+          <button onClick={() => navigate(-1)} style={s.back}>‹</button>
+          <span style={s.estadoBadge}>● {ESTADO_LABEL.esperando}</span>
+          <span style={s.posicion}>C{panel.caso_actual_orden}</span>
+        </div>
+
+        <div style={s.casoNuevoWrap}>
+          <p style={s.casoNuevoTitulo}>Caso siguiente listo</p>
+          {panel?.caso?.titulo && <p style={s.casoNuevoNombre}>{panel.caso.titulo}</p>}
+          {error && <p style={s.errorTexto}>{error}</p>}
+        </div>
+
+        <div style={s.controlWrap}>
+          <button
+            onClick={() => ejecutarAccion("mostrar_caso")}
+            disabled={procesando}
+            style={s.controlBtn}
+          >
+            <span style={s.controlBtnSimbolo}>{procesando ? "…" : "▶"}</span>
+            <span style={s.controlBtnTexto}>
+              {procesando ? "Procesando" : "Mostrar caso"}
+            </span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (estado === "presentando") {
+    return (
+      <div style={s.wrap}>
+        <div style={s.topBar}>
+          <button onClick={() => navigate(-1)} style={s.back}>‹</button>
+          <span style={s.estadoBadge}>● {ESTADO_LABEL.presentando}</span>
+          <span style={s.posicion}>C{panel.caso_actual_orden}·P{panel.pregunta_actual_orden}</span>
+        </div>
+
+        <div style={s.casoNuevoWrap}>
+          <p style={s.casoNuevoTitulo}>Mostrando el caso en proyección</p>
+          {panel?.caso?.titulo && <p style={s.casoNuevoNombre}>{panel.caso.titulo}</p>}
+          {error && <p style={s.errorTexto}>{error}</p>}
+        </div>
+
+        <div style={s.controlWrap}>
+          <button
             onClick={() => ejecutarAccion("abrir_votacion")}
             disabled={procesando}
             style={s.controlBtn}
           >
             <span style={s.controlBtnSimbolo}>{procesando ? "…" : "▶"}</span>
             <span style={s.controlBtnTexto}>
-              {procesando ? "Procesando" : "Iniciar sesión"}
+              {procesando ? "Procesando" : "Abrir votación"}
             </span>
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // "esperando" con pregunta > 1 es transitorio (el auto-encadenado lo
+  // saca de aca casi de inmediato); solo por si la red se demora un poco.
+  if (estado === "esperando") {
+    return (
+      <div style={s.wrap}>
+        <div style={s.topBar}>
+          <button onClick={() => navigate(-1)} style={s.back}>‹</button>
+          <span style={s.estadoBadge}>● {ESTADO_LABEL.esperando}</span>
+        </div>
+        <p style={s.muted}>Abriendo la siguiente votación...</p>
       </div>
     );
   }
@@ -261,5 +357,8 @@ const s = {
   asistenciaBarraFondo: { width: "100%", maxWidth: 360, height: 14, background: "#0E1526", borderRadius: 8, overflow: "hidden" },
   asistenciaBarraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 8, transition: "width 0.4s ease" },
   errorTexto: { color: "#D1495B", fontSize: 13, marginTop: "2vh" },
+
+  casoNuevoWrap: { flex: 1, minHeight: 0, background: "#16213A", border: "2px solid rgba(79,195,217,0.4)", borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "3vh 20px", textAlign: "center" },
+  casoNuevoTitulo: { fontSize: 15, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, margin: 0 },
+  casoNuevoNombre: { fontSize: "clamp(20px, 3.4vh, 30px)", fontWeight: 800, color: "#F4F1EA", margin: "1.4vh 0 0" },
 };
-                   
