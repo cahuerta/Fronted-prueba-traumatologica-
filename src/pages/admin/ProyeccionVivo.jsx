@@ -41,14 +41,14 @@ export default function ProyeccionVivo() {
   const porcentajeVotado = totalPresentes > 0 ? totalVotos / totalPresentes : 0;
   const umbralAlcanzado = porcentajeVotado >= 0.5;
 
-  // Con imagen: se muestra grande y sola hasta llegar al 50% de votos.
-  // Sin imagen: se muestra pregunta+opciones de inmediato, no hay nada que mostrar grande.
-  const esInicioAbsoluto = estado === "esperando" && panel?.caso_actual_orden === 1 && panel?.pregunta_actual_orden === 1;
-  const mostrarSoloImagen = tieneImagen && (
-    (estado === "votando" && !umbralAlcanzado) ||
-    (estado === "esperando" && !esInicioAbsoluto)
-  );
-  const mostrarImagenChica = tieneImagen && (estado !== "votando" || umbralAlcanzado) && estado !== "esperando";
+  // Solo el arranque absoluto de la sesion (primer caso, primera pregunta,
+  // todavia sin mostrar nada) tiene sentido de QR: es el unico momento en
+  // que los alumnos recien estan entrando a la sesion.
+  const esInicioSesion = estado === "esperando" && panel?.caso_actual_orden === 1 && panel?.pregunta_actual_orden === 1;
+
+  // Con imagen propia de la pregunta: se muestra grande y sola hasta llegar al 50% de votos.
+  const mostrarSoloImagen = tieneImagen && estado === "votando" && !umbralAlcanzado;
+  const mostrarImagenChica = tieneImagen && (estado !== "votando" || umbralAlcanzado);
 
   if (error && !panel) {
     return (
@@ -66,13 +66,12 @@ export default function ProyeccionVivo() {
     );
   }
 
-  // Solo el arranque absoluto de la sesion (antes de abrir la primera
-  // pregunta) muestra el QR. En "esperando" de preguntas siguientes -que
-  // pasa cada vez que el admin avanza- ya no se repite el QR.
-  if (esInicioAbsoluto || !panel.pregunta) {
+  // "esperando": arranque de sesion muestra QR; arranque de un caso nuevo
+  // (2, 3...) ya no necesita QR -los alumnos ya estan dentro-, solo espera.
+  if (estado === "esperando") {
     return (
       <div style={s.wrapCentrado}>
-        {qrUrl ? (
+        {esInicioSesion && qrUrl ? (
           <div style={s.qrBox}>
             <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
             <p style={s.codigoLabel}>Código de acceso</p>
@@ -81,6 +80,34 @@ export default function ProyeccionVivo() {
         ) : (
           <p style={s.esperando}>Esperando...</p>
         )}
+      </div>
+    );
+  }
+
+  // "presentando": el profesor mostro el caso (vineta clinica + imagen),
+  // todavia sin abrir la votacion de la primera pregunta.
+  if (estado === "presentando") {
+    return (
+      <div style={s.wrapCentrado}>
+        <div style={s.casoBox}>
+          {panel?.caso?.titulo && <p style={s.casoTitulo}>{panel.caso.titulo}</p>}
+          {panel?.caso?.media_url && (
+            panel.caso.media_tipo === "video" ? (
+              <video src={panel.caso.media_url} controls style={s.casoMedia} />
+            ) : (
+              <img src={panel.caso.media_url} alt="" style={s.casoMedia} />
+            )
+          )}
+          {panel?.caso?.vineta_clinica && <p style={s.casoVineta}>{panel.caso.vineta_clinica}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  if (!panel.pregunta) {
+    return (
+      <div style={s.wrapCentrado}>
+        <p style={s.muted}>Sin pregunta activa...</p>
       </div>
     );
   }
@@ -107,6 +134,9 @@ export default function ProyeccionVivo() {
 
           <div style={s.opciones}>
             {panel.opciones?.map((op, i) => {
+              // En el reveal ("cerrada") solo se muestra la opcion correcta.
+              if (estado === "cerrada" && panel.correcta !== i) return null;
+
               const votos = panel?.resultados?.conteo?.[i] || 0;
               const anchoPct = Math.round((votos / maxVotos) * 100);
               const esCorrecta = estado === "cerrada" && panel.correcta === i;
@@ -117,9 +147,11 @@ export default function ProyeccionVivo() {
                     <span style={s.opcionTexto}>{op}</span>
                     <span style={s.opcionNumero}>{votos}</span>
                   </div>
-                  <div style={s.barraFondo}>
-                    <div style={{ ...s.barraLlena, width: `${anchoPct}%`, ...(esCorrecta ? s.barraLlenaCorrecta : {}) }} />
-                  </div>
+                  {estado !== "cerrada" && (
+                    <div style={s.barraFondo}>
+                      <div style={{ ...s.barraLlena, width: `${anchoPct}%` }} />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -152,6 +184,11 @@ const s = {
   codigoLabel: { fontSize: "1.4vw", color: "#94A3B8", margin: 0 },
   codigo: { fontSize: "3vw", fontWeight: 800, letterSpacing: 6, color: "#4FC3D9", margin: "6px 0 0" },
 
+  casoBox: { textAlign: "center", maxWidth: "80vw" },
+  casoTitulo: { fontSize: "clamp(24px, 3.2vw, 40px)", fontWeight: 800, color: "#F4F1EA", margin: "0 0 24px" },
+  casoMedia: { maxWidth: "70vw", maxHeight: "55vh", borderRadius: 14, objectFit: "contain", marginBottom: 24 },
+  casoVineta: { fontSize: "clamp(16px, 1.8vw, 24px)", color: "#C7CDD9", lineHeight: 1.5, margin: 0 },
+
   contenido: { display: "flex", gap: 40, alignItems: "center", maxWidth: 1400, width: "100%", margin: "0 auto", maxHeight: "88vh" },
   imagenChica: { width: "26vw", maxHeight: "80vh", objectFit: "contain", borderRadius: 12, background: "#000", flexShrink: 0 },
 
@@ -167,9 +204,9 @@ const s = {
   opcionNumero: { fontSize: "clamp(16px, 1.8vw, 24px)", fontWeight: 800, color: "#4FC3D9", minWidth: 36, textAlign: "right" },
   barraFondo: { height: 12, background: "#0E1526", borderRadius: 8, overflow: "hidden" },
   barraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 8, transition: "width 0.4s ease" },
-  barraLlenaCorrecta: { background: "#7FD98F" },
 
   explicacionBox: { marginTop: 18, paddingTop: 16, borderTop: "1px solid rgba(244,241,233,0.15)" },
   explicacionTitulo: { fontSize: 13, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 8px" },
   explicacionTexto: { fontSize: "clamp(13px, 1.3vw, 17px)", lineHeight: 1.5, margin: 0 },
 };
+  
