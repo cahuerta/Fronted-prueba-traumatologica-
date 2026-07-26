@@ -12,6 +12,7 @@ export default function AdminExamen() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [nombreSesion, setNombreSesion] = useState("");
   const [fecha, setFecha] = useState("");
+  const [item, setItem] = useState("clinico"); // "clinico" | "administrativo" -no se guarda en la sesion, viaja pegado en el link/QR-
 
   useEffect(() => {
     cargar();
@@ -38,7 +39,7 @@ export default function AdminExamen() {
       setNombreSesion("");
       setFecha("");
       cargar();
-      navigate(`/admin/sesion/${nueva.id}`);
+      navigate(`/admin/sesion/${nueva.id}?item=${item}`);
     } catch (err) {
       setError(err.message);
     }
@@ -65,6 +66,24 @@ export default function AdminExamen() {
 
           <label style={s.label}>Fecha</label>
           <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required style={s.input} />
+
+          <label style={s.label}>Contenido</label>
+          <div style={s.itemToggle}>
+            <button
+              type="button"
+              onClick={() => setItem("clinico")}
+              style={item === "clinico" ? s.itemBtnActivo : s.itemBtn}
+            >
+              Clínico
+            </button>
+            <button
+              type="button"
+              onClick={() => setItem("administrativo")}
+              style={item === "administrativo" ? s.itemBtnActivo : s.itemBtn}
+            >
+              Administrativo
+            </button>
+          </div>
 
           <button type="submit" style={s.submitBtn}>Crear sesión</button>
         </form>
@@ -104,6 +123,9 @@ const s = {
   form: { display: "flex", flexDirection: "column", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 16, marginBottom: 16 },
   label: { fontSize: 11, color: "#94A3B8", marginTop: 8, marginBottom: 4 },
   input: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "9px 11px", color: "#F4F1EA", fontSize: 14 },
+  itemToggle: { display: "flex", gap: 8 },
+  itemBtn: { flex: 1, background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "9px 0", fontSize: 13.5, cursor: "pointer" },
+  itemBtnActivo: { flex: 1, background: "rgba(79,195,217,0.15)", border: "1px solid #4FC3D9", borderRadius: 8, color: "#4FC3D9", padding: "9px 0", fontSize: 13.5, fontWeight: 700, cursor: "pointer" },
   submitBtn: { marginTop: 14, background: "#4FC3D9", border: "none", borderRadius: 8, color: "#0E1526", padding: "11px 0", fontSize: 14, fontWeight: 600, cursor: "pointer" },
   error: { color: "#D1495B", fontSize: 13, marginBottom: 12 },
   muted: { color: "#94A3B8", fontSize: 13 },
