@@ -202,6 +202,21 @@ export default function AlumnoExamen() {
       </div>
 
       <div style={s.card}>
+        {/* Caso clinico: miniatura + vineta, visible en TODAS las preguntas
+            del bloque, para dejar claro que dependen del mismo enunciado.
+            No se muestra el titulo del caso -suele ser el diagnostico, y
+            revelarlo antes de responder seria darle la respuesta al alumno-. */}
+        {pregunta.caso && (
+          <div style={s.casoMiniBox}>
+            {pregunta.caso.media_url && (
+              <img src={pregunta.caso.media_url} alt="" style={s.casoMiniImg} />
+            )}
+            {pregunta.caso.vineta_clinica && (
+              <p style={s.casoMiniVineta}>{pregunta.caso.vineta_clinica}</p>
+            )}
+          </div>
+        )}
+
         <p style={s.region}>{pregunta.region}</p>
 
         {pregunta.media_url && pregunta.media_tipo === "foto" && (
@@ -324,6 +339,10 @@ const s = {
   warningBanner: { background: "rgba(224,121,62,0.15)", border: "1px solid #E0793E", color: "#E0793E", borderRadius: 10, padding: "10px 36px 10px 12px", fontSize: 13, marginBottom: 14, position: "relative" },
   warningClose: { position: "absolute", right: 10, top: 8, background: "none", border: "none", color: "#E0793E", fontSize: 14, cursor: "pointer" },
 
+  casoMiniBox: { display: "flex", gap: 12, alignItems: "flex-start", background: "#0E1526", border: "1px solid rgba(79,195,217,0.3)", borderRadius: 10, padding: 12, marginBottom: 16 },
+  casoMiniImg: { width: 64, height: 64, borderRadius: 8, objectFit: "cover", flexShrink: 0, background: "#000" },
+  casoMiniVineta: { fontSize: 13, color: "#C7CDD9", lineHeight: 1.5, margin: 0 },
+
   overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", zIndex: 50 },
   drawer: { width: "82%", maxWidth: 320, height: "100%", background: "#0E1526", borderRight: "1px solid rgba(244,241,233,0.12)", padding: "20px 16px", display: "flex", flexDirection: "column" },
   drawerHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
@@ -347,3 +366,4 @@ const s = {
   confirmCancelBtn: { background: "transparent", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 10, color: "#F4F1EA", padding: "12px 0", fontSize: 14, cursor: "pointer" },
   confirmFinalBtn: { background: "#D1495B", border: "none", borderRadius: 10, color: "#F4F1EA", padding: "12px 0", fontSize: 14, fontWeight: 600, cursor: "pointer" },
 };
+                    
