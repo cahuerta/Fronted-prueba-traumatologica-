@@ -1,11 +1,22 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL;
+
+function normalizarRut(valor) {
+  // Quita puntos, espacios y guion; sube la K; repone el guion antes
+  // del digito verificador -mismo formato que espera el backend-.
+  const limpio = valor.replace(/[.\s-]/g, "").toUpperCase();
+  if (limpio.length < 2) return limpio;
+  const cuerpo = limpio.slice(0, -1);
+  const verificador = limpio.slice(-1);
+  return `${cuerpo}-${verificador}`;
+}
 
 export default function AlumnoIngreso() {
   const { sesionId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [nombre, setNombre] = useState("");
   const [rut, setRut] = useState("");
@@ -17,10 +28,12 @@ export default function AlumnoIngreso() {
     setError("");
     setCargando(true);
     try {
+      const rutNormalizado = normalizarRut(rut);
+
       const res = await fetch(`${API_URL}/sesiones/${sesionId}/asistencia`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre: nombre.trim(), rut: rut.trim() }),
+        body: JSON.stringify({ nombre: nombre.trim(), rut: rutNormalizado }),
       });
       if (!res.ok) {
         const detail = await res.json().catch(() => ({}));
@@ -28,6 +41,14 @@ export default function AlumnoIngreso() {
       }
       const data = await res.json();
       sessionStorage.setItem(`alumno_id_${sesionId}`, data.alumno_id);
+
+      // item (clinico/administrativo) viene pegado en la URL desde
+      // AdminExamen/AdminSesion -no se guarda en ninguna tabla-; se
+      // pasa a sessionStorage para que AlumnoExamen lo recupere mas
+      // adelante sin perderlo en el camino (pantalla de espera de por medio).
+      const item = searchParams.get("item") === "administrativo" ? "administrativo" : "clinico";
+      sessionStorage.setItem(`item_${sesionId}`, item);
+
       navigate(`/alumno/${sesionId}/espera`);
     } catch (err) {
       setError(err.message);
