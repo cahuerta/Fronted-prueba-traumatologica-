@@ -330,15 +330,15 @@ const s = {
 
   muted: { color: "#94A3B8", fontSize: 14 },
 
-  preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: "1.6vh 16px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" },
+  preguntaBox: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 14, padding: "1.6vh 16px", flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" },
   preguntaCaja: { display: "flex", alignItems: "center", gap: 10, marginBottom: "1.2vh", flexShrink: 0, border: "1px solid rgba(244,241,233,0.25)", borderRadius: 10, padding: "1vh 12px" },
   pregunta: { fontSize: "clamp(16px, 2.4vh, 20px)", fontWeight: 800, margin: 0, color: "#F4F1EA", lineHeight: 1.25, flex: 1 },
 
-  opciones: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0 },
-  opcion: { flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "0 16px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
+  opciones: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, overflowY: "auto" },
+  opcion: { minHeight: 56, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "12px 16px", cursor: "pointer", textAlign: "left", width: "100%", boxSizing: "border-box" },
   opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
-  opcionTexto: { fontSize: "clamp(16px, 2.6vh, 21px)", color: "#F4F1EA", lineHeight: 1.2 },
-  opcionVotos: { fontSize: "clamp(18px, 2.8vh, 26px)", fontWeight: 800, color: "#4FC3D9", minWidth: 36, textAlign: "center", flexShrink: 0 },
+  opcionTexto: { fontSize: "clamp(18px, 2.8vh, 24px)", color: "#F4F1EA", lineHeight: 1.3 },
+  opcionVotos: { fontSize: "clamp(20px, 3vh, 28px)", fontWeight: 800, color: "#4FC3D9", minWidth: 36, textAlign: "center", flexShrink: 0 },
 
   controlWrap: { flexShrink: 0, paddingTop: "0.6vh" },
   controlBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", background: "#4FC3D9", border: "none", borderRadius: 12, padding: "1.1vh 0", cursor: "pointer" },
@@ -360,4 +360,3 @@ const s = {
   casoNuevoTitulo: { fontSize: 15, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, margin: 0 },
   casoNuevoNombre: { fontSize: "clamp(20px, 3.4vh, 30px)", fontWeight: 800, color: "#F4F1EA", margin: "1.4vh 0 0" },
 };
-        
