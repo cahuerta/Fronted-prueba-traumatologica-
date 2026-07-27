@@ -31,6 +31,8 @@ const ACCION_KEY = {
   cerrada: "siguiente",
 };
 
+const CASOS_POR_PAGINA = 4; // mismo criterio que Proyeccion, para que las paginas coincidan
+
 export default function AdminVivo() {
   const navigate = useNavigate();
   const { sesionId } = useParams();
@@ -38,6 +40,7 @@ export default function AdminVivo() {
   const [panel, setPanel] = useState(null);
   const [error, setError] = useState("");
   const [procesando, setProcesando] = useState(false);
+  const [resumen, setResumen] = useState(null);
 
   const refrescar = useCallback(async () => {
     try {
@@ -54,6 +57,25 @@ export default function AdminVivo() {
     const intervalo = setInterval(refrescar, 2000);
     return () => clearInterval(intervalo);
   }, [refrescar]);
+
+  useEffect(() => {
+    if (panel?.finalizada && !resumen) {
+      casosVivoAdmin.resumenSesion(sesionId).then(setResumen).catch((err) => setError(err.message));
+    }
+  }, [panel?.finalizada, resumen, sesionId]);
+
+  async function avanzarPaginaResumen() {
+    setError("");
+    setProcesando(true);
+    try {
+      await casosVivoAdmin.avanzarResumen(sesionId);
+      await refrescar();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setProcesando(false);
+    }
+  }
 
   async function ejecutarAccion(accion) {
     setError("");
@@ -174,6 +196,78 @@ export default function AdminVivo() {
               {procesando ? "Procesando" : "Mostrar caso"}
             </span>
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (panel?.finalizada) {
+    if (!resumen) {
+      return (
+        <div style={s.wrap}>
+          <div style={s.topBar}>
+            <button onClick={() => navigate(-1)} style={s.back}>‹</button>
+            <span style={s.estadoBadge}>● Finalizada</span>
+          </div>
+          <p style={s.muted}>Calculando resultados...</p>
+        </div>
+      );
+    }
+
+    const pagina = panel.pagina_resumen || 0;
+    const totalPaginas = Math.max(1, Math.ceil(resumen.casos.length / CASOS_POR_PAGINA));
+    const casosPagina = resumen.casos.slice(pagina * CASOS_POR_PAGINA, pagina * CASOS_POR_PAGINA + CASOS_POR_PAGINA);
+    const esUltimaPagina = pagina >= totalPaginas - 1;
+
+    return (
+      <div style={s.wrap}>
+        <div style={s.topBar}>
+          <button onClick={() => navigate(-1)} style={s.back}>‹</button>
+          <span style={s.estadoBadge}>● Finalizada</span>
+          {totalPaginas > 1 && <span style={s.posicion}>{pagina + 1} / {totalPaginas}</span>}
+        </div>
+
+        <div style={s.resumenWrap}>
+          {pagina === 0 && (
+            <>
+              <p style={s.resumenTituloChico}>Resultado global</p>
+              <p style={s.resumenGlobal}>{resumen.porcentaje_global}%</p>
+            </>
+          )}
+
+          {casosPagina.length > 0 && (
+            <div style={s.resumenCasosLista}>
+              {casosPagina.map((c) => (
+                <div key={c.caso_id} style={s.resumenCasoRow}>
+                  <span style={s.resumenCasoTitulo}>{c.titulo}</span>
+                  <span style={s.resumenCasoPct}>{c.porcentaje_aciertos}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {error && <p style={s.errorTexto}>{error}</p>}
+        </div>
+
+        <div style={s.controlWrap}>
+          {esUltimaPagina ? (
+            <button
+              onClick={() => navigate("/admin/presentaciones")}
+              style={s.controlBtn}
+            >
+              <span style={s.controlBtnSimbolo}>✓</span>
+              <span style={s.controlBtnTexto}>Finalizar</span>
+            </button>
+          ) : (
+            <button
+              onClick={avanzarPaginaResumen}
+              disabled={procesando}
+              style={s.controlBtn}
+            >
+              <span style={s.controlBtnSimbolo}>{procesando ? "…" : "→"}</span>
+              <span style={s.controlBtnTexto}>{procesando ? "Procesando" : "Siguiente"}</span>
+            </button>
+          )}
         </div>
       </div>
     );
@@ -359,4 +453,13 @@ const s = {
   casoNuevoWrap: { flex: 1, minHeight: 0, background: "#16213A", border: "2px solid rgba(79,195,217,0.4)", borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "3vh 20px", textAlign: "center" },
   casoNuevoTitulo: { fontSize: 15, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, margin: 0 },
   casoNuevoNombre: { fontSize: "clamp(20px, 3.4vh, 30px)", fontWeight: 800, color: "#F4F1EA", margin: "1.4vh 0 0" },
+
+  resumenWrap: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", overflowY: "auto", paddingTop: "1vh", gap: "1.2vh" },
+  resumenTituloChico: { fontSize: 12, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, margin: 0 },
+  resumenGlobal: { fontSize: "clamp(48px, 10vh, 72px)", fontWeight: 900, color: "#4FC3D9", margin: "0.4vh 0 1vh", lineHeight: 1 },
+  resumenCasosLista: { display: "flex", flexDirection: "column", gap: 8, width: "100%" },
+  resumenCasoRow: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: "1.4vh 16px", flexShrink: 0 },
+  resumenCasoTitulo: { fontSize: 15, fontWeight: 700, color: "#F4F1EA" },
+  resumenCasoPct: { fontSize: 18, fontWeight: 900, color: "#4FC3D9", flexShrink: 0, marginLeft: 12 },
 };
+                  
