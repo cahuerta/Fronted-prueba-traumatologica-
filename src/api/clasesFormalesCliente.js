@@ -84,17 +84,27 @@ export const clasesFormalesPreguntas = {
     }),
 };
 
-// ---------------- SEMAFORO ----------------
+// ---------------- SEMAFORO (continuo por sesion completa, no por pagina) ----------------
 export const clasesFormalesSemaforo = {
   // Alumno (publico, sin login) — puede cambiar su respuesta en cualquier momento
-  responder: (paginaId, rut, sigo) =>
-    request(`/clases-formales/semaforo/${paginaId}/responder`, { method: "POST", body: { rut, sigo } }),
+  responder: (sesionId, rut, sigo) =>
+    request(`/clases-formales/semaforo/${sesionId}/responder`, { method: "POST", body: { rut, sigo } }),
 
   // Interrogador (auth)
-  resultado: (paginaId) => request(`/clases-formales/semaforo/${paginaId}/resultado`, { auth: true }),
+  resultado: (sesionId) => request(`/clases-formales/semaforo/${sesionId}/resultado`, { auth: true }),
+};
+
+// ---------------- PAGINA ACTUAL (avance secuencial en vivo) ----------------
+export const clasesFormalesActual = {
+  // Interrogador (auth) — mueve a la siguiente pagina de la secuencia
+  avanzar: (sesionId) => request(`/clases-formales/sesiones/${sesionId}/avanzar`, { method: "PATCH", auth: true }),
+
+  // Publico (admin control remoto + proyeccion, nunca el alumno)
+  leer: (codigo) => request(`/clases-formales/actual/${codigo}`),
 };
 
 // ---------------- SUPRASELECTOR (publico, lo usan alumno/interrogador/proyeccion) ----------------
 export const sesionResolver = {
   resolver: (codigo) => request(`/sesion-activa/${codigo}`),
 };
+  
