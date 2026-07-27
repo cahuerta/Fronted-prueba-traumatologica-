@@ -4,6 +4,7 @@ import { casosVivoAdmin } from "../../api/client";
 
 const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 const LETRAS = ["A", "B", "C", "D", "E"];
+const CASOS_POR_PAGINA = 4; // suficiente espacio para letras grandes, sin amontonar
 
 export default function ProyeccionVivo() {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ export default function ProyeccionVivo() {
 
   const [panel, setPanel] = useState(null);
   const [error, setError] = useState("");
+  const [resumen, setResumen] = useState(null);
 
   const refrescar = useCallback(async () => {
     try {
@@ -28,6 +30,14 @@ export default function ProyeccionVivo() {
     return () => clearInterval(intervalo);
   }, [refrescar]);
 
+  // Al llegar a la conclusion, se pide el resumen una sola vez (no en
+  // cada poll) y se guarda localmente -son datos ya cerrados, no cambian-.
+  useEffect(() => {
+    if (panel?.finalizada && !resumen) {
+      casosVivoAdmin.resumenSesion(sesionId).then(setResumen).catch((err) => setError(err.message));
+    }
+  }, [panel?.finalizada, resumen, sesionId]);
+
   const estado = panel?.estado || "esperando";
   const tieneImagen = Boolean(panel?.media_url);
 
@@ -41,12 +51,8 @@ export default function ProyeccionVivo() {
   const porcentajeVotado = totalPresentes > 0 ? totalVotos / totalPresentes : 0;
   const umbralAlcanzado = porcentajeVotado >= 0.5;
 
-  // Solo el arranque absoluto de la sesion (primer caso, primera pregunta,
-  // todavia sin mostrar nada) tiene sentido de QR: es el unico momento en
-  // que los alumnos recien estan entrando a la sesion.
   const esInicioSesion = estado === "esperando" && panel?.caso_actual_orden === 1 && panel?.pregunta_actual_orden === 1;
 
-  // Con imagen propia de la pregunta: se muestra grande y sola hasta llegar al 50% de votos.
   const mostrarSoloImagen = tieneImagen && estado === "votando" && !umbralAlcanzado;
   const mostrarImagenChica = tieneImagen && (estado !== "votando" || umbralAlcanzado);
 
@@ -66,8 +72,53 @@ export default function ProyeccionVivo() {
     );
   }
 
-  // "esperando": arranque de sesion muestra QR; arranque de un caso nuevo
-  // (2, 3...) ya no necesita QR -los alumnos ya estan dentro-, solo espera.
+  // ---------------- CONCLUSION: no queda ninguna pregunta mas ----------------
+  if (panel.finalizada) {
+    if (!resumen) {
+      return (
+        <div style={s.wrapCentrado}>
+          <p style={s.muted}>Calculando resultados...</p>
+        </div>
+      );
+    }
+
+    const pagina = panel.pagina_resumen || 0;
+    const totalPaginas = Math.max(1, Math.ceil(resumen.casos.length / CASOS_POR_PAGINA));
+    const casosPagina = resumen.casos.slice(pagina * CASOS_POR_PAGINA, pagina * CASOS_POR_PAGINA + CASOS_POR_PAGINA);
+    const esUltimaPagina = pagina >= totalPaginas - 1;
+
+    return (
+      <div style={s.wrapCentrado}>
+        <div style={s.resumenBox}>
+          {pagina === 0 && (
+            <>
+              <p style={s.resumenTituloChico}>Resultado global</p>
+              <p style={s.resumenGlobal}>{resumen.porcentaje_global}%</p>
+              <p style={s.resumenSubtitulo}>de respuestas correctas en toda la sesión</p>
+            </>
+          )}
+
+          {casosPagina.length > 0 && (
+            <div style={s.resumenCasosLista}>
+              {casosPagina.map((c) => (
+                <div key={c.caso_id} style={s.resumenCasoRow}>
+                  <span style={s.resumenCasoTitulo}>{c.titulo}</span>
+                  <span style={s.resumenCasoPct}>{c.porcentaje_aciertos}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {totalPaginas > 1 && (
+            <p style={s.resumenPaginacion}>{pagina + 1} / {totalPaginas}</p>
+          )}
+
+          {esUltimaPagina && <p style={s.resumenCierre}>Gracias por participar</p>}
+        </div>
+      </div>
+    );
+  }
+
   if (estado === "esperando") {
     return (
       <div style={s.wrapCentrado}>
@@ -84,8 +135,6 @@ export default function ProyeccionVivo() {
     );
   }
 
-  // "presentando": el profesor mostro el caso (vineta clinica + imagen),
-  // todavia sin abrir la votacion de la primera pregunta.
   if (estado === "presentando") {
     return (
       <div style={s.wrapCentrado}>
@@ -133,7 +182,6 @@ export default function ProyeccionVivo() {
 
           <div style={s.opciones}>
             {panel.opciones?.map((op, i) => {
-              // En el reveal ("cerrada") solo se muestra la opcion correcta.
               if (estado === "cerrada" && panel.correcta !== i) return null;
 
               const votos = panel?.resultados?.conteo?.[i] || 0;
@@ -207,4 +255,18 @@ const s = {
   explicacionBox: { marginTop: 18, paddingTop: 16, borderTop: "1px solid rgba(244,241,233,0.15)" },
   explicacionTitulo: { fontSize: 13, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 8px" },
   explicacionTexto: { fontSize: "clamp(13px, 1.3vw, 17px)", lineHeight: 1.5, margin: 0 },
+
+  resumenBox: { textAlign: "center", maxWidth: "85vw", display: "flex", flexDirection: "column", alignItems: "center", gap: "2vh" },
+  resumenTituloChico: { fontSize: "clamp(16px, 1.8vw, 22px)", color: "#94A3B8", textTransform: "uppercase", letterSpacing: 2, margin: 0, fontWeight: 700 },
+  resumenGlobal: { fontSize: "clamp(80px, 14vw, 180px)", fontWeight: 900, color: "#4FC3D9", margin: 0, lineHeight: 1 },
+  resumenSubtitulo: { fontSize: "clamp(16px, 1.8vw, 22px)", color: "#C7CDD9", margin: 0 },
+
+  resumenCasosLista: { display: "flex", flexDirection: "column", gap: "1.6vh", width: "min(900px, 80vw)", marginTop: "2vh" },
+  resumenCasoRow: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 16, padding: "2vh 3vw" },
+  resumenCasoTitulo: { fontSize: "clamp(20px, 2.6vw, 32px)", fontWeight: 700, color: "#F4F1EA", textAlign: "left" },
+  resumenCasoPct: { fontSize: "clamp(24px, 3.2vw, 40px)", fontWeight: 900, color: "#4FC3D9", flexShrink: 0, marginLeft: 24 },
+
+  resumenPaginacion: { fontSize: "clamp(14px, 1.4vw, 18px)", color: "#94A3B8", marginTop: "1vh" },
+  resumenCierre: { fontSize: "clamp(18px, 2vw, 26px)", color: "#7FD98F", fontWeight: 700, marginTop: "1vh" },
 };
+    
