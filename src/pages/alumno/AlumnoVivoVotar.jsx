@@ -65,13 +65,23 @@ export default function AlumnoVivoVotar() {
 
   const estado = actual.estado;
 
+  if (actual.finalizada) {
+    return (
+      <div style={s.wrap}>
+        <div style={s.finalizadaBox}>
+          <p style={s.finalizadaTitulo}>Presentación finalizada</p>
+          <p style={s.finalizadaTexto}>Mira la pantalla para ver los resultados</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={s.wrap}>
       {/* Antes de "presentando" (esperando) no se muestra nada del caso
           todavia: el alumno recien entrando ve solo la pantalla de espera. */}
       {actual.caso && estado !== "esperando" && (
         <div style={s.casoBox}>
-          <p style={s.casoTitulo}>{actual.caso.titulo}</p>
           {estado === "presentando" && (
             <>
               {actual.caso.vineta_clinica && <p style={s.vineta}>{actual.caso.vineta_clinica}</p>}
@@ -174,5 +184,7 @@ const s = {
   explicacionTitulo: { fontSize: 11, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 6px" },
   explicacionTexto: { fontSize: 14, lineHeight: 1.6, margin: 0 },
   error: { color: "#D1495B", fontSize: 13, marginTop: 12, textAlign: "center" },
+  finalizadaBox: { minHeight: "80vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 10 },
+  finalizadaTitulo: { fontSize: 19, fontWeight: 800, color: "#F4F1EA", margin: 0 },
+  finalizadaTexto: { fontSize: 14, color: "#94A3B8", margin: 0 },
 };
-                                             
