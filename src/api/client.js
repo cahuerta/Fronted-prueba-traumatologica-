@@ -234,6 +234,8 @@ export const casosVivoAdmin = {
   panelSesion: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/panel`, { auth: true }),
   accionSesion: (sesionId, accion) =>
     request(`/casos-vivo/vivo/${sesionId}/accion`, { method: "POST", body: { accion }, auth: true }),
+  resumenSesion: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/resumen`, { auth: true }),
+  avanzarResumen: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/resumen/avanzar`, { method: "POST", auth: true }),
 };
 
 // ---------------- CASOS EN VIVO — ALUMNO (publico, sin login) ----------------
@@ -245,4 +247,3 @@ export const casosVivoAlumno = {
     request("/casos-vivo/vivo/votar", { method: "POST", body: { sesion_id: sesionId, alumno_id: alumnoId, pregunta_id: preguntaId, opcion } }),
   resultados: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/resultados`),
 };
-  
