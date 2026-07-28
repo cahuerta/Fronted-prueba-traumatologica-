@@ -36,23 +36,33 @@ async function request(path, { method = "GET", body, auth = false } = {}) {
   return res.json();
 }
 
-// ---------------- SESIONES ----------------
+// ---------------- CONTENIDO (se arma una vez, se reutiliza) ----------------
+export const clasesFormalesContenido = {
+  crear: (nombre) => request("/clases-formales/contenido", { method: "POST", body: { nombre }, auth: true }),
+  listar: () => request("/clases-formales/contenido", { auth: true }),
+  editar: (claseFormalId, nombre) =>
+    request(`/clases-formales/contenido/${claseFormalId}`, { method: "PATCH", body: { nombre }, auth: true }),
+  eliminar: (claseFormalId) =>
+    request(`/clases-formales/contenido/${claseFormalId}`, { method: "DELETE", auth: true }),
+};
+
+// ---------------- SESIONES (elige contenido ya armado, nace activa) ----------------
 export const clasesFormalesSesiones = {
-  crear: (nombre) => request("/clases-formales/sesiones", { method: "POST", body: { nombre }, auth: true }),
+  iniciar: (claseFormalId) =>
+    request("/clases-formales/sesiones", { method: "POST", body: { clase_formal_id: claseFormalId }, auth: true }),
   listar: () => request("/clases-formales/sesiones", { auth: true }),
-  activar: (sesionId) => request(`/clases-formales/sesiones/${sesionId}/activar`, { method: "PATCH", auth: true }),
   cerrar: (sesionId) => request(`/clases-formales/sesiones/${sesionId}/cerrar`, { method: "PATCH", auth: true }),
 };
 
-// ---------------- PAGINAS (constructor) ----------------
+// ---------------- PAGINAS (constructor, cuelgan del contenido) ----------------
 export const clasesFormalesPaginas = {
-  crear: (sesionId, titulo, tipoHerramienta = "ninguna", config = {}) =>
+  crear: (claseFormalId, titulo, tipoHerramienta = "ninguna", config = {}) =>
     request("/clases-formales/paginas", {
       method: "POST",
-      body: { sesion_id: sesionId, titulo, tipo_herramienta: tipoHerramienta, config },
+      body: { clase_formal_id: claseFormalId, titulo, tipo_herramienta: tipoHerramienta, config },
       auth: true,
     }),
-  listar: (sesionId) => request(`/clases-formales/paginas/${sesionId}`, { auth: true }),
+  listar: (claseFormalId) => request(`/clases-formales/paginas/${claseFormalId}`, { auth: true }),
   editar: (paginaId, cambios) =>
     request(`/clases-formales/paginas/${paginaId}`, { method: "PATCH", body: cambios, auth: true }),
   mover: (paginaId, ordenAnterior, ordenSiguiente) =>
@@ -94,6 +104,19 @@ export const clasesFormalesSemaforo = {
   resultado: (sesionId) => request(`/clases-formales/semaforo/${sesionId}/resultado`, { auth: true }),
 };
 
+// ---------------- TRIVIA (por pagina, sin reinicio explicito) ----------------
+export const clasesFormalesTrivia = {
+  // Alumno (publico, sin login)
+  responder: (paginaId, rut, letra) =>
+    request(`/clases-formales/trivia/${paginaId}/responder`, { method: "POST", body: { rut, letra } }),
+  miRespuesta: (paginaId, rut) =>
+    request(`/clases-formales/trivia/${paginaId}/mi-respuesta?rut=${encodeURIComponent(rut)}`),
+
+  // Interrogador (auth)
+  resultado: (paginaId) => request(`/clases-formales/trivia/${paginaId}/resultado`, { auth: true }),
+  revelar: (paginaId) => request(`/clases-formales/trivia/${paginaId}/revelar`, { method: "PATCH", auth: true }),
+};
+
 // ---------------- PAGINA ACTUAL (avance secuencial en vivo) ----------------
 export const clasesFormalesActual = {
   // Interrogador (auth) — mueve a la siguiente pagina de la secuencia
@@ -107,4 +130,3 @@ export const clasesFormalesActual = {
 export const sesionResolver = {
   resolver: (codigo) => request(`/sesion-activa/${codigo}`),
 };
-  
