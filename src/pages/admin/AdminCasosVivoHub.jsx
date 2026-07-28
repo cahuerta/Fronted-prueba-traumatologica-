@@ -30,7 +30,7 @@ export default function AdminCasosVivoHub() {
           </div>
         </button>
 
-        <button onClick={() => navigate("/admin/presentar")} style={s.btnDestacado}>
+        <button onClick={() => navigate("/admin/presentaciones/iniciar")} style={s.btnDestacado}>
           <span style={s.letraDestacada}>C</span>
           <div>
             <p style={s.btnTitulo}>Presentar</p>
@@ -43,7 +43,6 @@ export default function AdminCasosVivoHub() {
 }
 
 const ACENTO = "#4FC3D9";
-
 const s = {
   wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "20px 16px 40px", fontFamily: "sans-serif" },
   header: { display: "flex", alignItems: "center", gap: 16, marginBottom: 24 },
