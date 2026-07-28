@@ -74,6 +74,12 @@ export const clasesFormalesPaginas = {
   eliminar: (paginaId) => request(`/clases-formales/paginas/${paginaId}`, { method: "DELETE", auth: true }),
 };
 
+// ---------------- INGRESO (asistencia, publico, sin login) ----------------
+export const clasesFormalesIngreso = {
+  ingresar: (sesionId, rut) =>
+    request("/clases-formales/ingreso", { method: "POST", body: { sesion_id: sesionId, rut } }),
+};
+
 // ---------------- PREGUNTAS ANONIMAS ----------------
 export const clasesFormalesPreguntas = {
   // Alumno (publico, sin login)
