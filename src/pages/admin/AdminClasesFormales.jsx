@@ -1,19 +1,18 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { clasesFormalesSesiones } from "../../api/clasesFormalesCliente";
+import { clasesFormalesContenido } from "../../api/clasesFormalesCliente";
 
 const ACENTO = "#4FC3D9";
 
-const ESTADO_LABEL = {
-  preparacion: "En preparación",
-  activa: "Activa",
-  cerrada: "Cerrada",
-};
-
+// Listado del contenido reutilizable de Clases Formales -ya no de
+// sesiones-. Cada item aca es una clase armada (nombre + sus paginas),
+// independiente de cuando se dicte. Iniciar una sesion en vivo a
+// partir de este contenido se hace desde "Presentar" (boton C del hub
+// mixto), no desde aca.
 export default function AdminClasesFormales() {
   const navigate = useNavigate();
 
-  const [sesiones, setSesiones] = useState([]);
+  const [clases, setClases] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
@@ -25,8 +24,8 @@ export default function AdminClasesFormales() {
     setCargando(true);
     setError("");
     try {
-      const data = await clasesFormalesSesiones.listar();
-      setSesiones(data);
+      const data = await clasesFormalesContenido.listar();
+      setClases(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -42,29 +41,23 @@ export default function AdminClasesFormales() {
       </header>
 
       <button onClick={() => navigate("/admin/clases-formales/nueva")} style={s.btnNueva}>
-        + Nueva sesión
+        + Nueva clase
       </button>
 
       {cargando && <p style={s.info}>Cargando...</p>}
       {error && <p style={s.error}>{error}</p>}
-      {!cargando && !error && sesiones.length === 0 && (
-        <p style={s.info}>Aún no hay sesiones creadas.</p>
+      {!cargando && !error && clases.length === 0 && (
+        <p style={s.info}>Aún no hay clases armadas.</p>
       )}
 
       <div style={s.list}>
-        {sesiones.map((sesion) => (
+        {clases.map((clase) => (
           <button
-            key={sesion.id}
-            onClick={() => navigate(`/admin/clases-formales/${sesion.id}`)}
+            key={clase.id}
+            onClick={() => navigate(`/admin/clases-formales/${clase.id}`)}
             style={s.btn}
           >
-            <div style={s.btnFila}>
-              <p style={s.btnTitulo}>{sesion.nombre}</p>
-              <span style={{ ...s.badge, ...s.badgeEstado[sesion.estado] }}>
-                {ESTADO_LABEL[sesion.estado] || sesion.estado}
-              </span>
-            </div>
-            <p style={s.btnDesc}>Código {sesion.codigo_acceso}</p>
+            <p style={s.btnTitulo}>{clase.nombre}</p>
           </button>
         ))}
       </div>
@@ -82,14 +75,5 @@ const s = {
   error: { color: "#D1495B", fontSize: 14, textAlign: "center", margin: "20px 0" },
   list: { display: "flex", flexDirection: "column", gap: 10 },
   btn: { display: "block", width: "100%", background: "#16213A", border: "1px solid rgba(244,241,233,0.1)", borderRadius: 14, color: "#F4F1EA", cursor: "pointer", padding: "16px 18px", textAlign: "left" },
-  btnFila: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 },
   btnTitulo: { fontSize: 15, fontWeight: 700, margin: 0 },
-  btnDesc: { fontSize: 12.5, color: "#94A3B8", margin: "5px 0 0" },
-  badge: { fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 20, flexShrink: 0 },
-  badgeEstado: {
-    preparacion: { background: "rgba(148,163,184,0.18)", color: "#94A3B8" },
-    activa: { background: "rgba(47,191,113,0.18)", color: "#2FBF71" },
-    cerrada: { background: "rgba(209,73,91,0.18)", color: "#D1495B" },
-  },
 };
-  
