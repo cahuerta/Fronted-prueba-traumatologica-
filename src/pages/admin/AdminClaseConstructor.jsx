@@ -17,14 +17,16 @@ import { CSS } from "@dnd-kit/utilities";
 import { clasesFormalesPaginas } from "../../api/clasesFormalesCliente";
 
 const ACENTO = "#4FC3D9";
+const LETRAS = ["A", "B", "C", "D", "E"];
 
 const HERRAMIENTA_LABEL = {
   ninguna: "Solo contenido",
   semaforo: "Semáforo (¿sigo?)",
+  trivia: "Trivia (pregunta con alternativas)",
 };
 
 export default function AdminClaseConstructor() {
-  const { sesionId } = useParams();
+  const { claseFormalId } = useParams();
   const navigate = useNavigate();
 
   const [paginas, setPaginas] = useState([]);
@@ -36,13 +38,13 @@ export default function AdminClaseConstructor() {
 
   useEffect(() => {
     cargar();
-  }, [sesionId]);
+  }, [claseFormalId]);
 
   async function cargar() {
     setCargando(true);
     setError("");
     try {
-      const data = await clasesFormalesPaginas.listar(sesionId);
+      const data = await clasesFormalesPaginas.listar(claseFormalId);
       setPaginas(data);
     } catch (err) {
       setError(err.message);
@@ -115,7 +117,7 @@ export default function AdminClaseConstructor() {
 
       {editando && (
         <PaginaModal
-          sesionId={sesionId}
+          claseFormalId={claseFormalId}
           pagina={editando === "nueva" ? null : paginas.find((p) => p.id === editando)}
           onClose={() => setEditando(null)}
           onGuardada={(pagina) => {
@@ -156,26 +158,54 @@ function PaginaItem({ pagina, numero, onEditar, onEliminar }) {
 }
 
 // ---------------- MODAL CREAR/EDITAR ----------------
-function PaginaModal({ sesionId, pagina, onClose, onGuardada }) {
+function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
   const [titulo, setTitulo] = useState(pagina?.titulo || "");
   const [tipoHerramienta, setTipoHerramienta] = useState(pagina?.tipo_herramienta || "ninguna");
+
+  // ---- config trivia ----
+  const configPrevia = pagina?.config || {};
+  const [pregunta, setPregunta] = useState(configPrevia.pregunta || "");
+  const [numAlternativas, setNumAlternativas] = useState(configPrevia.alternativas?.length || 4);
+  const [alternativas, setAlternativas] = useState(() => {
+    const base = configPrevia.alternativas || [];
+    return LETRAS.map((_, i) => base[i] || "");
+  });
+  const [correcta, setCorrecta] = useState(configPrevia.correcta ?? 0);
+
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+
+  function handleAlternativaChange(i, valor) {
+    setAlternativas((prev) => prev.map((a, idx) => (idx === i ? valor : a)));
+  }
 
   async function handleGuardar(e) {
     e.preventDefault();
     if (!titulo.trim()) return;
+    if (tipoHerramienta === "trivia" && !pregunta.trim()) return;
+
     setError("");
     setGuardando(true);
+
+    const config =
+      tipoHerramienta === "trivia"
+        ? {
+            pregunta: pregunta.trim(),
+            alternativas: alternativas.slice(0, numAlternativas).map((a) => a.trim()),
+            correcta,
+          }
+        : {};
+
     try {
       let resultado;
       if (pagina) {
         resultado = await clasesFormalesPaginas.editar(pagina.id, {
           titulo: titulo.trim(),
           tipo_herramienta: tipoHerramienta,
+          config,
         });
       } else {
-        resultado = await clasesFormalesPaginas.crear(sesionId, titulo.trim(), tipoHerramienta);
+        resultado = await clasesFormalesPaginas.crear(claseFormalId, titulo.trim(), tipoHerramienta, config);
       }
       onGuardada(resultado);
     } catch (err) {
@@ -205,6 +235,52 @@ function PaginaModal({ sesionId, pagina, onClose, onGuardada }) {
               <option key={valor} value={valor}>{label}</option>
             ))}
           </select>
+
+          {tipoHerramienta === "trivia" && (
+            <>
+              <label style={s.label}>Pregunta</label>
+              <input
+                value={pregunta}
+                onChange={(e) => setPregunta(e.target.value)}
+                placeholder="Ej. ¿Cuál es el tipo Garden más inestable?"
+                style={s.input}
+              />
+
+              <label style={s.label}>Número de alternativas</label>
+              <select
+                value={numAlternativas}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setNumAlternativas(n);
+                  if (correcta >= n) setCorrecta(0);
+                }}
+                style={s.input}
+              >
+                {[2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+
+              {LETRAS.slice(0, numAlternativas).map((letra, i) => (
+                <div key={letra} style={s.altFila}>
+                  <span style={s.altLetra}>{letra}</span>
+                  <input
+                    value={alternativas[i]}
+                    onChange={(e) => handleAlternativaChange(i, e.target.value)}
+                    placeholder={`Alternativa ${letra}`}
+                    style={{ ...s.input, flex: 1, marginBottom: 0 }}
+                  />
+                </div>
+              ))}
+
+              <label style={s.label}>Alternativa correcta</label>
+              <select value={correcta} onChange={(e) => setCorrecta(Number(e.target.value))} style={s.input}>
+                {LETRAS.slice(0, numAlternativas).map((letra, i) => (
+                  <option key={letra} value={i}>{letra}</option>
+                ))}
+              </select>
+            </>
+          )}
 
           {error && <p style={s.error}>{error}</p>}
 
@@ -237,14 +313,15 @@ const s = {
   itemDesc: { fontSize: 12, color: "#94A3B8", margin: "2px 0 0" },
   btnEliminar: { background: "none", border: "none", color: "#D1495B", fontSize: 16, cursor: "pointer", padding: "4px 8px" },
 
-  overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50 },
+  overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50, overflowY: "auto" },
   modal: { width: "100%", maxWidth: 420, background: "#16213A", borderRadius: "18px 18px 0 0", padding: "24px 20px 32px" },
   modalTitulo: { fontSize: 16, fontWeight: 700, margin: "0 0 16px" },
   form: { display: "flex", flexDirection: "column", gap: 8 },
   label: { fontSize: 12.5, color: "#94A3B8", marginTop: 6 },
-  input: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "13px 14px", color: "#F4F1EA", fontSize: 15 },
+  input: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "13px 14px", color: "#F4F1EA", fontSize: 15, marginBottom: 4 },
+  altFila: { display: "flex", alignItems: "center", gap: 8 },
+  altLetra: { color: ACENTO, fontWeight: 800, fontSize: 14, width: 18, flexShrink: 0 },
   modalBtns: { display: "flex", gap: 10, marginTop: 16 },
   btnCancelar: { flex: 1, background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 10, color: "#F4F1EA", padding: "13px 0", fontSize: 14, cursor: "pointer" },
   btn: { flex: 1, background: ACENTO, border: "none", borderRadius: 10, color: "#0E1526", padding: "13px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" },
 };
-            
