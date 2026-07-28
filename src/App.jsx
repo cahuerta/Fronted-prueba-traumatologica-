@@ -17,6 +17,7 @@ import AdminConjuntos from "./pages/admin/AdminConjuntos";
 import AdminPruebaCarga from "./pages/admin/AdminPruebaCarga";
 
 import AdminCasosVivoHub from "./pages/admin/AdminCasosVivoHub";
+import AdminCasosClinicosHub from "./pages/admin/AdminCasosClinicosHub";
 import AdminCasosVivo from "./pages/admin/AdminCasosVivo";
 import AdminCasoNuevo from "./pages/admin/AdminCasoNuevo";
 import AdminPresentaciones from "./pages/admin/AdminPresentaciones";
@@ -25,6 +26,7 @@ import AdminIniciarPresentacion from "./pages/admin/AdminIniciarPresentacion";
 import AdminVivo from "./pages/admin/AdminVivo";
 import AdminVivoDetalle from "./pages/admin/AdminVivoDetalle";
 import ProyeccionVivo from "./pages/admin/ProyeccionVivo";
+import AdminClaseVivo from "./pages/admin/AdminClaseVivo";
 
 import AlumnoIngreso from "./pages/alumno/AlumnoIngreso";
 import AlumnoEspera from "./pages/alumno/AlumnoEspera";
@@ -62,6 +64,7 @@ export default function App() {
 
         {/* ---------- Presentación dinámica en vivo (casos clínicos) — profesor ---------- */}
         <Route path="/admin/casos-vivo" element={<AdminCasosVivoHub />} />
+        <Route path="/admin/casos-vivo/hub" element={<AdminCasosClinicosHub />} />
         <Route path="/admin/casos-vivo/lista" element={<AdminCasosVivo />} />
         <Route path="/admin/casos-vivo/nuevo" element={<AdminCasoNuevo />} />
         <Route path="/admin/casos-vivo/:casoId" element={<AdminCasoNuevo />} />
@@ -71,6 +74,9 @@ export default function App() {
         <Route path="/admin/vivo/:sesionId" element={<AdminVivo />} />
         <Route path="/admin/vivo/:sesionId/detalle" element={<AdminVivoDetalle />} />
         <Route path="/proyeccion-vivo/:sesionId" element={<ProyeccionVivo />} />
+
+        {/* ---------- Clases Formales — control remoto en vivo ---------- */}
+        <Route path="/admin/clases-vivo/:sesionId" element={<AdminClaseVivo />} />
 
         {/* ---------- Alumno (sin login, entra por el link de la sesión) ---------- */}
         <Route path="/alumno/:sesionId" element={<AlumnoIngreso />} />
