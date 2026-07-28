@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { casosVivoAdmin } from "../../api/client";
+import { clasesFormalesContenido, clasesFormalesSesiones } from "../../api/clasesFormalesCliente";
 
 const REGIONES = [
   { valor: "hombro", etiqueta: "Hombro" },
@@ -24,8 +25,11 @@ const ESTADO_LABEL = {
 export default function AdminIniciarPresentacion() {
   const navigate = useNavigate();
 
-  const [sesionesActivas, setSesionesActivas] = useState([]);
-  const [lista, setLista] = useState([]);
+  const [activasCasos, setActivasCasos] = useState([]);
+  const [activasClases, setActivasClases] = useState([]);
+  const [presentacionesCasos, setPresentacionesCasos] = useState([]);
+  const [contenidoClases, setContenidoClases] = useState([]);
+
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [iniciandoId, setIniciandoId] = useState(null);
@@ -39,12 +43,22 @@ export default function AdminIniciarPresentacion() {
     setCargando(true);
     setError("");
     try {
-      const [activas, presentaciones] = await Promise.all([
+      const [activasC, presentacionesC, sesionesClase, contenidoC] = await Promise.all([
         casosVivoAdmin.listarSesionesActivas(),
         casosVivoAdmin.listarPresentaciones(),
+        clasesFormalesSesiones.listar(),
+        clasesFormalesContenido.listar(),
       ]);
-      setSesionesActivas(activas);
-      setLista(presentaciones);
+
+      setActivasCasos(activasC);
+      setPresentacionesCasos(presentacionesC);
+
+      const sesionesClaseActivas = sesionesClase.filter((s) => s.estado === "activa");
+      setActivasClases(sesionesClaseActivas);
+
+      // No mostrar como "para iniciar" el contenido que ya tiene una sesion activa
+      const idsClaseFormalEnVivo = new Set(sesionesClaseActivas.map((s) => s.clase_formal_id));
+      setContenidoClases(contenidoC.filter((c) => !idsClaseFormalEnVivo.has(c.id)));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -52,7 +66,7 @@ export default function AdminIniciarPresentacion() {
     }
   }
 
-  async function handleIniciar(presentacionId) {
+  async function handleIniciarCaso(presentacionId) {
     setError("");
     setIniciandoId(presentacionId);
     try {
@@ -65,7 +79,20 @@ export default function AdminIniciarPresentacion() {
     }
   }
 
-  async function handleBorrarSesion(sesionId) {
+  async function handleIniciarClase(claseFormalId) {
+    setError("");
+    setIniciandoId(claseFormalId);
+    try {
+      const sesion = await clasesFormalesSesiones.iniciar(claseFormalId);
+      navigate(`/admin/clases-vivo/${sesion.id}`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIniciandoId(null);
+    }
+  }
+
+  async function handleBorrarSesionCaso(sesionId) {
     setError("");
     setBorrandoId(sesionId);
     try {
@@ -78,9 +105,24 @@ export default function AdminIniciarPresentacion() {
     }
   }
 
+  async function handleCerrarSesionClase(sesionId) {
+    setError("");
+    setBorrandoId(sesionId);
+    try {
+      await clasesFormalesSesiones.cerrar(sesionId);
+      await cargar();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBorrandoId(null);
+    }
+  }
+
   function etiquetaDeRegion(valor) {
     return REGIONES.find((r) => r.valor === valor)?.etiqueta || valor;
   }
+
+  const hayActivas = activasCasos.length > 0 || activasClases.length > 0;
 
   return (
     <div style={s.wrap}>
@@ -95,13 +137,14 @@ export default function AdminIniciarPresentacion() {
         <p style={s.muted}>Cargando...</p>
       ) : (
         <>
-          {sesionesActivas.length > 0 && (
+          {hayActivas && (
             <>
               <h3 style={s.h3}>Sesiones activas</h3>
               <div style={s.listaActivas}>
-                {sesionesActivas.map((ses) => (
-                  <div key={ses.id} style={s.cardActiva}>
+                {activasCasos.map((ses) => (
+                  <div key={`caso-${ses.id}`} style={s.cardActiva}>
                     <div style={{ flex: 1 }}>
+                      <span style={s.badgeCaso}>Caso clínico</span>
                       <p style={s.cardTitle}>{ses.presentaciones?.titulo || "Presentación"}</p>
                       <p style={s.cardEstado}>{ESTADO_LABEL[ses.estado] || ses.estado} · código {ses.codigo_acceso}</p>
                     </div>
@@ -112,11 +155,31 @@ export default function AdminIniciarPresentacion() {
                       Proyección
                     </button>
                     <button
-                      onClick={() => handleBorrarSesion(ses.id)}
+                      onClick={() => handleBorrarSesionCaso(ses.id)}
                       disabled={borrandoId === ses.id}
                       style={s.borrarBtn}
                     >
                       {borrandoId === ses.id ? "..." : "Borrar"}
+                    </button>
+                  </div>
+                ))}
+
+                {activasClases.map((ses) => (
+                  <div key={`clase-${ses.id}`} style={s.cardActiva}>
+                    <div style={{ flex: 1 }}>
+                      <span style={s.badgeClase}>Clase formal</span>
+                      <p style={s.cardTitle}>{ses.nombre}</p>
+                      <p style={s.cardEstado}>Activa · código {ses.codigo_acceso}</p>
+                    </div>
+                    <button onClick={() => navigate(`/admin/clases-vivo/${ses.id}`)} style={s.continuarBtn}>
+                      Continuar
+                    </button>
+                    <button
+                      onClick={() => handleCerrarSesionClase(ses.id)}
+                      disabled={borrandoId === ses.id}
+                      style={s.borrarBtn}
+                    >
+                      {borrandoId === ses.id ? "..." : "Cerrar"}
                     </button>
                   </div>
                 ))}
@@ -125,20 +188,34 @@ export default function AdminIniciarPresentacion() {
           )}
 
           <h3 style={s.h3}>Iniciar una nueva</h3>
-          {lista.length === 0 ? (
-            <p style={s.muted}>No hay presentaciones armadas todavía.</p>
+          {presentacionesCasos.length === 0 && contenidoClases.length === 0 ? (
+            <p style={s.muted}>No hay nada armado todavía.</p>
           ) : (
             <div style={s.grid}>
-              {lista.map((p) => (
+              {presentacionesCasos.map((p) => (
                 <button
-                  key={p.id}
-                  onClick={() => handleIniciar(p.id)}
+                  key={`caso-${p.id}`}
+                  onClick={() => handleIniciarCaso(p.id)}
                   disabled={iniciandoId === p.id}
                   style={s.card}
                 >
+                  <span style={s.badgeCaso}>Caso clínico</span>
                   {p.region && <p style={s.cardRegion}>{etiquetaDeRegion(p.region)}</p>}
                   <p style={s.cardTitle}>{p.titulo}</p>
                   <p style={s.cardAccion}>{iniciandoId === p.id ? "Iniciando..." : "▶ Tocar para iniciar"}</p>
+                </button>
+              ))}
+
+              {contenidoClases.map((c) => (
+                <button
+                  key={`clase-${c.id}`}
+                  onClick={() => handleIniciarClase(c.id)}
+                  disabled={iniciandoId === c.id}
+                  style={s.card}
+                >
+                  <span style={s.badgeClase}>Clase formal</span>
+                  <p style={s.cardTitle}>{c.nombre}</p>
+                  <p style={s.cardAccion}>{iniciandoId === c.id ? "Iniciando..." : "▶ Tocar para iniciar"}</p>
                 </button>
               ))}
             </div>
@@ -157,6 +234,9 @@ const s = {
   h3: { fontSize: 13, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.5, margin: "0 0 10px" },
   error: { color: "#D1495B", fontSize: 13, marginBottom: 12 },
   muted: { color: "#94A3B8", fontSize: 13 },
+
+  badgeCaso: { display: "inline-block", fontSize: 10.5, fontWeight: 700, color: "#4FC3D9", background: "rgba(79,195,217,0.15)", borderRadius: 6, padding: "2px 8px", marginBottom: 6 },
+  badgeClase: { display: "inline-block", fontSize: 10.5, fontWeight: 700, color: "#B98BE0", background: "rgba(185,139,224,0.15)", borderRadius: 6, padding: "2px 8px", marginBottom: 6 },
 
   listaActivas: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 28 },
   cardActiva: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(127,217,143,0.35)", borderRadius: 12, padding: "12px 16px", flexWrap: "wrap" },
