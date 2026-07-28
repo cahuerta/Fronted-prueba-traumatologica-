@@ -22,7 +22,7 @@ export default function AdminCasosVivoHub() {
           </div>
         </button>
 
-        <button onClick={() => navigate("/admin/clases-formales/nueva")} style={s.btn}>
+        <button onClick={() => navigate("/admin/clases-formales")} style={s.btn}>
           <span style={s.letra}>B</span>
           <div>
             <p style={s.btnTitulo}>Clases Formales</p>
