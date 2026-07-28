@@ -1,14 +1,20 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { clasesFormalesPreguntas, clasesFormalesSemaforo } from "../../api/clasesFormalesCliente";
+import {
+  clasesFormalesPreguntas,
+  clasesFormalesSemaforo,
+  clasesFormalesTrivia,
+  clasesFormalesActual,
+} from "../../api/clasesFormalesCliente";
 
-// Pantalla fija del alumno durante toda la clase -no cambia segun la
-// pagina que va mostrando el profesor, el alumno nunca sabe ni necesita
-// saber en que pagina va la sesion-. Dos herramientas, siempre visibles:
-//   1. Preguntas anonimas: el alumno solo envia las suyas, no ve ni vota
-//      las de otros -el admin decide manualmente que preguntas priorizar-.
-//   2. Semaforo "sigo?" si/no: continuo por sesion completa, el alumno
-//      puede cambiar su respuesta en cualquier momento mientras dure la clase.
+const LETRAS = ["A", "B", "C", "D", "E"];
+
+// Pantalla del alumno durante toda la clase. Preguntas y semaforo son
+// FIJOS -no dependen de la pagina que va mostrando el profesor-. La
+// trivia es la unica excepcion: como cada pregunta es especifica de su
+// pagina, el alumno consulta en silencio (sin mostrar titulo ni
+// contenido de la pagina) cual esta activa, solo para saber si hay una
+// trivia esperando respuesta y a que pagina_id atarla.
 export default function AlumnoClaseInteraccion() {
   const { codigo } = useParams();
 
@@ -23,12 +29,36 @@ export default function AlumnoClaseInteraccion() {
   const [sigo, setSigo] = useState(null); // null = aun no ha respondido
   const [semaforoError, setSemaforoError] = useState("");
 
+  const [paginaTrivia, setPaginaTrivia] = useState(null); // pagina_id activa si es trivia, o null
+  const [miLetra, setMiLetra] = useState(null);
+  const [triviaError, setTriviaError] = useState("");
+
   useEffect(() => {
     if (enviada) {
       const t = setTimeout(() => setEnviada(false), 2500);
       return () => clearTimeout(t);
     }
   }, [enviada]);
+
+  // Consulta silenciosa: solo para saber si hay trivia activa ahora
+  useEffect(() => {
+    async function poll() {
+      try {
+        const pagina = await clasesFormalesActual.leer(codigo);
+        if (pagina.tipo_herramienta === "trivia") {
+          setPaginaTrivia(pagina.id);
+        } else {
+          setPaginaTrivia(null);
+          setMiLetra(null);
+        }
+      } catch {
+        setPaginaTrivia(null);
+      }
+    }
+    poll();
+    const id = setInterval(poll, 2000);
+    return () => clearInterval(id);
+  }, [codigo]);
 
   async function handlePreguntar(e) {
     e.preventDefault();
@@ -57,11 +87,43 @@ export default function AlumnoClaseInteraccion() {
     }
   }
 
+  async function handleTrivia(letra) {
+    if (!paginaTrivia) return;
+    setTriviaError("");
+    setMiLetra(letra); // optimista
+    try {
+      await clasesFormalesTrivia.responder(paginaTrivia, rut, letra);
+    } catch (err) {
+      setMiLetra(null);
+      setTriviaError(err.message);
+    }
+  }
+
   return (
     <div style={s.wrap}>
       <div style={s.card}>
         <p style={s.titulo}>Clase en vivo</p>
         <p style={s.subtitulo}>Código {codigo}</p>
+
+        {/* ---------------- TRIVIA (solo aparece si la pagina activa es trivia) ---------------- */}
+        {paginaTrivia && (
+          <div style={s.seccion}>
+            <p style={s.label}>Pregunta en pantalla</p>
+            <div style={s.triviaBtns}>
+              {LETRAS.map((letra) => (
+                <button
+                  key={letra}
+                  type="button"
+                  onClick={() => handleTrivia(letra)}
+                  style={{ ...s.triviaBtn, ...(miLetra === letra ? s.triviaBtnActivo : {}) }}
+                >
+                  {letra}
+                </button>
+              ))}
+            </div>
+            {triviaError && <p style={s.error}>{triviaError}</p>}
+          </div>
+        )}
 
         {/* ---------------- SEMAFORO ---------------- */}
         <div style={s.seccion}>
@@ -119,10 +181,12 @@ const s = {
   semaforoBtn: { flex: 1, background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, color: "#F4F1EA", padding: "14px 0", fontSize: 16, fontWeight: 700, cursor: "pointer" },
   semaforoBtnActivoSi: { background: "#2FBF71", color: "#0E1526", border: "none" },
   semaforoBtnActivoNo: { background: "#D1495B", color: "#0E1526", border: "none" },
+  triviaBtns: { display: "flex", gap: 8 },
+  triviaBtn: { flex: 1, background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, color: "#F4F1EA", padding: "14px 0", fontSize: 16, fontWeight: 700, cursor: "pointer" },
+  triviaBtnActivo: { background: "#4FC3D9", color: "#0E1526", border: "none" },
   form: { display: "flex", flexDirection: "column", gap: 12 },
   textarea: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "14px 16px", color: "#F4F1EA", fontSize: 15, fontFamily: "sans-serif", resize: "vertical" },
   error: { color: "#D1495B", fontSize: 13, margin: 0 },
   ok: { color: "#2FBF71", fontSize: 13, margin: 0 },
   btn: { background: "#4FC3D9", border: "none", borderRadius: 10, color: "#0E1526", padding: "15px 0", fontSize: 16, fontWeight: 700, cursor: "pointer" },
 };
-          
