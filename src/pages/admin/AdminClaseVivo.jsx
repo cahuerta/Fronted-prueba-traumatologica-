@@ -5,11 +5,13 @@ import {
   clasesFormalesActual,
   clasesFormalesSemaforo,
   clasesFormalesPreguntas,
+  clasesFormalesTrivia,
 } from "../../api/clasesFormalesCliente";
 
 const ACENTO = "#4FC3D9";
 
 const COLOR_SEMAFORO = { verde: "#2FBF71", amarillo: "#E0B23A", rojo: "#D1495B" };
+const LETRAS = ["A", "B", "C", "D", "E"];
 
 export default function AdminClaseVivo() {
   const { sesionId } = useParams();
@@ -19,6 +21,8 @@ export default function AdminClaseVivo() {
   const [paginaActual, setPaginaActual] = useState(null);
   const [semaforo, setSemaforo] = useState(null);
   const [preguntas, setPreguntas] = useState([]);
+  const [trivia, setTrivia] = useState(null);
+  const [revelando, setRevelando] = useState(false);
   const [error, setError] = useState("");
   const [avanzando, setAvanzando] = useState(false);
 
@@ -56,6 +60,13 @@ export default function AdminClaseVivo() {
         setPaginaActual(pagina);
         setSemaforo(resultadoSemaforo);
         setPreguntas(listaPreguntas);
+
+        if (pagina?.tipo_herramienta === "trivia") {
+          const resultadoTrivia = await clasesFormalesTrivia.resultado(pagina.id);
+          setTrivia(resultadoTrivia);
+        } else {
+          setTrivia(null);
+        }
       } catch {
         // silencioso: el proximo poll reintenta solo
       }
@@ -87,6 +98,18 @@ export default function AdminClaseVivo() {
     }
   }
 
+  async function handleRevelar() {
+    if (!paginaActual) return;
+    setRevelando(true);
+    try {
+      await clasesFormalesTrivia.revelar(paginaActual.id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRevelando(false);
+    }
+  }
+
   if (error && !sesion) {
     return (
       <div style={s.wrap}>
@@ -110,6 +133,31 @@ export default function AdminClaseVivo() {
           {avanzando ? "..." : "Siguiente página →"}
         </button>
       </div>
+
+      {/* ---------------- TRIVIA (solo si la pagina actual es de tipo trivia) ---------------- */}
+      {trivia && (
+        <div style={s.card}>
+          <p style={s.label}>Trivia ({trivia.total} respuestas)</p>
+          <div style={s.triviaBarras}>
+            {LETRAS.map((letra) => {
+              const n = trivia.conteos[letra] || 0;
+              const pct = trivia.total > 0 ? Math.round((n / trivia.total) * 100) : 0;
+              return (
+                <div key={letra} style={s.triviaFila}>
+                  <span style={s.triviaLetra}>{letra}</span>
+                  <div style={s.triviaBarraFondo}>
+                    <div style={{ ...s.triviaBarraLlena, width: `${pct}%` }} />
+                  </div>
+                  <span style={s.triviaConteo}>{n}</span>
+                </div>
+              );
+            })}
+          </div>
+          <button onClick={handleRevelar} disabled={revelando || trivia.revelada} style={s.btnRevelar}>
+            {trivia.revelada ? "Revelada" : revelando ? "..." : "Revelar respuesta correcta"}
+          </button>
+        </div>
+      )}
 
       {/* ---------------- SEMAFORO ---------------- */}
       <div style={s.card}>
@@ -169,6 +217,13 @@ const s = {
   preguntaFila: { display: "flex", alignItems: "center", justifyContent: "space-between" },
   upvotes: { fontSize: 12.5, color: ACENTO, fontWeight: 700 },
   btnResponder: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#F4F1EA", fontSize: 12, padding: "6px 10px", cursor: "pointer" },
+  triviaBarras: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 },
+  triviaFila: { display: "flex", alignItems: "center", gap: 10 },
+  triviaLetra: { width: 20, fontWeight: 800, fontSize: 13, color: ACENTO, flexShrink: 0 },
+  triviaBarraFondo: { flex: 1, height: 10, borderRadius: 6, background: "#0E1526", overflow: "hidden" },
+  triviaBarraLlena: { height: "100%", background: ACENTO, borderRadius: 6, transition: "width 0.3s" },
+  triviaConteo: { width: 24, textAlign: "right", fontSize: 12.5, color: "#94A3B8", flexShrink: 0 },
+  btnRevelar: { display: "block", width: "100%", background: "none", border: `1px solid ${ACENTO}`, borderRadius: 10, color: ACENTO, padding: "12px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" },
   error: { color: "#D1495B", fontSize: 13, textAlign: "center" },
 };
           
