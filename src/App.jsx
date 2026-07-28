@@ -29,6 +29,7 @@ import ProyeccionVivo from "./pages/admin/ProyeccionVivo";
 import AdminClaseVivo from "./pages/admin/AdminClaseVivo";
 import AdminClasesFormales from "./pages/admin/AdminClasesFormales";
 import AdminClaseConstructor from "./pages/admin/AdminClaseConstructor";
+import ProyeccionClase from "./pages/admin/ProyeccionClase";
 
 import AlumnoIngreso from "./pages/alumno/AlumnoIngreso";
 import AlumnoEspera from "./pages/alumno/AlumnoEspera";
@@ -82,6 +83,7 @@ export default function App() {
         <Route path="/admin/clases-formales" element={<AdminClasesFormales />} />
         <Route path="/admin/clases-formales/:claseFormalId" element={<AdminClaseConstructor />} />
         <Route path="/admin/clases-vivo/:sesionId" element={<AdminClaseVivo />} />
+        <Route path="/proyeccion-clase/:codigo" element={<ProyeccionClase />} />
 
         {/* ---------- Alumno (sin login, entra por el link de la sesión) ---------- */}
         <Route path="/alumno/:sesionId" element={<AlumnoIngreso />} />
