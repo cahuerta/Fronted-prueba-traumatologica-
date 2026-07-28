@@ -39,6 +39,7 @@ import AlumnoMateriales from "./pages/alumno/AlumnoMateriales";
 
 import AlumnoVivoIngreso from "./pages/alumno/AlumnoVivoIngreso";
 import AlumnoVivoVotar from "./pages/alumno/AlumnoVivoVotar";
+import AlumnoClaseInteraccion from "./pages/alumno/AlumnoClaseInteraccion";
 
 export default function App() {
   return (
@@ -88,9 +89,10 @@ export default function App() {
         <Route path="/alumno/:sesionId/examen" element={<AlumnoExamen />} />
         <Route path="/alumno/:sesionId/resultado" element={<AlumnoResultado />} />
 
-        {/* ---------- Alumno — presentación dinámica en vivo (casos clínicos) ---------- */}
+        {/* ---------- Alumno — presentación dinámica en vivo (casos clínicos + clases formales, resueltas por codigo) ---------- */}
         <Route path="/alumno-vivo/:codigo" element={<AlumnoVivoIngreso />} />
         <Route path="/alumno-vivo/:codigo/votar" element={<AlumnoVivoVotar />} />
+        <Route path="/alumno-vivo/:codigo/clase" element={<AlumnoClaseInteraccion />} />
 
         {/* ---------- Materiales (QR fijo, sin sesión asociada) ---------- */}
         <Route path="/materiales" element={<AlumnoMaterialesIngreso />} />
