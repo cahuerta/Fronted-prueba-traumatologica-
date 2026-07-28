@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { casosVivoAlumno } from "../../api/client";
-import { sesionResolver } from "../../api/clasesFormalesCliente";
+import { sesionResolver, clasesFormalesIngreso } from "../../api/clasesFormalesCliente";
 
 function formatearRut(valor) {
   const limpio = valor.replace(/[^0-9kK]/g, "").toUpperCase();
@@ -96,9 +96,17 @@ export default function AlumnoVivoIngreso() {
     }
     const rutLimpio = rut.replace(/\./g, "");
 
-    localStorage.setItem("clase_rut", rutLimpio);
-    localStorage.setItem("clase_sesion_id", sesionId);
-    navigate(`/alumno-vivo/${codigo}/clase`);
+    setEntrando(true);
+    try {
+      await clasesFormalesIngreso.ingresar(sesionId, rutLimpio);
+      localStorage.setItem("clase_rut", rutLimpio);
+      localStorage.setItem("clase_sesion_id", sesionId);
+      navigate(`/alumno-vivo/${codigo}/clase`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEntrando(false);
+    }
   }
 
   if (resolviendo) {
@@ -168,7 +176,9 @@ export default function AlumnoVivoIngreso() {
             style={s.input}
           />
           {error && <p style={s.error}>{error}</p>}
-          <button type="submit" style={s.btn}>Entrar</button>
+          <button type="submit" disabled={entrando} style={s.btn}>
+            {entrando ? "Entrando..." : "Entrar"}
+          </button>
         </form>
       </div>
     </div>
