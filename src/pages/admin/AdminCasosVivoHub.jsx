@@ -1,5 +1,8 @@
 import { useNavigate } from "react-router-dom";
 
+// Hub principal de "presentacion en vivo" -mixto: casos clinicos y
+// Clases Formales conviven aca como dos sistemas hermanos, mas la
+// pantalla de "Presentar" que lista sesiones de ambos tipos juntas.
 export default function AdminCasosVivoHub() {
   const navigate = useNavigate();
 
@@ -7,31 +10,31 @@ export default function AdminCasosVivoHub() {
     <div style={s.wrap}>
       <header style={s.header}>
         <button onClick={() => navigate("/admin/dashboard")} style={s.back}>‹ Volver</button>
-        <h1 style={s.h1}>Presentación casos clínicos</h1>
+        <h1 style={s.h1}>Presentación en vivo</h1>
       </header>
 
       <div style={s.list}>
-        <button onClick={() => navigate("/admin/casos-vivo/lista")} style={s.btn}>
+        <button onClick={() => navigate("/admin/casos-vivo/hub")} style={s.btn}>
           <span style={s.letra}>A</span>
           <div>
-            <p style={s.btnTitulo}>Crear caso clínico</p>
-            <p style={s.btnDesc}>Ver, editar o crear casos clínicos y sus preguntas</p>
+            <p style={s.btnTitulo}>Casos clínicos</p>
+            <p style={s.btnDesc}>Crear casos y armar presentaciones de varios casos</p>
           </div>
         </button>
 
-        <button onClick={() => navigate("/admin/presentaciones")} style={s.btn}>
+        <button onClick={() => navigate("/admin/clases-formales/nueva")} style={s.btn}>
           <span style={s.letra}>B</span>
           <div>
-            <p style={s.btnTitulo}>Crear presentación</p>
-            <p style={s.btnDesc}>Ordena varios casos en una presentación reutilizable</p>
+            <p style={s.btnTitulo}>Clases Formales</p>
+            <p style={s.btnDesc}>Arma una clase con páginas, semáforo, trivia y preguntas</p>
           </div>
         </button>
 
-        <button onClick={() => navigate("/admin/presentaciones/iniciar")} style={s.btnDestacado}>
+        <button onClick={() => navigate("/admin/presentar")} style={s.btnDestacado}>
           <span style={s.letraDestacada}>C</span>
           <div>
-            <p style={s.btnTitulo}>Iniciar presentación</p>
-            <p style={s.btnDescDestacada}>Elige una presentación ya armada y comienza la clase</p>
+            <p style={s.btnTitulo}>Presentar</p>
+            <p style={s.btnDescDestacada}>Ve todo lo ya armado -casos clínicos y clases- e inicia la clase</p>
           </div>
         </button>
       </div>
