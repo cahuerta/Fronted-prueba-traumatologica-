@@ -163,6 +163,7 @@ export const documentos = {
   generar: (papers, tema) => request("/documentos/generar", { method: "POST", body: { papers, tema }, auth: true }),
   descargarPdf: (doc) => descargarArchivo("/documentos/pdf", doc, "documento.pdf"),
   descargarPpt: (doc) => descargarArchivo("/documentos/ppt", doc, "documento.pptx"),
+  crearClaseFormal: (doc) => request("/documentos/clase-formal", { method: "POST", body: doc, auth: true }),
 };
 
 // ---------------- CASOS EN VIVO — PROFESOR (requieren login) ----------------
@@ -247,3 +248,4 @@ export const casosVivoAlumno = {
     request("/casos-vivo/vivo/votar", { method: "POST", body: { sesion_id: sesionId, alumno_id: alumnoId, pregunta_id: preguntaId, opcion } }),
   resultados: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/resultados`),
 };
+    
