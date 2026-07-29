@@ -19,9 +19,11 @@ import { clasesFormalesPaginas } from "../../api/clasesFormalesCliente";
 const ACENTO = "#4FC3D9";
 const LETRAS = ["A", "B", "C", "D", "E"];
 
+// "semaforo" no es una opcion de pagina -es global, activo durante toda
+// la sesion (ver AlumnoClaseInteraccion.jsx)-, por eso no aparece aca.
 const HERRAMIENTA_LABEL = {
-  ninguna: "Solo contenido",
-  semaforo: "Semáforo (¿sigo?)",
+  ninguna: "Solo título",
+  titulo_texto: "Título + texto",
   trivia: "Trivia (pregunta con alternativas)",
 };
 
@@ -162,8 +164,11 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
   const [titulo, setTitulo] = useState(pagina?.titulo || "");
   const [tipoHerramienta, setTipoHerramienta] = useState(pagina?.tipo_herramienta || "ninguna");
 
-  // ---- config trivia ----
+  // ---- config titulo_texto ----
   const configPrevia = pagina?.config || {};
+  const [textoLineas, setTextoLineas] = useState(() => (configPrevia.bullets || []).join("\n"));
+
+  // ---- config trivia ----
   const [pregunta, setPregunta] = useState(configPrevia.pregunta || "");
   const [numAlternativas, setNumAlternativas] = useState(configPrevia.alternativas?.length || 4);
   const [alternativas, setAlternativas] = useState(() => {
@@ -187,14 +192,18 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
     setError("");
     setGuardando(true);
 
-    const config =
-      tipoHerramienta === "trivia"
-        ? {
-            pregunta: pregunta.trim(),
-            alternativas: alternativas.slice(0, numAlternativas).map((a) => a.trim()),
-            correcta,
-          }
-        : {};
+    let config = {};
+    if (tipoHerramienta === "trivia") {
+      config = {
+        pregunta: pregunta.trim(),
+        alternativas: alternativas.slice(0, numAlternativas).map((a) => a.trim()),
+        correcta,
+      };
+    } else if (tipoHerramienta === "titulo_texto") {
+      config = {
+        bullets: textoLineas.split("\n").map((l) => l.trim()).filter(Boolean),
+      };
+    }
 
     try {
       let resultado;
@@ -229,12 +238,25 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
             style={s.input}
           />
 
-          <label style={s.label}>Herramienta</label>
+          <label style={s.label}>Plantilla</label>
           <select value={tipoHerramienta} onChange={(e) => setTipoHerramienta(e.target.value)} style={s.input}>
             {Object.entries(HERRAMIENTA_LABEL).map(([valor, label]) => (
               <option key={valor} value={valor}>{label}</option>
             ))}
           </select>
+
+          {tipoHerramienta === "titulo_texto" && (
+            <>
+              <label style={s.label}>Texto (una línea = un punto en pantalla)</label>
+              <textarea
+                value={textoLineas}
+                onChange={(e) => setTextoLineas(e.target.value)}
+                placeholder={"Ej.\nIncidencia 30% en mayores de 65 años\nMás frecuente en mujeres"}
+                rows={6}
+                style={s.textarea}
+              />
+            </>
+          )}
 
           {tipoHerramienta === "trivia" && (
             <>
@@ -319,6 +341,7 @@ const s = {
   form: { display: "flex", flexDirection: "column", gap: 8 },
   label: { fontSize: 12.5, color: "#94A3B8", marginTop: 6 },
   input: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "13px 14px", color: "#F4F1EA", fontSize: 15, marginBottom: 4 },
+  textarea: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "13px 14px", color: "#F4F1EA", fontSize: 15, marginBottom: 4, fontFamily: "sans-serif", resize: "vertical" },
   altFila: { display: "flex", alignItems: "center", gap: 8 },
   altLetra: { color: ACENTO, fontWeight: 800, fontSize: 14, width: 18, flexShrink: 0 },
   modalBtns: { display: "flex", gap: 10, marginTop: 16 },
