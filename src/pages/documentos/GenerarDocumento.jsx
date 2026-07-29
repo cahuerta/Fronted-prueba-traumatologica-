@@ -124,6 +124,7 @@ export default function GenerarDocumento() {
   const [generando, setGenerando] = useState(false);
   const [documento, setDocumento] = useState(null);
   const [descargando, setDescargando] = useState("");
+  const [creandoClase, setCreandoClase] = useState(false);
 
   useEffect(() => {
     documentos.ping().catch(() => {});
@@ -211,6 +212,17 @@ export default function GenerarDocumento() {
       setError(e.message);
     } finally {
       setDescargando("");
+    }
+  }
+
+  async function handleCrearClaseFormal() {
+    setCreandoClase(true); setError("");
+    try {
+      const { clase_formal_id } = await documentos.crearClaseFormal(documento);
+      navigate(`/admin/clases-formales/${clase_formal_id}`);
+    } catch (e) {
+      setError(e.message);
+      setCreandoClase(false);
     }
   }
 
@@ -375,6 +387,9 @@ export default function GenerarDocumento() {
               <button onClick={handleDescargarPpt} disabled={descargando === "ppt"} style={btnDescarga(descargando === "ppt")}>
                 {descargando === "ppt" ? "⏳ Generando..." : "⬇️ PowerPoint"}
               </button>
+              <button onClick={handleCrearClaseFormal} disabled={creandoClase} style={btnDescarga(creandoClase)}>
+                {creandoClase ? "⏳ Creando..." : "🎓 Crear clase formal"}
+              </button>
             </div>
 
             {/* Introducción */}
@@ -419,5 +434,4 @@ export default function GenerarDocumento() {
       </div>
     </div>
   );
-                    }
-                            
+}
