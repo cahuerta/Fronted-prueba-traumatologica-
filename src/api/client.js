@@ -100,6 +100,8 @@ export const materiales = {
   listar: (region) => request(`/materiales${region ? `?region=${region}` : ""}`),
   ingreso: (nombre, rut) => request("/materiales/ingreso", { method: "POST", body: { nombre, rut } }),
   descargar: (materialId, alumnoId) => request(`/materiales/${materialId}/descargar`, { method: "POST", body: { alumno_id: alumnoId } }),
+  descargarAdmin: (materialId) => request(`/materiales/${materialId}/descargar-admin`, { auth: true }),
+  borrar: (materialId) => request(`/materiales/${materialId}`, { method: "DELETE", auth: true }),
   analisis: () => request("/materiales/analisis", { auth: true }),
 };
 
