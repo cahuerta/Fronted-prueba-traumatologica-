@@ -31,6 +31,9 @@ export default function AdminMateriales() {
   const [lista, setLista] = useState([]);
   const [filtroRegion, setFiltroRegion] = useState("");
 
+  const [descargandoId, setDescargandoId] = useState(null);
+  const [borrandoId, setBorrandoId] = useState(null);
+
   useEffect(() => {
     cargarLista();
   }, [filtroRegion]);
@@ -81,6 +84,33 @@ export default function AdminMateriales() {
     }
   }
 
+  async function handleDescargar(materialId) {
+    setError("");
+    setDescargandoId(materialId);
+    try {
+      const { url } = await materiales.descargarAdmin(materialId);
+      window.open(url, "_blank", "noreferrer");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDescargandoId(null);
+    }
+  }
+
+  async function handleBorrar(materialId) {
+    if (!confirm("¿Borrar este material?")) return;
+    setError("");
+    setBorrandoId(materialId);
+    try {
+      await materiales.borrar(materialId);
+      setLista((prev) => prev.filter((m) => m.id !== materialId));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBorrandoId(null);
+    }
+  }
+
   function etiquetaDeRegion(valor) {
     return REGIONES.find((r) => r.valor === valor)?.etiqueta || valor;
   }
@@ -128,13 +158,28 @@ export default function AdminMateriales() {
 
       <div style={s.list}>
         {lista.map((m) => (
-          <a key={m.id} href={m.url} target="_blank" rel="noreferrer" style={s.card}>
-            <div>
+          <div key={m.id} style={s.card}>
+            <div style={s.cardInfo}>
               <p style={s.cardMeta}>{etiquetaDeRegion(m.region)} · {m.tipo}</p>
               <p style={s.cardTitle}>{m.titulo}</p>
             </div>
-            <span style={s.chevron}>↓</span>
-          </a>
+            <div style={s.cardBtns}>
+              <button
+                onClick={() => handleDescargar(m.id)}
+                disabled={descargandoId === m.id}
+                style={s.btnDescargar}
+              >
+                {descargandoId === m.id ? "..." : "↓ Descargar"}
+              </button>
+              <button
+                onClick={() => handleBorrar(m.id)}
+                disabled={borrandoId === m.id}
+                style={s.btnBorrar}
+              >
+                {borrandoId === m.id ? "..." : "Borrar"}
+              </button>
+            </div>
+          </div>
         ))}
       </div>
     </div>
@@ -157,8 +202,12 @@ const s = {
   h2: { fontSize: 15, margin: 0 },
   filterSelect: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, color: "#F4F1EA", fontSize: 13, padding: "6px 8px" },
   list: { display: "flex", flexDirection: "column", gap: 8 },
-  card: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "10px 12px", textDecoration: "none" },
+  card: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "10px 12px", flexWrap: "wrap" },
+  cardInfo: { flex: 1, minWidth: 140 },
   cardMeta: { color: "#4FC3D9", fontSize: 10.5, margin: 0, textTransform: "uppercase", letterSpacing: "0.03em" },
   cardTitle: { color: "#F4F1EA", fontSize: 13.5, margin: "2px 0 0" },
-  chevron: { color: "#94A3B8", fontSize: 16 },
+  cardBtns: { display: "flex", gap: 8, flexShrink: 0 },
+  btnDescargar: { background: "none", border: "1px solid #4FC3D9", borderRadius: 8, color: "#4FC3D9", padding: "7px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" },
+  btnBorrar: { background: "none", border: "1px solid rgba(209,73,91,0.4)", borderRadius: 8, color: "#D1495B", padding: "7px 12px", fontSize: 12.5, cursor: "pointer" },
 };
+                  
