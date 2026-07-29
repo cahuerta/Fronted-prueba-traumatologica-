@@ -22,6 +22,7 @@ export default function AdminClaseVivo() {
   const [semaforo, setSemaforo] = useState(null);
   const [preguntas, setPreguntas] = useState([]);
   const [trivia, setTrivia] = useState(null);
+  const [asistencia, setAsistencia] = useState({ presentes: 0, total_habilitados: 0 });
   const [revelando, setRevelando] = useState(false);
   const [error, setError] = useState("");
   const [avanzando, setAvanzando] = useState(false);
@@ -46,20 +47,22 @@ export default function AdminClaseVivo() {
     })();
   }, [sesionId]);
 
-  // Polling: pagina activa + resultado semaforo + preguntas, cada 2s
+  // Polling: pagina activa + resultado semaforo + preguntas + asistencia, cada 2s
   useEffect(() => {
     if (!sesion) return;
 
     async function poll() {
       try {
-        const [pagina, resultadoSemaforo, listaPreguntas] = await Promise.all([
+        const [pagina, resultadoSemaforo, listaPreguntas, resultadoAsistencia] = await Promise.all([
           codigoRef.current ? clasesFormalesActual.leer(codigoRef.current) : Promise.resolve(null),
           clasesFormalesSemaforo.resultado(sesionId),
           clasesFormalesPreguntas.listar(sesionId),
+          clasesFormalesSesiones.asistencia(sesionId),
         ]);
         setPaginaActual(pagina);
         setSemaforo(resultadoSemaforo);
         setPreguntas(listaPreguntas);
+        setAsistencia(resultadoAsistencia);
 
         if (pagina?.tipo_herramienta === "trivia") {
           const resultadoTrivia = await clasesFormalesTrivia.resultado(pagina.id);
@@ -114,6 +117,41 @@ export default function AdminClaseVivo() {
     return (
       <div style={s.wrap}>
         <p style={s.error}>{error}</p>
+      </div>
+    );
+  }
+
+  // ---------------- SIN PAGINA ACTIVA TODAVIA: pantalla de asistencia ----------------
+  if (sesion && !paginaActual) {
+    const pct = asistencia.total_habilitados > 0
+      ? Math.min(100, Math.round((asistencia.presentes / asistencia.total_habilitados) * 100))
+      : 0;
+
+    return (
+      <div style={s.wrap}>
+        <header style={s.header}>
+          <button onClick={() => navigate("/admin/clases-formales")} style={s.back}>‹ Volver</button>
+          <h1 style={s.h1}>{sesion.nombre}</h1>
+        </header>
+
+        <div style={s.asistenciaWrap}>
+          <p style={s.asistenciaTitulo}>Asistencia</p>
+          <div style={s.asistenciaNumeros}>
+            <span style={s.asistenciaPresentes}>{asistencia.presentes}</span>
+            <span style={s.asistenciaSeparador}>/</span>
+            <span style={s.asistenciaTotal}>{asistencia.total_habilitados}</span>
+          </div>
+          <p style={s.asistenciaLabel}>han ingresado con el código {sesion.codigo_acceso}</p>
+          <div style={s.asistenciaBarraFondo}>
+            <div style={{ ...s.asistenciaBarraLlena, width: `${pct}%` }} />
+          </div>
+        </div>
+
+        {error && <p style={s.error}>{error}</p>}
+
+        <button onClick={handleAvanzar} disabled={avanzando} style={s.btnAvanzar}>
+          {avanzando ? "..." : "Iniciar clase"}
+        </button>
       </div>
     );
   }
@@ -225,5 +263,15 @@ const s = {
   triviaConteo: { width: 24, textAlign: "right", fontSize: 12.5, color: "#94A3B8", flexShrink: 0 },
   btnRevelar: { display: "block", width: "100%", background: "none", border: `1px solid ${ACENTO}`, borderRadius: 10, color: ACENTO, padding: "12px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" },
   error: { color: "#D1495B", fontSize: 13, textAlign: "center" },
+
+  asistenciaWrap: { background: "#16213A", border: "2px solid rgba(79,195,217,0.4)", borderRadius: 16, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "5vh 20px", textAlign: "center", marginBottom: 14 },
+  asistenciaTitulo: { fontSize: 15, fontWeight: 800, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 2vh" },
+  asistenciaNumeros: { display: "flex", alignItems: "baseline", gap: 8 },
+  asistenciaPresentes: { fontSize: "clamp(56px, 14vh, 96px)", fontWeight: 900, color: ACENTO, lineHeight: 1 },
+  asistenciaSeparador: { fontSize: "clamp(30px, 7vh, 48px)", fontWeight: 700, color: "#94A3B8" },
+  asistenciaTotal: { fontSize: "clamp(30px, 7vh, 48px)", fontWeight: 700, color: "#F4F1EA" },
+  asistenciaLabel: { fontSize: 14, color: "#94A3B8", fontWeight: 700, margin: "1vh 0 3vh" },
+  asistenciaBarraFondo: { width: "100%", maxWidth: 360, height: 14, background: "#0E1526", borderRadius: 8, overflow: "hidden" },
+  asistenciaBarraLlena: { height: "100%", background: ACENTO, borderRadius: 8, transition: "width 0.4s ease" },
 };
-          
+        
