@@ -58,6 +58,14 @@ export default function ProyeccionClase() {
       <div style={s.contenido}>
         <h1 style={s.titulo}>{pagina.titulo}</h1>
 
+        {pagina.tipo_herramienta === "titulo_texto" && (
+          <ul style={s.bullets}>
+            {(pagina.config?.bullets || []).map((linea, i) => (
+              <li key={i} style={s.bulletItem}>{linea}</li>
+            ))}
+          </ul>
+        )}
+
         {pagina.tipo_herramienta === "trivia" && pagina.config?.pregunta && (
           <div style={s.trivia}>
             <p style={s.pregunta}>{pagina.config.pregunta}</p>
@@ -94,6 +102,10 @@ const s = {
   contenido: { textAlign: "center", maxWidth: 1000 },
   titulo: { fontSize: 56, fontWeight: 800, margin: "0 0 24px" },
   subtitulo: { fontSize: 28, color: "#94A3B8", margin: 0 },
+
+  bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 20, textAlign: "left", maxWidth: 800, marginLeft: "auto", marginRight: "auto" },
+  bulletItem: { fontSize: 30, lineHeight: 1.4, paddingLeft: 36, position: "relative" },
+
   trivia: { marginTop: 20 },
   pregunta: { fontSize: 34, margin: "0 0 40px" },
   alternativas: { display: "flex", flexDirection: "column", gap: 18, textAlign: "left", maxWidth: 700, margin: "0 auto" },
