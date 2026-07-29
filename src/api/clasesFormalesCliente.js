@@ -52,6 +52,7 @@ export const clasesFormalesSesiones = {
     request("/clases-formales/sesiones", { method: "POST", body: { clase_formal_id: claseFormalId }, auth: true }),
   listar: () => request("/clases-formales/sesiones", { auth: true }),
   cerrar: (sesionId) => request(`/clases-formales/sesiones/${sesionId}/cerrar`, { method: "PATCH", auth: true }),
+  asistencia: (sesionId) => request(`/clases-formales/sesiones/${sesionId}/asistencia`, { auth: true }),
 };
 
 // ---------------- PAGINAS (constructor, cuelgan del contenido) ----------------
