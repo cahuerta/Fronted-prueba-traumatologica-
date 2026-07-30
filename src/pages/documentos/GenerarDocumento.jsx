@@ -17,6 +17,11 @@ const C = {
   ok: "#4ADE80",
 };
 
+// Identificador único de paper — PubMed trae pmid, SciELO trae doi (pmid=null).
+function paperId(paper) {
+  return paper.doi || paper.pmid || paper.title;
+}
+
 function ScoreBadge({ score }) {
   const color = score >= 75 ? C.accent : score >= 50 ? C.ok : score >= 30 ? "#F5A623" : C.error;
   return (
@@ -25,6 +30,58 @@ function ScoreBadge({ score }) {
       display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
     }}>
       <span style={{ fontSize: ".8rem", fontWeight: 800, color, lineHeight: 1 }}>{score}</span>
+    </div>
+  );
+}
+
+// Badge de procedencia — PubMed vs SciELO
+function FuenteBadge({ fuente }) {
+  const isScielo = fuente === "scielo";
+  return (
+    <span style={{
+      background: isScielo ? "rgba(245,166,35,0.12)" : "rgba(79,195,217,0.12)",
+      color: isScielo ? "#F5A623" : C.accent,
+      border: `1px solid ${isScielo ? "#F5A623" : C.accent}`,
+      borderRadius: 6, padding: "2px 8px", fontSize: ".7rem", fontWeight: 700,
+    }}>
+      {isScielo ? "🇨🇱 SciELO" : "🌐 PubMed"}
+    </span>
+  );
+}
+
+// Card individual — reutilizada por ambas sub-pestañas
+function PaperCard({ paper, idx, isSel, onToggle }) {
+  return (
+    <div
+      onClick={onToggle}
+      style={{
+        background: isSel ? "rgba(79,195,217,0.08)" : C.card,
+        border: `1px solid ${isSel ? C.accent : C.border}`,
+        borderRadius: 10, padding: "1rem", cursor: "pointer",
+      }}
+    >
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div style={{ fontSize: ".72rem", color: C.muted, fontWeight: 700, flexShrink: 0, marginTop: 2, width: 20, textAlign: "center" }}>#{idx + 1}</div>
+        <div style={{
+          width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 2,
+          border: `2px solid ${isSel ? C.accent : "#334155"}`,
+          background: isSel ? C.accent : "transparent",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          {isSel && <span style={{ color: C.bg, fontSize: ".7rem", fontWeight: 800 }}>✓</span>}
+        </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: "0 0 4px", fontWeight: 600, color: C.text, fontSize: ".9rem", lineHeight: 1.4 }}>{paper.title}</p>
+          <p style={{ margin: "0 0 8px", color: C.muted, fontSize: ".78rem" }}>{paper.authors} · <em>{paper.journal}</em> · {paper.year}</p>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <FuenteBadge fuente={paper.fuente} />
+            {paper.open_access && <span style={{ background: "rgba(74,222,128,0.12)", color: C.ok, borderRadius: 6, padding: "2px 8px", fontSize: ".7rem", fontWeight: 700 }}>✓ Open Access</span>}
+            {paper.doi && <span style={{ background: "rgba(79,195,217,0.12)", color: C.accent, borderRadius: 6, padding: "2px 8px", fontSize: ".7rem", fontWeight: 700 }}>✓ DOI</span>}
+            {paper.pmid && <span style={{ background: "#0E1526", border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6, padding: "2px 8px", fontSize: ".7rem" }}>PMID: {paper.pmid}</span>}
+          </div>
+        </div>
+        <ScoreBadge score={paper.score} />
+      </div>
     </div>
   );
 }
@@ -125,6 +182,7 @@ export default function GenerarDocumento() {
   const [documento, setDocumento] = useState(null);
   const [descargando, setDescargando] = useState("");
   const [creandoClase, setCreandoClase] = useState(false);
+  const [fuenteTab, setFuenteTab] = useState("pubmed");
 
   useEffect(() => {
     documentos.ping().catch(() => {});
@@ -132,7 +190,7 @@ export default function GenerarDocumento() {
 
   async function handleBuscar() {
     if (tema.trim().length < 3) return;
-    setBuscando(true); setError(""); setPapers([]); setSeleccionados(new Set()); setDocumento(null);
+    setBuscando(true); setError(""); setPapers([]); setSeleccionados(new Set()); setDocumento(null); setFuenteTab("pubmed");
     try {
       const data = await documentos.buscar(tema.trim(), 20);
       setPapers(data.papers || []);
@@ -144,16 +202,16 @@ export default function GenerarDocumento() {
     }
   }
 
-  function toggleSeleccion(pmid) {
+  function toggleSeleccion(id) {
     setSeleccionados(prev => {
       const next = new Set(prev);
-      next.has(pmid) ? next.delete(pmid) : next.add(pmid);
+      next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
   }
 
   async function handleGenerar() {
-    const elegidos = papers.filter(p => seleccionados.has(p.pmid));
+    const elegidos = papers.filter(p => seleccionados.has(paperId(p)));
     if (!elegidos.length) return;
     setGenerando(true); setError(""); setDocumento(null);
     try {
@@ -247,6 +305,24 @@ export default function GenerarDocumento() {
     whiteSpace: "nowrap",
   });
 
+  const fuenteSubTab = (key, label, count) => (
+    <button
+      onClick={() => setFuenteTab(key)}
+      style={{
+        flex: 1, padding: ".5rem", border: "none", cursor: "pointer", borderRadius: 8,
+        fontWeight: 700, fontSize: ".8rem",
+        background: fuenteTab === key ? C.accent : "transparent",
+        color: fuenteTab === key ? C.bg : C.muted,
+      }}
+    >
+      {label} ({count})
+    </button>
+  );
+
+  const papersPubmed = papers.filter(p => p.fuente !== "scielo");
+  const papersScielo = papers.filter(p => p.fuente === "scielo");
+  const papersVisibles = fuenteTab === "pubmed" ? papersPubmed : papersScielo;
+
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.text, padding: "20px 16px 40px", fontFamily: "sans-serif" }}>
       <div style={{ maxWidth: 760, margin: "0 auto" }}>
@@ -268,7 +344,7 @@ export default function GenerarDocumento() {
         {/* Búsqueda */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: "1.25rem", marginBottom: "1rem" }}>
           <label style={{ display: "block", fontWeight: 600, color: C.text, fontSize: ".85rem", marginBottom: 8 }}>
-            Tema a buscar (PubMed)
+            Tema a buscar (PubMed + SciELO)
           </label>
           <input
             value={tema}
@@ -287,7 +363,7 @@ export default function GenerarDocumento() {
               cursor: buscando || tema.trim().length < 3 ? "not-allowed" : "pointer",
             }}
           >
-            {buscando ? "⏳ Buscando..." : "🔎 Buscar (máx. 20)"}
+            {buscando ? "⏳ Buscando..." : "🔎 Buscar (máx. 20 por fuente)"}
           </button>
         </div>
 
@@ -302,7 +378,7 @@ export default function GenerarDocumento() {
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: ".75rem", flexWrap: "wrap", gap: 8 }}>
               <p style={{ margin: 0, color: C.muted, fontSize: ".85rem" }}>
-                <strong style={{ color: C.text }}>{papers.length}</strong> resultados
+                <strong style={{ color: C.text }}>{papers.length}</strong> resultados totales
                 {seleccionados.size > 0 && <span style={{ color: C.accent, marginLeft: 12 }}>· {seleccionados.size} seleccionados</span>}
               </p>
               {seleccionados.size > 0 && (
@@ -321,44 +397,25 @@ export default function GenerarDocumento() {
               )}
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: ".75rem" }}>
-              {papers.map((paper, idx) => {
-                const isSel = seleccionados.has(paper.pmid);
-                return (
-                  <div
-                    key={paper.pmid}
-                    onClick={() => toggleSeleccion(paper.pmid)}
-                    style={{
-                      background: isSel ? "rgba(79,195,217,0.08)" : C.card,
-                      border: `1px solid ${isSel ? C.accent : C.border}`,
-                      borderRadius: 10, padding: "1rem", cursor: "pointer",
-                    }}
-                  >
-                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                      <div style={{ fontSize: ".72rem", color: C.muted, fontWeight: 700, flexShrink: 0, marginTop: 2, width: 20, textAlign: "center" }}>#{idx + 1}</div>
-                      <div style={{
-                        width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 2,
-                        border: `2px solid ${isSel ? C.accent : "#334155"}`,
-                        background: isSel ? C.accent : "transparent",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>
-                        {isSel && <span style={{ color: C.bg, fontSize: ".7rem", fontWeight: 800 }}>✓</span>}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ margin: "0 0 4px", fontWeight: 600, color: C.text, fontSize: ".9rem", lineHeight: 1.4 }}>{paper.title}</p>
-                        <p style={{ margin: "0 0 8px", color: C.muted, fontSize: ".78rem" }}>{paper.authors} · <em>{paper.journal}</em> · {paper.year}</p>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          {paper.open_access && <span style={{ background: "rgba(74,222,128,0.12)", color: C.ok, borderRadius: 6, padding: "2px 8px", fontSize: ".7rem", fontWeight: 700 }}>✓ Open Access</span>}
-                          {paper.doi && <span style={{ background: "rgba(79,195,217,0.12)", color: C.accent, borderRadius: 6, padding: "2px 8px", fontSize: ".7rem", fontWeight: 700 }}>✓ DOI</span>}
-                          <span style={{ background: "#0E1526", border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6, padding: "2px 8px", fontSize: ".7rem" }}>PMID: {paper.pmid}</span>
-                        </div>
-                      </div>
-                      <ScoreBadge score={paper.score} />
-                    </div>
-                  </div>
-                );
-              })}
+            <div style={{ display: "flex", gap: 6, background: "#0E1526", border: `1px solid ${C.border}`, borderRadius: 10, padding: 4, marginBottom: "1rem" }}>
+              {fuenteSubTab("pubmed", "🌐 PubMed", papersPubmed.length)}
+              {fuenteSubTab("scielo", "🇨🇱 SciELO", papersScielo.length)}
             </div>
+
+            {papersVisibles.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "2rem", color: C.muted, background: C.card, border: `1px dashed ${C.border}`, borderRadius: 10 }}>
+                Sin resultados de {fuenteTab === "pubmed" ? "PubMed" : "SciELO"} para este tema.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: ".75rem" }}>
+                {papersVisibles.map((paper, idx) => {
+                  const id = paperId(paper);
+                  return (
+                    <PaperCard key={id} paper={paper} idx={idx} isSel={seleccionados.has(id)} onToggle={() => toggleSeleccion(id)} />
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
 
