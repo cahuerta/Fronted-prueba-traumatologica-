@@ -15,6 +15,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { clasesFormalesPaginas } from "../../api/clasesFormalesCliente";
+import { casosVivoAdmin } from "../../api/client";
 
 const ACENTO = "#4FC3D9";
 const LETRAS = ["A", "B", "C", "D", "E"];
@@ -25,6 +26,16 @@ const HERRAMIENTA_LABEL = {
   ninguna: "Solo título",
   titulo_texto: "Título + texto",
   trivia: "Trivia (pregunta con alternativas)",
+};
+
+// Reusamos el mismo endpoint/bucket de imagenes de casos clinicos
+// (subirMediaCaso) -decision confirmada con Cristobal, mismo bucket,
+// sin separar storage-. El "tipo" que le mandamos es "imagen", igual
+// que casos clinicos.
+const DISPOSICION_LABEL = {
+  grande: "Grande (protagonista, texto abajo)",
+  lado_izquierda: "Al lado del texto — imagen a la izquierda",
+  lado_derecha: "Al lado del texto — imagen a la derecha",
 };
 
 export default function AdminClaseConstructor() {
@@ -152,7 +163,10 @@ function PaginaItem({ pagina, numero, onEditar, onEliminar }) {
       <span style={s.numero}>{numero}</span>
       <div style={s.itemInfo} onClick={onEditar}>
         <p style={s.itemTitulo}>{pagina.titulo}</p>
-        <p style={s.itemDesc}>{HERRAMIENTA_LABEL[pagina.tipo_herramienta] || pagina.tipo_herramienta}</p>
+        <p style={s.itemDesc}>
+          {HERRAMIENTA_LABEL[pagina.tipo_herramienta] || pagina.tipo_herramienta}
+          {pagina.config?.imagen_url ? " · con imagen" : ""}
+        </p>
       </div>
       <button onClick={onEliminar} style={s.btnEliminar} aria-label="Eliminar página">✕</button>
     </div>
@@ -168,6 +182,11 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
   const configPrevia = pagina?.config || {};
   const [textoLineas, setTextoLineas] = useState(() => (configPrevia.bullets || []).join("\n"));
 
+  // ---- imagen opcional (solo aplica a titulo_texto) ----
+  const [imagenUrl, setImagenUrl] = useState(configPrevia.imagen_url || "");
+  const [disposicionImagen, setDisposicionImagen] = useState(configPrevia.disposicion_imagen || "grande");
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+
   // ---- config trivia ----
   const [pregunta, setPregunta] = useState(configPrevia.pregunta || "");
   const [numAlternativas, setNumAlternativas] = useState(configPrevia.alternativas?.length || 4);
@@ -182,6 +201,31 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
 
   function handleAlternativaChange(i, valor) {
     setAlternativas((prev) => prev.map((a, idx) => (idx === i ? valor : a)));
+  }
+
+  async function handleSubirImagen(e) {
+    const archivo = e.target.files?.[0];
+    if (!archivo) return;
+
+    setError("");
+    setSubiendoImagen(true);
+    try {
+      const resultado = await casosVivoAdmin.subirMediaCaso("imagen", archivo);
+      // El endpoint de casos clinicos devuelve la url subida; se soportan
+      // ambos nombres de campo por si el backend usa uno u otro.
+      const url = resultado?.url || resultado?.media_url;
+      if (!url) throw new Error("El servidor no devolvió la URL de la imagen");
+      setImagenUrl(url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubiendoImagen(false);
+      e.target.value = "";
+    }
+  }
+
+  function handleQuitarImagen() {
+    setImagenUrl("");
   }
 
   async function handleGuardar(e) {
@@ -203,6 +247,10 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
       config = {
         bullets: textoLineas.split("\n").map((l) => l.trim()).filter(Boolean),
       };
+      if (imagenUrl) {
+        config.imagen_url = imagenUrl;
+        config.disposicion_imagen = disposicionImagen;
+      }
     }
 
     try {
@@ -255,6 +303,41 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
                 rows={6}
                 style={s.textarea}
               />
+
+              <label style={s.label}>Imagen (opcional — ej. radiografía)</label>
+
+              {imagenUrl ? (
+                <div style={s.imagenPreviewWrap}>
+                  <img src={imagenUrl} alt="Vista previa" style={s.imagenPreview} />
+                  <button type="button" onClick={handleQuitarImagen} style={s.btnQuitarImagen}>
+                    Quitar foto
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSubirImagen}
+                  disabled={subiendoImagen}
+                  style={s.inputFile}
+                />
+              )}
+              {subiendoImagen && <p style={s.info}>Subiendo imagen...</p>}
+
+              {imagenUrl && (
+                <>
+                  <label style={s.label}>Disposición de la imagen</label>
+                  <select
+                    value={disposicionImagen}
+                    onChange={(e) => setDisposicionImagen(e.target.value)}
+                    style={s.input}
+                  >
+                    {Object.entries(DISPOSICION_LABEL).map(([valor, label]) => (
+                      <option key={valor} value={valor}>{label}</option>
+                    ))}
+                  </select>
+                </>
+              )}
             </>
           )}
 
@@ -308,7 +391,7 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
 
           <div style={s.modalBtns}>
             <button type="button" onClick={onClose} style={s.btnCancelar}>Cancelar</button>
-            <button type="submit" disabled={guardando || !titulo.trim()} style={s.btn}>
+            <button type="submit" disabled={guardando || subiendoImagen || !titulo.trim()} style={s.btn}>
               {guardando ? "Guardando..." : "Guardar"}
             </button>
           </div>
@@ -341,10 +424,15 @@ const s = {
   form: { display: "flex", flexDirection: "column", gap: 8 },
   label: { fontSize: 12.5, color: "#94A3B8", marginTop: 6 },
   input: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "13px 14px", color: "#F4F1EA", fontSize: 15, marginBottom: 4 },
+  inputFile: { background: "#0E1526", border: "1px dashed rgba(244,241,233,0.25)", borderRadius: 10, padding: "12px 14px", color: "#94A3B8", fontSize: 13, marginBottom: 4 },
   textarea: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "13px 14px", color: "#F4F1EA", fontSize: 15, marginBottom: 4, fontFamily: "sans-serif", resize: "vertical" },
   altFila: { display: "flex", alignItems: "center", gap: 8 },
   altLetra: { color: ACENTO, fontWeight: 800, fontSize: 14, width: 18, flexShrink: 0 },
   modalBtns: { display: "flex", gap: 10, marginTop: 16 },
   btnCancelar: { flex: 1, background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 10, color: "#F4F1EA", padding: "13px 0", fontSize: 14, cursor: "pointer" },
   btn: { flex: 1, background: ACENTO, border: "none", borderRadius: 10, color: "#0E1526", padding: "13px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" },
+
+  imagenPreviewWrap: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 4 },
+  imagenPreview: { width: "100%", maxHeight: 220, objectFit: "contain", borderRadius: 10, border: "1px solid rgba(244,241,233,0.12)", background: "#0E1526" },
+  btnQuitarImagen: { alignSelf: "flex-start", background: "none", border: "1px solid rgba(209,73,91,0.4)", borderRadius: 8, color: "#D1495B", padding: "6px 12px", fontSize: 12.5, cursor: "pointer" },
 };
