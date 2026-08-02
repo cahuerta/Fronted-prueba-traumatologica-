@@ -256,7 +256,7 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
     setError("");
     setSubiendoImagen(true);
     try {
-      const resultado = await casosVivoAdmin.subirMediaCaso("imagen", archivo);
+      const resultado = await casosVivoAdmin.subirMediaCaso("foto", archivo);
       // El endpoint de casos clinicos devuelve la url subida; se soportan
       // ambos nombres de campo por si el backend usa uno u otro.
       const url = resultado?.url || resultado?.media_url;
