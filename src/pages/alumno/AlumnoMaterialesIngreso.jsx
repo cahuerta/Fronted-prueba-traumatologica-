@@ -55,8 +55,8 @@ export default function AlumnoMaterialesIngreso() {
 const s = {
   wrap: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0E1526", padding: 20 },
   contenedor: { width: "100%", maxWidth: 360, display: "flex", flexDirection: "column", alignItems: "center" },
-  logoBar: { display: "flex", alignItems: "center", gap: 24, marginBottom: 28 },
-  logoImg: { height: 48, width: "auto", objectFit: "contain", opacity: 0.95 },
+  logoBar: { display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 28 },
+  logoImg: { height: 64, width: "auto", objectFit: "contain", opacity: 0.95 },
   card: { width: "100%", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 16, padding: 28, display: "flex", flexDirection: "column" },
   title: { color: "#F4F1EA", fontSize: 19, fontWeight: 700, marginBottom: 4, textAlign: "center" },
   subtitle: { color: "#94A3B8", fontSize: 13, textAlign: "center", marginBottom: 24 },
