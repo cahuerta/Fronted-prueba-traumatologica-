@@ -173,6 +173,52 @@ function PaginaItem({ pagina, numero, onEditar, onEliminar }) {
   );
 }
 
+// ---------------- PREVIEW EN MINIATURA ----------------
+// Simula, a escala reducida, la misma pantalla que ve el proyector
+// (ProyeccionClase.jsx) — mismo fondo oscuro y jerarquía tipográfica,
+// para que el docente vea cómo va a quedar antes de guardar.
+function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, pregunta, alternativas, numAlternativas }) {
+  const bullets = (textoLineas || "").split("\n").map((l) => l.trim()).filter(Boolean);
+
+  return (
+    <div style={p.wrap}>
+      <p style={p.label}>Vista previa — proyección</p>
+      <div style={p.pantalla}>
+        <p style={p.titulo}>{titulo || "Título de la página"}</p>
+
+        {tipoHerramienta === "titulo_texto" && (
+          <>
+            {imagenUrl && <img src={imagenUrl} alt="" style={p.imagen} />}
+            {bullets.length > 0 ? (
+              <ul style={p.bullets}>
+                {bullets.map((b, i) => <li key={i} style={p.bulletItem}>{b}</li>)}
+              </ul>
+            ) : (
+              !imagenUrl && <p style={p.vacio}>Sin contenido todavía</p>
+            )}
+          </>
+        )}
+
+        {tipoHerramienta === "trivia" && (
+          <div style={p.trivia}>
+            <p style={p.pregunta}>{pregunta || "Pregunta de la trivia"}</p>
+            <div style={p.alternativas}>
+              {LETRAS.slice(0, numAlternativas).map((letra, i) => (
+                <div key={letra} style={p.alternativa}>
+                  <span style={p.letra}>{letra}</span>
+                  <span>{alternativas[i] || `Alternativa ${letra}`}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tipoHerramienta === "ninguna" && <p style={p.vacio}>Solo se proyecta el título</p>}
+      </div>
+    </div>
+  );
+}
+
 // ---------------- MODAL CREAR/EDITAR ----------------
 function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
   const [titulo, setTitulo] = useState(pagina?.titulo || "");
@@ -276,6 +322,17 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
     <div style={s.overlay} onClick={onClose}>
       <div style={s.modal} onClick={(e) => e.stopPropagation()}>
         <p style={s.modalTitulo}>{pagina ? "Editar página" : "Nueva página"}</p>
+
+        <PreviewPagina
+          titulo={titulo}
+          tipoHerramienta={tipoHerramienta}
+          textoLineas={textoLineas}
+          imagenUrl={imagenUrl}
+          pregunta={pregunta}
+          alternativas={alternativas}
+          numAlternativas={numAlternativas}
+        />
+
         <form onSubmit={handleGuardar} style={s.form}>
           <label style={s.label}>Título</label>
           <input
@@ -418,8 +475,8 @@ const s = {
   itemDesc: { fontSize: 12, color: "#94A3B8", margin: "2px 0 0" },
   btnEliminar: { background: "none", border: "none", color: "#D1495B", fontSize: 16, cursor: "pointer", padding: "4px 8px" },
 
-  overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50, overflowY: "auto" },
-  modal: { width: "100%", maxWidth: 420, background: "#16213A", borderRadius: "18px 18px 0 0", padding: "24px 20px 32px" },
+  overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px 16px" },
+  modal: { width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto", background: "#16213A", borderRadius: 18, padding: "24px 20px 32px" },
   modalTitulo: { fontSize: 16, fontWeight: 700, margin: "0 0 16px" },
   form: { display: "flex", flexDirection: "column", gap: 8 },
   label: { fontSize: 12.5, color: "#94A3B8", marginTop: 6 },
@@ -435,4 +492,36 @@ const s = {
   imagenPreviewWrap: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 4 },
   imagenPreview: { width: "100%", maxHeight: 220, objectFit: "contain", borderRadius: 10, border: "1px solid rgba(244,241,233,0.12)", background: "#0E1526" },
   btnQuitarImagen: { alignSelf: "flex-start", background: "none", border: "1px solid rgba(209,73,91,0.4)", borderRadius: 8, color: "#D1495B", padding: "6px 12px", fontSize: 12.5, cursor: "pointer" },
+};
+
+// Estilos de la miniatura de preview — proporción 16:9, escalado hacia abajo
+// desde los mismos valores usados en ProyeccionClase.jsx.
+const p = {
+  wrap: { marginBottom: 18 },
+  label: { fontSize: 11, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" },
+  pantalla: {
+    background: "#0E1526",
+    border: "1px solid rgba(244,241,233,0.12)",
+    borderRadius: 10,
+    aspectRatio: "16 / 9",
+    padding: "5% 6%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    overflow: "hidden",
+    color: "#F4F1EA",
+    fontFamily: "sans-serif",
+  },
+  titulo: { fontSize: "clamp(11px, 4.2cqw, 18px)", fontWeight: 800, margin: "0 0 8px", lineHeight: 1.2 },
+  vacio: { fontSize: 11, color: "#64748B" },
+  imagen: { maxWidth: "60%", maxHeight: "45%", objectFit: "contain", borderRadius: 6, marginBottom: 8 },
+  bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4, textAlign: "left", fontSize: 9.5, lineHeight: 1.3, maxWidth: "90%" },
+  bulletItem: { paddingLeft: 10, position: "relative" },
+  trivia: { width: "100%" },
+  pregunta: { fontSize: 10.5, margin: "0 0 8px", lineHeight: 1.3 },
+  alternativas: { display: "flex", flexDirection: "column", gap: 4, textAlign: "left", maxWidth: "85%", margin: "0 auto" },
+  alternativa: { display: "flex", alignItems: "center", gap: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 6, padding: "4px 8px", fontSize: 8.5 },
+  letra: { width: 14, height: 14, borderRadius: "50%", background: ACENTO, color: "#0E1526", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 7, flexShrink: 0 },
 };
