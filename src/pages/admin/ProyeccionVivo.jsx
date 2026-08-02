@@ -6,6 +6,17 @@ const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 const LETRAS = ["A", "B", "C", "D", "E"];
 const CASOS_POR_PAGINA = 4; // suficiente espacio para letras grandes, sin amontonar
 
+// Barra de logos institucionales — visible en todas las pantallas de proyección.
+function LogoBar() {
+  return (
+    <div style={s.logoBar}>
+      <img src="/logo-utal.png" alt="UTAL" style={s.logoImg} />
+      <img src="/logo-ica.png" alt="ICA" style={s.logoImg} />
+      <img src="/logo-hipokratia.png" alt="Hipokratia" style={s.logoImg} />
+    </div>
+  );
+}
+
 export default function ProyeccionVivo() {
   const navigate = useNavigate();
   const { sesionId } = useParams();
@@ -59,6 +70,7 @@ export default function ProyeccionVivo() {
   if (error && !panel) {
     return (
       <div style={s.wrapCentrado}>
+        <LogoBar />
         <p style={s.error}>{error}</p>
       </div>
     );
@@ -67,6 +79,7 @@ export default function ProyeccionVivo() {
   if (!panel) {
     return (
       <div style={s.wrapCentrado}>
+        <LogoBar />
         <p style={s.muted}>Cargando...</p>
       </div>
     );
@@ -77,6 +90,7 @@ export default function ProyeccionVivo() {
     if (!resumen) {
       return (
         <div style={s.wrapCentrado}>
+          <LogoBar />
           <p style={s.muted}>Calculando resultados...</p>
         </div>
       );
@@ -89,6 +103,7 @@ export default function ProyeccionVivo() {
 
     return (
       <div style={s.wrapCentrado}>
+        <LogoBar />
         <div style={s.resumenBox}>
           {pagina === 0 && (
             <>
@@ -122,6 +137,7 @@ export default function ProyeccionVivo() {
   if (estado === "esperando") {
     return (
       <div style={s.wrapCentrado}>
+        <LogoBar />
         {esInicioSesion && qrUrl ? (
           <div style={s.qrBox}>
             <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
@@ -138,6 +154,7 @@ export default function ProyeccionVivo() {
   if (estado === "presentando") {
     return (
       <div style={s.wrapCentrado}>
+        <LogoBar />
         <div style={s.casoBox}>
           {panel?.caso?.media_url && (
             panel.caso.media_tipo === "video" ? (
@@ -155,6 +172,7 @@ export default function ProyeccionVivo() {
   if (!panel.pregunta) {
     return (
       <div style={s.wrapCentrado}>
+        <LogoBar />
         <p style={s.muted}>Sin pregunta activa...</p>
       </div>
     );
@@ -163,6 +181,7 @@ export default function ProyeccionVivo() {
   if (mostrarSoloImagen) {
     return (
       <div style={s.wrapCentrado}>
+        <LogoBar />
         <img src={panel.media_url} alt="" style={s.imagenGrande} />
       </div>
     );
@@ -172,6 +191,7 @@ export default function ProyeccionVivo() {
 
   return (
     <div style={s.wrap}>
+      <LogoBar />
       <div style={s.contenido}>
         {mostrarImagenChica && (
           <img src={panel.media_url} alt="" style={s.imagenChica} />
@@ -219,6 +239,9 @@ export default function ProyeccionVivo() {
 const s = {
   wrap: { height: "100vh", width: "100vw", background: "#0E1526", color: "#F4F1EA", fontFamily: "sans-serif", padding: "32px 48px", boxSizing: "border-box", overflow: "hidden", display: "flex", alignItems: "center" },
   wrapCentrado: { height: "100vh", width: "100vw", background: "#000", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, boxSizing: "border-box", overflow: "hidden" },
+
+  logoBar: { position: "fixed", top: 20, right: 28, display: "flex", alignItems: "center", gap: 20, zIndex: 50 },
+  logoImg: { height: 32, width: "auto", objectFit: "contain", opacity: 0.92 },
 
   muted: { color: "#94A3B8", fontSize: 20, textAlign: "center" },
   error: { color: "#D1495B", fontSize: 20, textAlign: "center" },
@@ -269,4 +292,3 @@ const s = {
   resumenPaginacion: { fontSize: "clamp(14px, 1.4vw, 18px)", color: "#94A3B8", marginTop: "1vh" },
   resumenCierre: { fontSize: "clamp(18px, 2vw, 26px)", color: "#7FD98F", fontWeight: 700, marginTop: "1vh" },
 };
-    
