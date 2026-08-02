@@ -4,6 +4,18 @@ import { clasesFormalesActual } from "../../api/clasesFormalesCliente";
 
 const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 
+// Barra de logos institucionales — misma que ProyeccionVivo, ubicada
+// arriba a la izquierda para no chocar con el código de acceso (arriba a la derecha).
+function LogoBar() {
+  return (
+    <div style={s.logoBar}>
+      <img src="/logo-utal.png" alt="UTAL" style={s.logoImg} />
+      <img src="/logo-ica.png" alt="ICA" style={s.logoImg} />
+      <img src="/logo-hipokratia.png" alt="Hipokratia" style={s.logoImg} />
+    </div>
+  );
+}
+
 // Pantalla grande (proyector). Publica, sin auth -mismo patron que el
 // alumno y el admin usan para leer la pagina activa-. Aca SI se
 // muestran pregunta y alternativas de la trivia -es la contraparte
@@ -39,6 +51,7 @@ export default function ProyeccionClase() {
   if (!pagina) {
     return (
       <div style={s.wrap}>
+        <LogoBar />
         <div style={s.qrBox}>
           <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
           <p style={s.codigoLabel}>Código de acceso</p>
@@ -50,6 +63,7 @@ export default function ProyeccionClase() {
 
   return (
     <div style={s.wrap}>
+      <LogoBar />
       <div style={s.esquina}>
         <p style={s.esquinaLabel}>Código de acceso</p>
         <p style={s.esquinaCodigo}>{codigo}</p>
@@ -90,6 +104,10 @@ export default function ProyeccionClase() {
 
 const s = {
   wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 80px", position: "relative" },
+
+  logoBar: { position: "absolute", top: 32, left: 40, display: "flex", alignItems: "center", gap: 20, zIndex: 50 },
+  logoImg: { height: 32, width: "auto", objectFit: "contain", opacity: 0.92 },
+
   esquina: { position: "absolute", top: 32, right: 40, textAlign: "right" },
   esquinaLabel: { fontSize: 16, color: "#94A3B8", margin: "0 0 4px" },
   esquinaCodigo: { fontSize: 32, fontWeight: 800, letterSpacing: 4, color: "#4FC3D9", margin: 0 },
