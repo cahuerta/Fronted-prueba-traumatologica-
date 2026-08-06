@@ -38,6 +38,13 @@ const DISPOSICION_LABEL = {
   lado_derecha: "Al lado del texto — imagen a la derecha",
 };
 
+// El grafico generado por IA (config.imagen_svg) y la imagen manual
+// (config.imagen_url) pueden coexistir en la misma pagina -no se pisan-.
+// El grafico IA se genera solo desde el pipeline de /documentos/clase-formal;
+// desde este constructor solo se puede VER y QUITAR, nunca generar ni subir.
+// Si el docente no lo quita explicitamente, se preserva tal cual al guardar
+// cualquier otro cambio de la pagina (texto, titulo, imagen manual, etc).
+
 export default function AdminClaseConstructor() {
   const { claseFormalId } = useParams();
   const navigate = useNavigate();
@@ -157,6 +164,11 @@ function PaginaItem({ pagina, numero, onEditar, onEliminar }) {
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const etiquetas = [
+    pagina.config?.imagen_svg ? "con gráfico (IA)" : null,
+    pagina.config?.imagen_url ? "con imagen" : null,
+  ].filter(Boolean);
+
   return (
     <div ref={setNodeRef} style={{ ...s.item, ...style }}>
       <button {...attributes} {...listeners} style={s.handle} aria-label="Arrastrar para reordenar">⠿</button>
@@ -165,7 +177,7 @@ function PaginaItem({ pagina, numero, onEditar, onEliminar }) {
         <p style={s.itemTitulo}>{pagina.titulo}</p>
         <p style={s.itemDesc}>
           {HERRAMIENTA_LABEL[pagina.tipo_herramienta] || pagina.tipo_herramienta}
-          {pagina.config?.imagen_url ? " · con imagen" : ""}
+          {etiquetas.length > 0 ? ` · ${etiquetas.join(" · ")}` : ""}
         </p>
       </div>
       <button onClick={onEliminar} style={s.btnEliminar} aria-label="Eliminar página">✕</button>
@@ -177,8 +189,11 @@ function PaginaItem({ pagina, numero, onEditar, onEliminar }) {
 // Simula, a escala reducida, la misma pantalla que ve el proyector
 // (ProyeccionClase.jsx) — mismo fondo oscuro y jerarquía tipográfica,
 // para que el docente vea cómo va a quedar antes de guardar.
-function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, pregunta, alternativas, numAlternativas }) {
+// Imagen manual y grafico IA pueden coexistir: se muestran lado a lado,
+// mas chicos que antes, para no taparse entre si ni tapar el texto de abajo.
+function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagenSvg, pregunta, alternativas, numAlternativas }) {
   const bullets = (textoLineas || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const hayVisuales = Boolean(imagenUrl || imagenSvg);
 
   return (
     <div style={p.wrap}>
@@ -188,13 +203,26 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, pregun
 
         {tipoHerramienta === "titulo_texto" && (
           <>
-            {imagenUrl && <img src={imagenUrl} alt="" style={p.imagen} />}
+            {hayVisuales && (
+              <div style={p.visualesRow}>
+                {imagenSvg && (
+                  <div
+                    className="grafico-ia-preview"
+                    style={p.visualBox}
+                    dangerouslySetInnerHTML={{ __html: imagenSvg }}
+                  />
+                )}
+                {imagenUrl && (
+                  <img src={imagenUrl} alt="" style={{ ...p.visualBox, objectFit: "contain" }} />
+                )}
+              </div>
+            )}
             {bullets.length > 0 ? (
               <ul style={p.bullets}>
                 {bullets.map((b, i) => <li key={i} style={p.bulletItem}>{b}</li>)}
               </ul>
             ) : (
-              !imagenUrl && <p style={p.vacio}>Sin contenido todavía</p>
+              !hayVisuales && <p style={p.vacio}>Sin contenido todavía</p>
             )}
           </>
         )}
@@ -215,6 +243,9 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, pregun
 
         {tipoHerramienta === "ninguna" && <p style={p.vacio}>Solo se proyecta el título</p>}
       </div>
+      {/* Escala el SVG inyectado (viewBox propio) al tamaño del contenedor,
+          sin esto quedaria a su tamaño intrinseco y podria desbordar. */}
+      <style>{`.grafico-ia-preview svg { width: 100%; height: 100%; display: block; }`}</style>
     </div>
   );
 }
@@ -228,10 +259,16 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
   const configPrevia = pagina?.config || {};
   const [textoLineas, setTextoLineas] = useState(() => (configPrevia.bullets || []).join("\n"));
 
-  // ---- imagen opcional (solo aplica a titulo_texto) ----
+  // ---- imagen manual opcional (solo aplica a titulo_texto) ----
   const [imagenUrl, setImagenUrl] = useState(configPrevia.imagen_url || "");
   const [disposicionImagen, setDisposicionImagen] = useState(configPrevia.disposicion_imagen || "grande");
   const [subiendoImagen, setSubiendoImagen] = useState(false);
+
+  // ---- grafico generado por IA (solo aplica a titulo_texto) ----
+  // Solo se puede ver y quitar aca -la generacion ocurre exclusivamente
+  // en el pipeline de /documentos/clase-formal-. Si no se quita
+  // explicitamente, se preserva tal cual al guardar cualquier otro cambio.
+  const [imagenSvg, setImagenSvg] = useState(configPrevia.imagen_svg || "");
 
   // ---- config trivia ----
   const [pregunta, setPregunta] = useState(configPrevia.pregunta || "");
@@ -274,6 +311,10 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
     setImagenUrl("");
   }
 
+  function handleQuitarGrafico() {
+    setImagenSvg("");
+  }
+
   async function handleGuardar(e) {
     e.preventDefault();
     if (!titulo.trim()) return;
@@ -293,9 +334,15 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
       config = {
         bullets: textoLineas.split("\n").map((l) => l.trim()).filter(Boolean),
       };
+      // Imagen manual e imagen IA coexisten -no se pisan-. El grafico IA
+      // solo se preserva o se quita aca, nunca se genera ni se sube.
       if (imagenUrl) {
         config.imagen_url = imagenUrl;
         config.disposicion_imagen = disposicionImagen;
+      }
+      if (imagenSvg) {
+        config.imagen_svg = imagenSvg;
+        config.imagen_origen = "ia";
       }
     }
 
@@ -328,6 +375,7 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
           tipoHerramienta={tipoHerramienta}
           textoLineas={textoLineas}
           imagenUrl={imagenUrl}
+          imagenSvg={imagenSvg}
           pregunta={pregunta}
           alternativas={alternativas}
           numAlternativas={numAlternativas}
@@ -360,6 +408,23 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
                 rows={6}
                 style={s.textarea}
               />
+
+              {imagenSvg && (
+                <>
+                  <label style={s.label}>Gráfico generado por IA</label>
+                  <div style={s.imagenPreviewWrap}>
+                    <div
+                      className="grafico-ia-modal"
+                      style={s.graficoPreview}
+                      dangerouslySetInnerHTML={{ __html: imagenSvg }}
+                    />
+                    <button type="button" onClick={handleQuitarGrafico} style={s.btnQuitarImagen}>
+                      Quitar gráfico
+                    </button>
+                  </div>
+                  <style>{`.grafico-ia-modal svg { width: 100%; height: 100%; display: block; }`}</style>
+                </>
+              )}
 
               <label style={s.label}>Imagen (opcional — ej. radiografía)</label>
 
@@ -491,11 +556,15 @@ const s = {
 
   imagenPreviewWrap: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 4 },
   imagenPreview: { width: "100%", maxHeight: 220, objectFit: "contain", borderRadius: 10, border: "1px solid rgba(244,241,233,0.12)", background: "#0E1526" },
+  graficoPreview: { width: "100%", height: 220, borderRadius: 10, border: "1px solid rgba(244,241,233,0.12)", background: "#FFFFFF", padding: 8, boxSizing: "border-box" },
   btnQuitarImagen: { alignSelf: "flex-start", background: "none", border: "1px solid rgba(209,73,91,0.4)", borderRadius: 8, color: "#D1495B", padding: "6px 12px", fontSize: 12.5, cursor: "pointer" },
 };
 
 // Estilos de la miniatura de preview — proporción 16:9, escalado hacia abajo
 // desde los mismos valores usados en ProyeccionClase.jsx.
+// visualesRow/visualBox: imagen manual y grafico IA lado a lado, cada uno
+// hasta 42% del ancho -antes la imagen sola usaba 60%-, para que quepan
+// ambos sin taparse ni tapar los bullets de abajo.
 const p = {
   wrap: { marginBottom: 18 },
   label: { fontSize: 11, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" },
@@ -516,7 +585,8 @@ const p = {
   },
   titulo: { fontSize: "clamp(11px, 4.2cqw, 18px)", fontWeight: 800, margin: "0 0 8px", lineHeight: 1.2 },
   vacio: { fontSize: 11, color: "#64748B" },
-  imagen: { maxWidth: "60%", maxHeight: "45%", objectFit: "contain", borderRadius: 6, marginBottom: 8 },
+  visualesRow: { display: "flex", gap: "3%", justifyContent: "center", alignItems: "center", width: "100%", maxHeight: "38%", marginBottom: 8 },
+  visualBox: { maxWidth: "42%", maxHeight: "100%", borderRadius: 6, background: "#FFFFFF" },
   bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4, textAlign: "left", fontSize: 9.5, lineHeight: 1.3, maxWidth: "90%" },
   bulletItem: { paddingLeft: 10, position: "relative" },
   trivia: { width: "100%" },
