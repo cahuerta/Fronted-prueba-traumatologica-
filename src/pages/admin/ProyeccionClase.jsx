@@ -16,6 +16,58 @@ function LogoBar() {
   );
 }
 
+// Bloque visual de una pagina "titulo_texto": imagen manual
+// (config.imagen_url, respetando config.disposicion_imagen) y grafico IA
+// (config.imagen_svg) pueden coexistir -no se pisan-. Si disposicion es
+// "grande", ambos visuales van arriba de los bullets, uno al lado del
+// otro. Si es "lado_izquierda"/"lado_derecha", ambos visuales quedan
+// apilados en una columna al costado, y los bullets ocupan el resto del
+// ancho -mismo criterio que ya se uso en el preview del constructor,
+// llevado ahora a la disposicion real de pantalla-.
+function ContenidoTituloTexto({ pagina }) {
+  const bullets = pagina.config?.bullets || [];
+  const imagenUrl = pagina.config?.imagen_url;
+  const imagenSvg = pagina.config?.imagen_svg;
+  const disposicion = pagina.config?.disposicion_imagen || "grande";
+  const hayVisuales = Boolean(imagenUrl || imagenSvg);
+
+  const bloqueSvg = imagenSvg && (
+    <div className="grafico-ia-proyeccion" style={s.visualBox} dangerouslySetInnerHTML={{ __html: imagenSvg }} />
+  );
+  const bloqueImg = imagenUrl && (
+    <img src={imagenUrl} alt="" style={{ ...s.visualBox, objectFit: "contain" }} />
+  );
+
+  const listaBullets = bullets.length > 0 && (
+    <ul style={disposicion === "grande" ? s.bullets : s.bulletsLado}>
+      {bullets.map((linea, i) => (
+        <li key={i} style={s.bulletItem}>{linea}</li>
+      ))}
+    </ul>
+  );
+
+  if (!hayVisuales) {
+    return listaBullets || null;
+  }
+
+  if (disposicion === "grande") {
+    return (
+      <>
+        <div style={s.visualesRowGrande}>{bloqueSvg}{bloqueImg}</div>
+        {listaBullets}
+      </>
+    );
+  }
+
+  // lado_izquierda / lado_derecha
+  return (
+    <div style={{ ...s.filaLado, flexDirection: disposicion === "lado_derecha" ? "row-reverse" : "row" }}>
+      <div style={s.columnaVisual}>{bloqueSvg}{bloqueImg}</div>
+      {listaBullets}
+    </div>
+  );
+}
+
 // Pantalla grande (proyector). Publica, sin auth -mismo patron que el
 // alumno y el admin usan para leer la pagina activa-. Aca SI se
 // muestran pregunta y alternativas de la trivia -es la contraparte
@@ -72,13 +124,7 @@ export default function ProyeccionClase() {
       <div style={s.contenido}>
         <h1 style={s.titulo}>{pagina.titulo}</h1>
 
-        {pagina.tipo_herramienta === "titulo_texto" && (
-          <ul style={s.bullets}>
-            {(pagina.config?.bullets || []).map((linea, i) => (
-              <li key={i} style={s.bulletItem}>{linea}</li>
-            ))}
-          </ul>
-        )}
+        {pagina.tipo_herramienta === "titulo_texto" && <ContenidoTituloTexto pagina={pagina} />}
 
         {pagina.tipo_herramienta === "trivia" && pagina.config?.pregunta && (
           <div style={s.trivia}>
@@ -98,6 +144,9 @@ export default function ProyeccionClase() {
           <p style={s.subtitulo}>Responde en tu celular: ¿sigo la clase?</p>
         )}
       </div>
+      {/* Escala el SVG del grafico IA (viewBox propio) al tamaño de su
+          contenedor -sin esto quedaria a su tamaño intrinseco-. */}
+      <style>{`.grafico-ia-proyeccion svg { width: 100%; height: 100%; display: block; }`}</style>
     </div>
   );
 }
@@ -122,7 +171,19 @@ const s = {
   subtitulo: { fontSize: 28, color: "#94A3B8", margin: 0 },
 
   bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 20, textAlign: "left", maxWidth: 800, marginLeft: "auto", marginRight: "auto" },
+  bulletsLado: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 18, textAlign: "left", flex: 1 },
   bulletItem: { fontSize: 30, lineHeight: 1.4, paddingLeft: 36, position: "relative" },
+
+  // "grande": ambos visuales (grafico IA + imagen manual) uno al lado del
+  // otro, arriba de los bullets, hasta 42% del ancho cada uno.
+  visualesRowGrande: { display: "flex", gap: 24, justifyContent: "center", alignItems: "center", width: "100%", maxHeight: "38vh", marginBottom: 32 },
+
+  // "lado_izquierda"/"lado_derecha": columna de visuales (apilados si hay
+  // dos) al costado, bullets ocupando el resto del ancho.
+  filaLado: { display: "flex", gap: 40, alignItems: "center", width: "100%", textAlign: "left" },
+  columnaVisual: { display: "flex", flexDirection: "column", gap: 16, flex: "0 0 38%", maxHeight: "60vh" },
+
+  visualBox: { maxWidth: "100%", maxHeight: "38vh", borderRadius: 12, background: "#F4F1EA", padding: 10, boxSizing: "border-box" },
 
   trivia: { marginTop: 20 },
   pregunta: { fontSize: 34, margin: "0 0 40px" },
