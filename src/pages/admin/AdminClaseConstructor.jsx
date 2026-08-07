@@ -229,7 +229,12 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
             )}
             {bullets.length > 0 ? (
               <ul style={p.bullets}>
-                {bullets.map((b, i) => <li key={i} style={p.bulletItem}>{b}</li>)}
+                {bullets.map((b, i) => (
+                  <li key={i} style={p.bulletItem}>
+                    <span style={p.bulletMarcador}>•</span>
+                    <span>{b}</span>
+                  </li>
+                ))}
               </ul>
             ) : (
               !hayVisuales && <p style={p.vacio}>Sin contenido todavía</p>
@@ -597,8 +602,13 @@ const p = {
   vacio: { fontSize: 11, color: "#64748B" },
   visualesRow: { display: "flex", gap: "3%", justifyContent: "center", alignItems: "center", width: "100%", maxHeight: "38%", marginBottom: 8 },
   visualBox: { maxWidth: "42%", maxHeight: "100%", borderRadius: 6, background: "#FFFFFF" },
-  bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4, textAlign: "left", fontSize: 9.5, lineHeight: 1.3, maxWidth: "90%" },
-  bulletItem: { paddingLeft: 10, position: "relative" },
+  // Antes dependian de un marcador ::before en un objeto de estilos
+  // inline -que React nunca aplica-, por eso quedaban sin separacion
+  // visual real entre lineas. Ahora cada bullet es su propia fila con
+  // fondo, borde y gap real, mismo lenguaje visual que p.alternativa.
+  bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6, textAlign: "left", fontSize: 9.5, lineHeight: 1.3, maxWidth: "92%", width: "92%" },
+  bulletItem: { display: "flex", alignItems: "flex-start", gap: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 6, padding: "5px 8px" },
+  bulletMarcador: { color: ACENTO, fontWeight: 800, flexShrink: 0 },
   trivia: { width: "100%" },
   pregunta: { fontSize: 10.5, margin: "0 0 8px", lineHeight: 1.3 },
   alternativas: { display: "flex", flexDirection: "column", gap: 4, textAlign: "left", maxWidth: "85%", margin: "0 auto" },
