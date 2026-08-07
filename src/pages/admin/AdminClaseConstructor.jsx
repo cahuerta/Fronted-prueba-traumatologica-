@@ -195,6 +195,16 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
   const bullets = (textoLineas || "").split("\n").map((l) => l.trim()).filter(Boolean);
   const hayVisuales = Boolean(imagenUrl || imagenSvg);
 
+  // El espacio se reparte segun cuantos visuales hay REALMENTE, no un
+  // 42%/42% fijo pensado para el caso de ambos coexistiendo -que es el
+  // caso menos comun-. Con uno solo (lo tipico: solo grafico IA, o solo
+  // imagen manual) ese unico visual ocupa casi todo el ancho, grande y
+  // legible; con dos, se dividen el espacio para no taparse.
+  const numVisuales = (imagenSvg ? 1 : 0) + (imagenUrl ? 1 : 0);
+  const anchoVisual = numVisuales === 1 ? "88%" : "46%";
+  const altoFila = numVisuales === 1 ? "58%" : "38%";
+  const visualBoxDinamico = { ...p.visualBox, maxWidth: anchoVisual };
+
   return (
     <div style={p.wrap}>
       <p style={p.label}>Vista previa — proyección</p>
@@ -204,16 +214,16 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
         {tipoHerramienta === "titulo_texto" && (
           <>
             {hayVisuales && (
-              <div style={p.visualesRow}>
+              <div style={{ ...p.visualesRow, maxHeight: altoFila }}>
                 {imagenSvg && (
                   <div
                     className="grafico-ia-preview"
-                    style={p.visualBox}
+                    style={visualBoxDinamico}
                     dangerouslySetInnerHTML={{ __html: imagenSvg }}
                   />
                 )}
                 {imagenUrl && (
-                  <img src={imagenUrl} alt="" style={{ ...p.visualBox, objectFit: "contain" }} />
+                  <img src={imagenUrl} alt="" style={{ ...visualBoxDinamico, objectFit: "contain" }} />
                 )}
               </div>
             )}
