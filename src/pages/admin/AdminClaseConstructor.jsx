@@ -210,7 +210,7 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
   // es un calculo confiable en flexbox, sin depender de la cadena de
   // porcentajes que fallaba. overflow:hidden queda como resguardo extra.
   const numVisuales = (imagenSvg ? 1 : 0) + (imagenUrl ? 1 : 0);
-  const anchoVisual = numVisuales === 1 ? "70%" : "44%";
+  const anchoVisual = numVisuales === 1 ? "60%" : "44%";
   const visualBoxDinamico = { ...p.visualBox, width: anchoVisual };
 
   return (
@@ -596,13 +596,20 @@ const p = {
     border: "1px solid rgba(244,241,233,0.12)",
     borderRadius: 10,
     aspectRatio: "16 / 9",
+    minHeight: 0,
     padding: "5% 6%",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     textAlign: "center",
-    overflow: "hidden",
+    // Antes "hidden" con una altura fija por aspect-ratio -si el grafico
+    // mas el texto necesitaban mas alto del que entraba en 16:9, el
+    // navegador recortaba el contenido a una tira delgada e ilegible en
+    // vez de mostrarlo completo. Ahora el 16:9 es solo la proporcion
+    // PREFERIDA -si el contenido no cabe, el cuadro crece hacia abajo en
+    // vez de recortar-.
+    overflow: "visible",
     color: "#F4F1EA",
     fontFamily: "sans-serif",
   },
