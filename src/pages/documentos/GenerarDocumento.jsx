@@ -290,11 +290,14 @@ export default function GenerarDocumento() {
     outline: "none", color: C.text, background: C.bg,
   };
 
+  // minHeight subido de 90 -> 220: con 90 apenas se veian 3-4 lineas,
+  // obligando a arrastrar el borde en cada seccion larga (introduccion,
+  // clinica, tratamientos) para poder revisar/editar con precision.
   const textareaStyle = {
     width: "100%", boxSizing: "border-box", padding: ".7rem .8rem",
     border: `1px solid ${C.border}`, borderRadius: 8, fontSize: ".88rem",
     outline: "none", color: C.text, background: C.bg, lineHeight: 1.6,
-    fontFamily: "inherit", resize: "vertical", minHeight: 90,
+    fontFamily: "inherit", resize: "vertical", minHeight: 220,
   };
 
   const btnDescarga = (activo) => ({
