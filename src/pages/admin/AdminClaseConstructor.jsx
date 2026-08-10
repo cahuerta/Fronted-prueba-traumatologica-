@@ -195,23 +195,47 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
   const bullets = (textoLineas || "").split("\n").map((l) => l.trim()).filter(Boolean);
   const hayVisuales = Boolean(imagenUrl || imagenSvg);
 
-  // El espacio se reparte segun cuantos visuales hay REALMENTE, no un
-  // 42%/42% fijo pensado para el caso de ambos coexistiendo -que es el
-  // caso menos comun-. Con uno solo (lo tipico: solo grafico IA, o solo
-  // imagen manual) ese unico visual ocupa casi todo el ancho, grande y
-  // legible; con dos, se dividen el espacio para no taparse.
-  //
-  // El alto YA NO se fija con porcentajes encadenados (fila% -> pantalla
-  // con aspect-ratio) -eso dependia de que cada ancestro tuviera una
-  // altura definida en pixeles en toda la cadena, y al no resolverse el
-  // SVG desbordaba por su tamaño intrinseco, tapando los bullets de
-  // abajo. Ahora el alto se deriva directo del ancho via aspect-ratio
-  // 4/3 -coincide con el viewBox 800x600 que le pedimos a Claude-, que
-  // es un calculo confiable en flexbox, sin depender de la cadena de
-  // porcentajes que fallaba. overflow:hidden queda como resguardo extra.
+  // Lado a lado, no apilado: en una caja 16:9 hay mas espacio horizontal
+  // que vertical, asi que competir gráfico vs bullets por ALTURA nunca
+  // iba a caber bien -por eso los intentos anteriores fallaban-. Cuando
+  // coexisten grafico/imagen y bullets, se reparten el ANCHO: visual a
+  // un lado, bullets al otro (letra mas chica para que quepan). Si solo
+  // hay uno de los dos, ese ocupa todo el espacio disponible.
+  const hayBullets = bullets.length > 0;
   const numVisuales = (imagenSvg ? 1 : 0) + (imagenUrl ? 1 : 0);
-  const anchoVisual = numVisuales === 1 ? "60%" : "44%";
-  const visualBoxDinamico = { ...p.visualBox, width: anchoVisual };
+  const layoutLado = hayVisuales && hayBullets;
+
+  const bloqueVisual = hayVisuales && (
+    <div style={{ ...(layoutLado ? p.columnaVisualLado : p.visualSolo), ...(numVisuales === 2 ? { gap: "4%" } : {}) }}>
+      {imagenSvg && (
+        <div
+          className="grafico-ia-preview"
+          style={numVisuales === 2 ? { ...p.visualBox, width: "48%" } : p.visualBox}
+          dangerouslySetInnerHTML={{ __html: imagenSvg }}
+        />
+      )}
+      {imagenUrl && (
+        <div style={numVisuales === 2 ? { ...p.visualBox, width: "48%" } : p.visualBox}>
+          <img
+            src={imagenUrl}
+            alt=""
+            style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", display: "block" }}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  const bloqueBullets = hayBullets && (
+    <ul style={layoutLado ? p.bulletsLado : p.bullets}>
+      {bullets.map((b, i) => (
+        <li key={i} style={layoutLado ? p.bulletItemLado : p.bulletItem}>
+          <span style={p.bulletMarcador}>•</span>
+          <span>{b}</span>
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <div style={p.wrap}>
@@ -221,32 +245,15 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
 
         {tipoHerramienta === "titulo_texto" && (
           <>
-            {hayVisuales && (
-              <div style={p.visualesRow}>
-                {imagenSvg && (
-                  <div
-                    className="grafico-ia-preview"
-                    style={visualBoxDinamico}
-                    dangerouslySetInnerHTML={{ __html: imagenSvg }}
-                  />
-                )}
-                {imagenUrl && (
-                  <img src={imagenUrl} alt="" style={{ ...visualBoxDinamico, objectFit: "contain" }} />
-                )}
+            {layoutLado ? (
+              <div style={p.filaLado}>
+                {bloqueVisual}
+                {bloqueBullets}
               </div>
-            )}
-            {bullets.length > 0 ? (
-              <ul style={p.bullets}>
-                {bullets.map((b, i) => (
-                  <li key={i} style={p.bulletItem}>
-                    <span style={p.bulletMarcador}>•</span>
-                    <span>{b}</span>
-                  </li>
-                ))}
-              </ul>
             ) : (
-              !hayVisuales && <p style={p.vacio}>Sin contenido todavía</p>
+              <>{bloqueVisual}{bloqueBullets}</>
             )}
+            {!hayVisuales && !hayBullets && <p style={p.vacio}>Sin contenido todavía</p>}
           </>
         )}
 
@@ -266,9 +273,10 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
 
         {tipoHerramienta === "ninguna" && <p style={p.vacio}>Solo se proyecta el título</p>}
       </div>
-      {/* Escala el SVG inyectado (viewBox propio) al tamaño del contenedor,
-          sin esto quedaria a su tamaño intrinseco y podria desbordar. */}
-      <style>{`.grafico-ia-preview svg { width: 100%; height: 100%; display: block; }`}</style>
+      {/* Escala el SVG inyectado preservando su propia proporcion (viewBox
+          propio) para caber dentro del contenedor -max-width/max-height,
+          no width/height fijos, que lo estirarian distorsionando su forma-. */}
+      <style>{`.grafico-ia-preview svg { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }`}</style>
     </div>
   );
 }
@@ -596,37 +604,51 @@ const p = {
     border: "1px solid rgba(244,241,233,0.12)",
     borderRadius: 10,
     aspectRatio: "16 / 9",
-    minHeight: 0,
     padding: "5% 6%",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     textAlign: "center",
-    // Antes "hidden" con una altura fija por aspect-ratio -si el grafico
-    // mas el texto necesitaban mas alto del que entraba en 16:9, el
-    // navegador recortaba el contenido a una tira delgada e ilegible en
-    // vez de mostrarlo completo. Ahora el 16:9 es solo la proporcion
-    // PREFERIDA -si el contenido no cabe, el cuadro crece hacia abajo en
-    // vez de recortar-.
-    overflow: "visible",
+    // Una pantalla de proyeccion NUNCA tiene scroll -tamaño fijo 16:9,
+    // overflow:hidden real-. El contenido (grafico + bullets) se escala
+    // para caber adentro -ver visualesRow/visualBox con minHeight:0 y
+    // el grafico con max-width/max-height:100% preservando su proporcion-
+    // en vez de desbordarse (bug anterior) o forzar que la caja crezca
+    // y obligue a hacer scroll (parche incorrecto anterior).
+    overflow: "hidden",
     color: "#F4F1EA",
     fontFamily: "sans-serif",
   },
   titulo: { fontSize: "clamp(11px, 4.2cqw, 18px)", fontWeight: 800, margin: "0 0 8px", lineHeight: 1.2 },
   vacio: { fontSize: 11, color: "#64748B" },
-  // El alto de cada visual se deriva de su ancho via aspect-ratio (ver
-  // visualBox) -no de porcentajes de altura encadenados, que fallaban al
-  // no resolverse toda la cadena de ancestros con altura definida y
-  // dejaban que el SVG se desbordara tapando los bullets de abajo.
-  visualesRow: { display: "flex", gap: "3%", justifyContent: "center", alignItems: "flex-start", width: "100%", marginBottom: 8, overflow: "hidden" },
-  visualBox: { aspectRatio: "4 / 3", borderRadius: 6, background: "#FFFFFF", overflow: "hidden", flexShrink: 0 },
+  // Lado a lado -no apilado-: en una caja 16:9 hay mas espacio horizontal
+  // que vertical, asi que grafico y bullets se reparten el ANCHO cuando
+  // coexisten, cada uno con la altura completa disponible para escalar
+  // adentro. flex:1 + minHeight:0 en ambos es el override real del bug
+  // de flexbox donde los items no se encogen por debajo del tamaño de su
+  // contenido por defecto -sin esto el maxHeight/height:100% no se
+  // respeta-.
+  filaLado: { display: "flex", flex: "1 1 auto", minHeight: 0, gap: "4%", alignItems: "center", justifyContent: "center", width: "100%" },
+  columnaVisualLado: { flex: "0 0 46%", height: "100%", minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" },
+  // Cuando solo hay grafico/imagen (sin bullets, caso autoexplicativo):
+  // ocupa todo el espacio disponible, no solo la mitad.
+  visualSolo: { flex: "1 1 auto", minHeight: 0, width: "100%", display: "flex", alignItems: "center", justifyContent: "center" },
+  // height:100% + el grafico/imagen adentro con max-width/max-height:100%
+  // y width/height auto -preserva su proporcion, se escala hacia adentro
+  // para caber completo, nunca se corta ni se desborda-.
+  visualBox: { height: "100%", width: "100%", borderRadius: 6, background: "#FFFFFF", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" },
   // Antes dependian de un marcador ::before en un objeto de estilos
   // inline -que React nunca aplica-, por eso quedaban sin separacion
   // visual real entre lineas. Ahora cada bullet es su propia fila con
   // fondo, borde y gap real, mismo lenguaje visual que p.alternativa.
   bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6, textAlign: "left", fontSize: 9.5, lineHeight: 1.3, maxWidth: "92%", width: "92%" },
   bulletItem: { display: "flex", alignItems: "flex-start", gap: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 6, padding: "5px 8px" },
+  // Version compacta para cuando comparten espacio con un grafico/imagen
+  // al lado -letra mas chica y padding reducido para que quepan mas
+  // lineas en menos ancho-.
+  bulletsLado: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4, textAlign: "left", fontSize: 7.5, lineHeight: 1.25, flex: 1, minWidth: 0, maxHeight: "100%", overflow: "hidden" },
+  bulletItemLado: { display: "flex", alignItems: "flex-start", gap: 4, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 5, padding: "3px 6px" },
   bulletMarcador: { color: ACENTO, fontWeight: 800, flexShrink: 0 },
   trivia: { width: "100%" },
   pregunta: { fontSize: 10.5, margin: "0 0 8px", lineHeight: 1.3 },
