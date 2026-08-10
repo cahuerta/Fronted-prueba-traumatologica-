@@ -200,10 +200,18 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
   // caso menos comun-. Con uno solo (lo tipico: solo grafico IA, o solo
   // imagen manual) ese unico visual ocupa casi todo el ancho, grande y
   // legible; con dos, se dividen el espacio para no taparse.
+  //
+  // El alto YA NO se fija con porcentajes encadenados (fila% -> pantalla
+  // con aspect-ratio) -eso dependia de que cada ancestro tuviera una
+  // altura definida en pixeles en toda la cadena, y al no resolverse el
+  // SVG desbordaba por su tamaño intrinseco, tapando los bullets de
+  // abajo. Ahora el alto se deriva directo del ancho via aspect-ratio
+  // 4/3 -coincide con el viewBox 800x600 que le pedimos a Claude-, que
+  // es un calculo confiable en flexbox, sin depender de la cadena de
+  // porcentajes que fallaba. overflow:hidden queda como resguardo extra.
   const numVisuales = (imagenSvg ? 1 : 0) + (imagenUrl ? 1 : 0);
-  const anchoVisual = numVisuales === 1 ? "88%" : "46%";
-  const altoFila = numVisuales === 1 ? "58%" : "38%";
-  const visualBoxDinamico = { ...p.visualBox, maxWidth: anchoVisual };
+  const anchoVisual = numVisuales === 1 ? "70%" : "44%";
+  const visualBoxDinamico = { ...p.visualBox, width: anchoVisual };
 
   return (
     <div style={p.wrap}>
@@ -214,7 +222,7 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
         {tipoHerramienta === "titulo_texto" && (
           <>
             {hayVisuales && (
-              <div style={{ ...p.visualesRow, maxHeight: altoFila }}>
+              <div style={p.visualesRow}>
                 {imagenSvg && (
                   <div
                     className="grafico-ia-preview"
@@ -600,8 +608,12 @@ const p = {
   },
   titulo: { fontSize: "clamp(11px, 4.2cqw, 18px)", fontWeight: 800, margin: "0 0 8px", lineHeight: 1.2 },
   vacio: { fontSize: 11, color: "#64748B" },
-  visualesRow: { display: "flex", gap: "3%", justifyContent: "center", alignItems: "center", width: "100%", maxHeight: "38%", marginBottom: 8 },
-  visualBox: { maxWidth: "42%", maxHeight: "100%", borderRadius: 6, background: "#FFFFFF" },
+  // El alto de cada visual se deriva de su ancho via aspect-ratio (ver
+  // visualBox) -no de porcentajes de altura encadenados, que fallaban al
+  // no resolverse toda la cadena de ancestros con altura definida y
+  // dejaban que el SVG se desbordara tapando los bullets de abajo.
+  visualesRow: { display: "flex", gap: "3%", justifyContent: "center", alignItems: "flex-start", width: "100%", marginBottom: 8, overflow: "hidden" },
+  visualBox: { aspectRatio: "4 / 3", borderRadius: 6, background: "#FFFFFF", overflow: "hidden", flexShrink: 0 },
   // Antes dependian de un marcador ::before en un objeto de estilos
   // inline -que React nunca aplica-, por eso quedaban sin separacion
   // visual real entre lineas. Ahora cada bullet es su propia fila con
