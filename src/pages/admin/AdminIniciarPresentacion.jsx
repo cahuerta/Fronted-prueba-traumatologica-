@@ -174,6 +174,9 @@ export default function AdminIniciarPresentacion() {
                     <button onClick={() => navigate(`/admin/clases-vivo/${ses.id}`)} style={s.continuarBtn}>
                       Continuar
                     </button>
+                    <button onClick={() => navigate(`/proyeccion-clase/${ses.codigo_acceso}`)} style={s.proyeccionBtn}>
+                      Proyección
+                    </button>
                     <button
                       onClick={() => handleCerrarSesionClase(ses.id)}
                       disabled={borrandoId === ses.id}
