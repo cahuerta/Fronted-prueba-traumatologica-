@@ -41,7 +41,10 @@ function ContenidoTituloTexto({ pagina }) {
   const listaBullets = bullets.length > 0 && (
     <ul style={disposicion === "grande" ? s.bullets : s.bulletsLado}>
       {bullets.map((linea, i) => (
-        <li key={i} style={s.bulletItem}>{linea}</li>
+        <li key={i} style={s.bulletItem}>
+          <span style={s.bulletMarcador}>•</span>
+          <span>{linea}</span>
+        </li>
       ))}
     </ul>
   );
@@ -144,9 +147,10 @@ export default function ProyeccionClase() {
           <p style={s.subtitulo}>Responde en tu celular: ¿sigo la clase?</p>
         )}
       </div>
-      {/* Escala el SVG del grafico IA (viewBox propio) al tamaño de su
-          contenedor -sin esto quedaria a su tamaño intrinseco-. */}
-      <style>{`.grafico-ia-proyeccion svg { width: 100%; height: 100%; display: block; }`}</style>
+      {/* Escala el SVG del grafico IA preservando su propia proporcion
+          (viewBox propio) para caber en su contenedor -max-width/max-height,
+          no width/height fijos que lo distorsionarian estirandolo-. */}
+      <style>{`.grafico-ia-proyeccion svg { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }`}</style>
     </div>
   );
 }
@@ -170,9 +174,14 @@ const s = {
   titulo: { fontSize: 56, fontWeight: 800, margin: "0 0 24px" },
   subtitulo: { fontSize: 28, color: "#94A3B8", margin: 0 },
 
-  bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 20, textAlign: "left", maxWidth: 800, marginLeft: "auto", marginRight: "auto" },
-  bulletsLado: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 18, textAlign: "left", flex: 1 },
-  bulletItem: { fontSize: 30, lineHeight: 1.4, paddingLeft: 36, position: "relative" },
+  bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 16, textAlign: "left", maxWidth: 800, marginLeft: "auto", marginRight: "auto" },
+  bulletsLado: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 14, textAlign: "left", flex: 1 },
+  // Antes dependia de un marcador ::before en un objeto de estilos inline
+  // -que nunca se aplica en React-, por eso quedaba sin separacion visual
+  // real. Ahora cada bullet es su propia fila con fondo, borde y marcador
+  // explicito, mismo lenguaje visual que 'alternativa' (trivia).
+  bulletItem: { display: "flex", alignItems: "flex-start", gap: 14, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: "14px 20px", fontSize: 28, lineHeight: 1.4 },
+  bulletMarcador: { color: "#4FC3D9", fontWeight: 800, flexShrink: 0 },
 
   // "grande": ambos visuales (grafico IA + imagen manual) uno al lado del
   // otro, arriba de los bullets, hasta 42% del ancho cada uno.
@@ -183,7 +192,10 @@ const s = {
   filaLado: { display: "flex", gap: 40, alignItems: "center", width: "100%", textAlign: "left" },
   columnaVisual: { display: "flex", flexDirection: "column", gap: 16, flex: "0 0 38%", maxHeight: "60vh" },
 
-  visualBox: { maxWidth: "100%", maxHeight: "38vh", borderRadius: 12, background: "#F4F1EA", padding: 10, boxSizing: "border-box" },
+  // Centrado para que el grafico/imagen -con ancho/alto "auto" preservando
+  // su propia proporcion- quede bien posicionado dentro de la caja, no
+  // pegado a una esquina.
+  visualBox: { maxWidth: "100%", maxHeight: "38vh", borderRadius: 12, background: "#F4F1EA", padding: 10, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center" },
 
   trivia: { marginTop: 20 },
   pregunta: { fontSize: 34, margin: "0 0 40px" },
