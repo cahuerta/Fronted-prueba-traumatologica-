@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { clasesFormalesActual } from "../../api/clasesFormalesCliente";
+import { clasesFormalesActual, clasesFormalesTrivia } from "../../api/clasesFormalesCliente";
 
 const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 
@@ -75,7 +75,9 @@ function ContenidoTituloTexto({ pagina }) {
 // alumno y el admin usan para leer la pagina activa-. Aca SI se
 // muestran pregunta y alternativas de la trivia -es la contraparte
 // visual del selector ciego de letras que ve el alumno en su celular,
-// como un sistema de clickers real-.
+// como un sistema de clickers real-. Ademas se muestran las barras de
+// conteo en vivo y, al revelar, la alternativa correcta resaltada en
+// verde -mismo criterio que Casos Clinicos usa en su Proyeccion-.
 //
 // Mientras la sesion aun no tiene pagina activa (pagina_actual_orden
 // null en el backend -> este endpoint responde 404), se muestra el QR
@@ -83,16 +85,28 @@ function ContenidoTituloTexto({ pagina }) {
 export default function ProyeccionClase() {
   const { codigo } = useParams();
   const [pagina, setPagina] = useState(null);
+  const [trivia, setTrivia] = useState(null);
 
   useEffect(() => {
     async function poll() {
       try {
         const data = await clasesFormalesActual.leer(codigo);
         setPagina(data);
+
+        // Mismo poll, sin llamada nueva y separada: solo cuando la pagina
+        // activa es trivia se pide tambien su resultado (conteos +
+        // revelada) -no toca Supabase, es lectura en RAM, sin costo real-.
+        if (data?.tipo_herramienta === "trivia") {
+          const resultadoTrivia = await clasesFormalesTrivia.resultado(data.id);
+          setTrivia(resultadoTrivia);
+        } else {
+          setTrivia(null);
+        }
       } catch {
         // Sin pagina activa todavia (o cualquier otro fallo transitorio):
         // se muestra el QR, el proximo poll reintenta solo.
         setPagina(null);
+        setTrivia(null);
       }
     }
     poll();
@@ -133,13 +147,35 @@ export default function ProyeccionClase() {
           <div style={s.trivia}>
             <p style={s.pregunta}>{pagina.config.pregunta}</p>
             <div style={s.alternativas}>
-              {(pagina.config.alternativas || []).map((alt, i) => (
-                <div key={i} style={s.alternativa}>
-                  <span style={s.letra}>{String.fromCharCode(65 + i)}</span>
-                  <span>{alt}</span>
-                </div>
-              ))}
+              {(pagina.config.alternativas || []).map((alt, i) => {
+                const letra = String.fromCharCode(65 + i);
+                const total = trivia?.total || 0;
+                const conteo = trivia?.conteos?.[letra] || 0;
+                const pct = total > 0 ? Math.round((conteo / total) * 100) : 0;
+                const esCorrecta = Boolean(trivia?.revelada) && pagina.config.correcta === i;
+                return (
+                  <div key={i} style={{ ...s.alternativa, ...(esCorrecta ? s.alternativaCorrecta : {}) }}>
+                    <span style={{ ...s.letra, ...(esCorrecta ? s.letraCorrecta : {}) }}>{letra}</span>
+                    <span style={s.alternativaTexto}>{alt}</span>
+                    <div style={s.alternativaBarraFondo}>
+                      <div
+                        style={{
+                          ...s.alternativaBarraLlena,
+                          width: `${pct}%`,
+                          ...(esCorrecta ? s.alternativaBarraLlenaCorrecta : {}),
+                        }}
+                      />
+                    </div>
+                    <span style={s.alternativaConteo}>{conteo}</span>
+                  </div>
+                );
+              })}
             </div>
+            {trivia && (
+              <p style={s.triviaTotal}>
+                {trivia.total} {trivia.total === 1 ? "respuesta" : "respuestas"}
+              </p>
+            )}
           </div>
         )}
 
@@ -201,5 +237,19 @@ const s = {
   pregunta: { fontSize: 34, margin: "0 0 40px" },
   alternativas: { display: "flex", flexDirection: "column", gap: 18, textAlign: "left", maxWidth: 700, margin: "0 auto" },
   alternativa: { display: "flex", alignItems: "center", gap: 20, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 16, padding: "20px 28px", fontSize: 26 },
+  // Mismo verde que AdminClaseVivo/Casos Clinicos para la opcion correcta
+  // al revelar -#7FD98F-, consistente en todo el ecosistema.
+  alternativaCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
+  alternativaTexto: { flexShrink: 0, minWidth: 0 },
   letra: { width: 44, height: 44, borderRadius: "50%", background: "#4FC3D9", color: "#0E1526", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 22, flexShrink: 0 },
+  letraCorrecta: { background: "#7FD98F" },
+  // Barra de conteo en vivo, aparece junto al texto y crece con el % de
+  // respuestas -mismo lenguaje visual que las barras de AdminClaseVivo,
+  // escalado al tamaño de pantalla grande de proyeccion-.
+  alternativaBarraFondo: { flex: 1, height: 14, borderRadius: 8, background: "#0E1526", overflow: "hidden", minWidth: 60 },
+  alternativaBarraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 8, transition: "width 0.4s ease" },
+  alternativaBarraLlenaCorrecta: { background: "#7FD98F" },
+  alternativaConteo: { flexShrink: 0, minWidth: 32, textAlign: "right", fontWeight: 800, color: "#94A3B8" },
+  triviaTotal: { marginTop: 24, fontSize: 18, color: "#64748B" },
 };
+      
