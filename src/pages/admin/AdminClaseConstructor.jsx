@@ -398,158 +398,192 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
 
   return (
     <div style={s.overlay} onClick={onClose}>
-      <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-        <p style={s.modalTitulo}>{pagina ? "Editar página" : "Nueva página"}</p>
+      {/* Modal ampliado y en 2 columnas en escritorio (preview a la izquierda,
+          formulario a la derecha) -antes maxWidth:420 apilado, muy angosto y
+          centrado con espacio vacio a los costados-. En pantallas chicas
+          (<860px) se mantiene apilado como antes, via media query. */}
+      <div style={s.modal} className="constructor-modal-grid" onClick={(e) => e.stopPropagation()}>
+        <div className="constructor-preview-col">
+          <p style={s.modalTitulo}>{pagina ? "Editar página" : "Nueva página"}</p>
 
-        <PreviewPagina
-          titulo={titulo}
-          tipoHerramienta={tipoHerramienta}
-          textoLineas={textoLineas}
-          imagenUrl={imagenUrl}
-          imagenSvg={imagenSvg}
-          pregunta={pregunta}
-          alternativas={alternativas}
-          numAlternativas={numAlternativas}
-        />
-
-        <form onSubmit={handleGuardar} style={s.form}>
-          <label style={s.label}>Título</label>
-          <input
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            placeholder="Ej. Clasificación de Garden"
-            autoFocus
-            style={s.input}
+          <PreviewPagina
+            titulo={titulo}
+            tipoHerramienta={tipoHerramienta}
+            textoLineas={textoLineas}
+            imagenUrl={imagenUrl}
+            imagenSvg={imagenSvg}
+            pregunta={pregunta}
+            alternativas={alternativas}
+            numAlternativas={numAlternativas}
           />
+        </div>
 
-          <label style={s.label}>Plantilla</label>
-          <select value={tipoHerramienta} onChange={(e) => setTipoHerramienta(e.target.value)} style={s.input}>
-            {Object.entries(HERRAMIENTA_LABEL).map(([valor, label]) => (
-              <option key={valor} value={valor}>{label}</option>
-            ))}
-          </select>
+        <div className="constructor-form-col">
+          <form onSubmit={handleGuardar} style={s.form}>
+            <label style={s.label}>Título</label>
+            <input
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              placeholder="Ej. Clasificación de Garden"
+              autoFocus
+              style={s.input}
+            />
 
-          {tipoHerramienta === "titulo_texto" && (
-            <>
-              <label style={s.label}>Texto (una línea = un punto en pantalla)</label>
-              <textarea
-                value={textoLineas}
-                onChange={(e) => setTextoLineas(e.target.value)}
-                placeholder={"Ej.\nIncidencia 30% en mayores de 65 años\nMás frecuente en mujeres"}
-                rows={6}
-                style={s.textarea}
-              />
+            <label style={s.label}>Plantilla</label>
+            <select value={tipoHerramienta} onChange={(e) => setTipoHerramienta(e.target.value)} style={s.input}>
+              {Object.entries(HERRAMIENTA_LABEL).map(([valor, label]) => (
+                <option key={valor} value={valor}>{label}</option>
+              ))}
+            </select>
 
-              {imagenSvg && (
-                <>
-                  <label style={s.label}>Gráfico generado por IA</label>
+            {tipoHerramienta === "titulo_texto" && (
+              <>
+                <label style={s.label}>Texto (una línea = un punto en pantalla)</label>
+                <textarea
+                  value={textoLineas}
+                  onChange={(e) => setTextoLineas(e.target.value)}
+                  placeholder={"Ej.\nIncidencia 30% en mayores de 65 años\nMás frecuente en mujeres"}
+                  rows={6}
+                  style={s.textarea}
+                />
+
+                {imagenSvg && (
+                  <>
+                    <label style={s.label}>Gráfico generado por IA</label>
+                    <div style={s.imagenPreviewWrap}>
+                      <div
+                        className="grafico-ia-modal"
+                        style={s.graficoPreview}
+                        dangerouslySetInnerHTML={{ __html: imagenSvg }}
+                      />
+                      <button type="button" onClick={handleQuitarGrafico} style={s.btnQuitarImagen}>
+                        Quitar gráfico
+                      </button>
+                    </div>
+                    <style>{`.grafico-ia-modal svg { width: 100%; height: 100%; display: block; }`}</style>
+                  </>
+                )}
+
+                <label style={s.label}>Imagen (opcional — ej. radiografía)</label>
+
+                {imagenUrl ? (
                   <div style={s.imagenPreviewWrap}>
-                    <div
-                      className="grafico-ia-modal"
-                      style={s.graficoPreview}
-                      dangerouslySetInnerHTML={{ __html: imagenSvg }}
-                    />
-                    <button type="button" onClick={handleQuitarGrafico} style={s.btnQuitarImagen}>
-                      Quitar gráfico
+                    <img src={imagenUrl} alt="Vista previa" style={s.imagenPreview} />
+                    <button type="button" onClick={handleQuitarImagen} style={s.btnQuitarImagen}>
+                      Quitar foto
                     </button>
                   </div>
-                  <style>{`.grafico-ia-modal svg { width: 100%; height: 100%; display: block; }`}</style>
-                </>
-              )}
-
-              <label style={s.label}>Imagen (opcional — ej. radiografía)</label>
-
-              {imagenUrl ? (
-                <div style={s.imagenPreviewWrap}>
-                  <img src={imagenUrl} alt="Vista previa" style={s.imagenPreview} />
-                  <button type="button" onClick={handleQuitarImagen} style={s.btnQuitarImagen}>
-                    Quitar foto
-                  </button>
-                </div>
-              ) : (
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleSubirImagen}
-                  disabled={subiendoImagen}
-                  style={s.inputFile}
-                />
-              )}
-              {subiendoImagen && <p style={s.info}>Subiendo imagen...</p>}
-
-              {imagenUrl && (
-                <>
-                  <label style={s.label}>Disposición de la imagen</label>
-                  <select
-                    value={disposicionImagen}
-                    onChange={(e) => setDisposicionImagen(e.target.value)}
-                    style={s.input}
-                  >
-                    {Object.entries(DISPOSICION_LABEL).map(([valor, label]) => (
-                      <option key={valor} value={valor}>{label}</option>
-                    ))}
-                  </select>
-                </>
-              )}
-            </>
-          )}
-
-          {tipoHerramienta === "trivia" && (
-            <>
-              <label style={s.label}>Pregunta</label>
-              <input
-                value={pregunta}
-                onChange={(e) => setPregunta(e.target.value)}
-                placeholder="Ej. ¿Cuál es el tipo Garden más inestable?"
-                style={s.input}
-              />
-
-              <label style={s.label}>Número de alternativas</label>
-              <select
-                value={numAlternativas}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  setNumAlternativas(n);
-                  if (correcta >= n) setCorrecta(0);
-                }}
-                style={s.input}
-              >
-                {[2, 3, 4, 5].map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-
-              {LETRAS.slice(0, numAlternativas).map((letra, i) => (
-                <div key={letra} style={s.altFila}>
-                  <span style={s.altLetra}>{letra}</span>
+                ) : (
                   <input
-                    value={alternativas[i]}
-                    onChange={(e) => handleAlternativaChange(i, e.target.value)}
-                    placeholder={`Alternativa ${letra}`}
-                    style={{ ...s.input, flex: 1, marginBottom: 0 }}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSubirImagen}
+                    disabled={subiendoImagen}
+                    style={s.inputFile}
                   />
-                </div>
-              ))}
+                )}
+                {subiendoImagen && <p style={s.info}>Subiendo imagen...</p>}
 
-              <label style={s.label}>Alternativa correcta</label>
-              <select value={correcta} onChange={(e) => setCorrecta(Number(e.target.value))} style={s.input}>
+                {imagenUrl && (
+                  <>
+                    <label style={s.label}>Disposición de la imagen</label>
+                    <select
+                      value={disposicionImagen}
+                      onChange={(e) => setDisposicionImagen(e.target.value)}
+                      style={s.input}
+                    >
+                      {Object.entries(DISPOSICION_LABEL).map(([valor, label]) => (
+                        <option key={valor} value={valor}>{label}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+              </>
+            )}
+
+            {tipoHerramienta === "trivia" && (
+              <>
+                <label style={s.label}>Pregunta</label>
+                <input
+                  value={pregunta}
+                  onChange={(e) => setPregunta(e.target.value)}
+                  placeholder="Ej. ¿Cuál es el tipo Garden más inestable?"
+                  style={s.input}
+                />
+
+                <label style={s.label}>Número de alternativas</label>
+                <select
+                  value={numAlternativas}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    setNumAlternativas(n);
+                    if (correcta >= n) setCorrecta(0);
+                  }}
+                  style={s.input}
+                >
+                  {[2, 3, 4, 5].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+
                 {LETRAS.slice(0, numAlternativas).map((letra, i) => (
-                  <option key={letra} value={i}>{letra}</option>
+                  <div key={letra} style={s.altFila}>
+                    <span style={s.altLetra}>{letra}</span>
+                    <input
+                      value={alternativas[i]}
+                      onChange={(e) => handleAlternativaChange(i, e.target.value)}
+                      placeholder={`Alternativa ${letra}`}
+                      style={{ ...s.input, flex: 1, marginBottom: 0 }}
+                    />
+                  </div>
                 ))}
-              </select>
-            </>
-          )}
 
-          {error && <p style={s.error}>{error}</p>}
+                <label style={s.label}>Alternativa correcta</label>
+                <select value={correcta} onChange={(e) => setCorrecta(Number(e.target.value))} style={s.input}>
+                  {LETRAS.slice(0, numAlternativas).map((letra, i) => (
+                    <option key={letra} value={i}>{letra}</option>
+                  ))}
+                </select>
+              </>
+            )}
 
-          <div style={s.modalBtns}>
-            <button type="button" onClick={onClose} style={s.btnCancelar}>Cancelar</button>
-            <button type="submit" disabled={guardando || subiendoImagen || !titulo.trim()} style={s.btn}>
-              {guardando ? "Guardando..." : "Guardar"}
-            </button>
-          </div>
-        </form>
+            {error && <p style={s.error}>{error}</p>}
+
+            <div style={s.modalBtns}>
+              <button type="button" onClick={onClose} style={s.btnCancelar}>Cancelar</button>
+              <button type="submit" disabled={guardando || subiendoImagen || !titulo.trim()} style={s.btn}>
+                {guardando ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
+
+      {/* Apilado por defecto (celular); desde 860px pasa a 2 columnas,
+          preview a la izquierda con scroll propio si el contenido es alto,
+          formulario a la derecha con su propio scroll independiente. */}
+      <style>{`
+        .constructor-modal-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+        @media (min-width: 860px) {
+          .constructor-modal-grid {
+            flex-direction: row;
+            align-items: flex-start;
+          }
+          .constructor-modal-grid > .constructor-preview-col {
+            flex: 0 0 44%;
+            position: sticky;
+            top: 0;
+          }
+          .constructor-modal-grid > .constructor-form-col {
+            flex: 1;
+            min-width: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -572,7 +606,10 @@ const s = {
   btnEliminar: { background: "none", border: "none", color: "#D1495B", fontSize: 16, cursor: "pointer", padding: "4px 8px" },
 
   overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px 16px" },
-  modal: { width: "100%", maxWidth: 420, maxHeight: "90vh", overflowY: "auto", background: "#16213A", borderRadius: 18, padding: "24px 20px 32px" },
+  // maxWidth ampliado de 420 a 1100 -antes se veia angosto y agrupado al
+  // centro con espacio vacio a los costados en escritorio-. El layout
+  // interno (1 o 2 columnas) lo resuelve la clase constructor-modal-grid.
+  modal: { width: "100%", maxWidth: 1100, maxHeight: "90vh", overflowY: "auto", background: "#16213A", borderRadius: 18, padding: "24px 20px 32px" },
   modalTitulo: { fontSize: 16, fontWeight: 700, margin: "0 0 16px" },
   form: { display: "flex", flexDirection: "column", gap: 8 },
   label: { fontSize: 12.5, color: "#94A3B8", marginTop: 6 },
