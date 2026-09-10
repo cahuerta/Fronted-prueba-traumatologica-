@@ -156,6 +156,12 @@ export default function AdminClaseVivo() {
     );
   }
 
+  // Letra correcta de la trivia de la pagina activa -vive en paginas_clase.config,
+  // no en la cache de resultados (esa solo trae total/conteos/revelada). Se
+  // resuelve aca, en el mismo lugar donde ya se tiene paginaActual completo.
+  const letraCorrecta =
+    paginaActual?.config?.correcta !== undefined ? LETRAS[paginaActual.config.correcta] : null;
+
   return (
     <div style={s.wrap}>
       <header style={s.header}>
@@ -180,11 +186,18 @@ export default function AdminClaseVivo() {
             {LETRAS.map((letra) => {
               const n = trivia.conteos[letra] || 0;
               const pct = trivia.total > 0 ? Math.round((n / trivia.total) * 100) : 0;
+              const esCorrecta = trivia.revelada && letra === letraCorrecta;
               return (
-                <div key={letra} style={s.triviaFila}>
+                <div key={letra} style={{ ...s.triviaFila, ...(esCorrecta ? s.triviaFilaCorrecta : {}) }}>
                   <span style={s.triviaLetra}>{letra}</span>
                   <div style={s.triviaBarraFondo}>
-                    <div style={{ ...s.triviaBarraLlena, width: `${pct}%` }} />
+                    <div
+                      style={{
+                        ...s.triviaBarraLlena,
+                        width: `${pct}%`,
+                        ...(esCorrecta ? s.triviaBarraLlenaCorrecta : {}),
+                      }}
+                    />
                   </div>
                   <span style={s.triviaConteo}>{n}</span>
                 </div>
@@ -256,10 +269,12 @@ const s = {
   upvotes: { fontSize: 12.5, color: ACENTO, fontWeight: 700 },
   btnResponder: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#F4F1EA", fontSize: 12, padding: "6px 10px", cursor: "pointer" },
   triviaBarras: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 },
-  triviaFila: { display: "flex", alignItems: "center", gap: 10 },
+  triviaFila: { display: "flex", alignItems: "center", gap: 10, borderRadius: 8, padding: "4px 6px" },
+  triviaFilaCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
   triviaLetra: { width: 20, fontWeight: 800, fontSize: 13, color: ACENTO, flexShrink: 0 },
   triviaBarraFondo: { flex: 1, height: 10, borderRadius: 6, background: "#0E1526", overflow: "hidden" },
   triviaBarraLlena: { height: "100%", background: ACENTO, borderRadius: 6, transition: "width 0.3s" },
+  triviaBarraLlenaCorrecta: { background: "#7FD98F" },
   triviaConteo: { width: 24, textAlign: "right", fontSize: 12.5, color: "#94A3B8", flexShrink: 0 },
   btnRevelar: { display: "block", width: "100%", background: "none", border: `1px solid ${ACENTO}`, borderRadius: 10, color: ACENTO, padding: "12px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" },
   error: { color: "#D1495B", fontSize: 13, textAlign: "center" },
@@ -274,4 +289,3 @@ const s = {
   asistenciaBarraFondo: { width: "100%", maxWidth: 360, height: 14, background: "#0E1526", borderRadius: 8, overflow: "hidden" },
   asistenciaBarraLlena: { height: "100%", background: ACENTO, borderRadius: 8, transition: "width 0.4s ease" },
 };
-        
