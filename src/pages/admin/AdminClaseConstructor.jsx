@@ -14,7 +14,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { clasesFormalesPaginas } from "../../api/clasesFormalesCliente";
+import { clasesFormalesPaginas, clasesFormalesMedia } from "../../api/clasesFormalesCliente";
 import { casosVivoAdmin } from "../../api/client";
 
 const ACENTO = "#4FC3D9";
@@ -30,8 +30,8 @@ const HERRAMIENTA_LABEL = {
 
 // Reusamos el mismo endpoint/bucket de imagenes de casos clinicos
 // (subirMediaCaso) -decision confirmada con Cristobal, mismo bucket,
-// sin separar storage-. El "tipo" que le mandamos es "imagen", igual
-// que casos clinicos.
+// sin separar storage, privado a proposito-. El "tipo" que le mandamos
+// es "foto", igual que casos clinicos.
 const DISPOSICION_LABEL = {
   grande: "Grande (protagonista, texto abajo)",
   lado_izquierda: "Al lado del texto — imagen a la izquierda",
@@ -39,7 +39,7 @@ const DISPOSICION_LABEL = {
 };
 
 // El grafico generado por IA (config.imagen_svg) y la imagen manual
-// (config.imagen_url) pueden coexistir en la misma pagina -no se pisan-.
+// (config.imagen_path) pueden coexistir en la misma pagina -no se pisan-.
 // El grafico IA se genera solo desde el pipeline de /documentos/clase-formal;
 // desde este constructor solo se puede VER y QUITAR, nunca generar ni subir.
 // Si el docente no lo quita explicitamente, se preserva tal cual al guardar
@@ -189,7 +189,7 @@ function PaginaItem({ pagina, numero, seleccionada, onSeleccionar, onEliminar })
 
   const etiquetas = [
     pagina.config?.imagen_svg ? "con gráfico (IA)" : null,
-    pagina.config?.imagen_url ? "con imagen" : null,
+    pagina.config?.imagen_path ? "con imagen" : null,
   ].filter(Boolean);
 
   return (
@@ -209,11 +209,13 @@ function PaginaItem({ pagina, numero, seleccionada, onSeleccionar, onEliminar })
 }
 
 // ---------------- PREVIEW EN MINIATURA ----------------
-// Simula, a escala reducida, la misma pantalla que ve el proyector
-// (ProyeccionClase.jsx) — mismo fondo oscuro y jerarquía tipográfica,
-// para que el docente vea cómo va a quedar antes de guardar.
+// Simula la misma pantalla que ve el proyector (ProyeccionClase.jsx) —
+// mismo fondo oscuro y jerarquía tipográfica, para que el docente vea
+// cómo va a quedar antes de guardar. Ahora ocupa todo el ancho
+// disponible del panel derecho (antes competía 44%/56% con el
+// formulario al lado; el editor completo va debajo, no al costado).
 // Imagen manual y grafico IA pueden coexistir: se muestran lado a lado,
-// mas chicos que antes, para no taparse entre si ni tapar el texto de abajo.
+// para no taparse entre si ni tapar el texto de abajo.
 function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagenSvg, pregunta, alternativas, numAlternativas }) {
   const bullets = (textoLineas || "").split("\n").map((l) => l.trim()).filter(Boolean);
   const hayVisuales = Boolean(imagenUrl || imagenSvg);
@@ -305,6 +307,9 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
 }
 
 // ---------------- EDITOR (panel derecho, antes era el modal) ----------------
+// Layout: vista previa grande arriba (todo el ancho disponible), formulario
+// debajo (tambien todo el ancho) -antes eran 2 columnas lado a lado, ahora
+// apilado siempre, sin media query-.
 function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
   const [titulo, setTitulo] = useState(pagina?.titulo || "");
   const [tipoHerramienta, setTipoHerramienta] = useState(pagina?.tipo_herramienta || "ninguna");
@@ -314,9 +319,32 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
   const [textoLineas, setTextoLineas] = useState(() => (configPrevia.bullets || []).join("\n"));
 
   // ---- imagen manual opcional (solo aplica a titulo_texto) ----
-  const [imagenUrl, setImagenUrl] = useState(configPrevia.imagen_url || "");
+  // Se guarda el PATH permanente (config.imagen_path), nunca el link firmado
+  // -ese vence (30 min) y antes se guardaba directo, quedando roto para
+  // siempre-. imagenUrl es solo el token de visualizacion, se resuelve
+  // fresco cada vez (al subir una foto nueva, o al abrir una pagina que ya
+  // tenia una guardada), nunca se persiste tal cual.
+  const [imagenPath, setImagenPath] = useState(configPrevia.imagen_path || "");
+  const [imagenUrl, setImagenUrl] = useState("");
   const [disposicionImagen, setDisposicionImagen] = useState(configPrevia.disposicion_imagen || "grande");
   const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const [cargandoImagen, setCargandoImagen] = useState(Boolean(configPrevia.imagen_path));
+
+  // Al abrir una pagina que ya tenia una imagen guardada (imagen_path),
+  // pide un token de acceso fresco -el bucket sigue privado, esto nunca
+  // expone el archivo publicamente, solo genera un link temporal nuevo
+  // cada vez que se necesita mostrar la imagen.
+  useEffect(() => {
+    if (!configPrevia.imagen_path) return;
+    let cancelado = false;
+    setCargandoImagen(true);
+    clasesFormalesMedia.obtenerUrl(configPrevia.imagen_path)
+      .then((r) => { if (!cancelado) setImagenUrl(r.url); })
+      .catch((err) => { if (!cancelado) setError(err.message); })
+      .finally(() => { if (!cancelado) setCargandoImagen(false); });
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ---- grafico generado por IA (solo aplica a titulo_texto) ----
   // Solo se puede ver y quitar aca -la generacion ocurre exclusivamente
@@ -348,10 +376,13 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
     setSubiendoImagen(true);
     try {
       const resultado = await casosVivoAdmin.subirMediaCaso("foto", archivo);
-      // El endpoint de casos clinicos devuelve la url subida; se soportan
-      // ambos nombres de campo por si el backend usa uno u otro.
-      const url = resultado?.url || resultado?.media_url;
-      if (!url) throw new Error("El servidor no devolvió la URL de la imagen");
+      const path = resultado?.media_url;
+      if (!path) throw new Error("El servidor no devolvió el path de la imagen");
+      setImagenPath(path);
+      // El endpoint de subida ya devuelve un token fresco listo para usar
+      // (resultado.url); si por algun motivo no viniera, se pide uno nuevo
+      // al endpoint publico de todos modos.
+      const url = resultado?.url || (await clasesFormalesMedia.obtenerUrl(path)).url;
       setImagenUrl(url);
     } catch (err) {
       setError(err.message);
@@ -362,6 +393,7 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
   }
 
   function handleQuitarImagen() {
+    setImagenPath("");
     setImagenUrl("");
   }
 
@@ -390,8 +422,9 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
       };
       // Imagen manual e imagen IA coexisten -no se pisan-. El grafico IA
       // solo se preserva o se quita aca, nunca se genera ni se sube.
-      if (imagenUrl) {
-        config.imagen_url = imagenUrl;
+      // Se guarda imagen_path (permanente), NUNCA imagen_url (token que vence).
+      if (imagenPath) {
+        config.imagen_path = imagenPath;
         config.disposicion_imagen = disposicionImagen;
       }
       if (imagenSvg) {
@@ -420,10 +453,9 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
   }
 
   return (
-    <div style={s.editorGrid} className="constructor-editor-grid">
-      <div className="constructor-preview-col">
+    <div style={s.editorStack}>
+      <div>
         <p style={s.editorTitulo}>{pagina ? "Editar página" : "Nueva página"}</p>
-
         <PreviewPagina
           titulo={titulo}
           tipoHerramienta={tipoHerramienta}
@@ -436,7 +468,7 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
         />
       </div>
 
-      <div className="constructor-form-col">
+      <div>
         <form onSubmit={handleGuardar} style={s.form}>
           <label style={s.label}>Título</label>
           <input
@@ -484,9 +516,11 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
 
               <label style={s.label}>Imagen (opcional — ej. radiografía)</label>
 
-              {imagenUrl ? (
+              {cargandoImagen ? (
+                <p style={s.info}>Cargando imagen...</p>
+              ) : imagenPath ? (
                 <div style={s.imagenPreviewWrap}>
-                  <img src={imagenUrl} alt="Vista previa" style={s.imagenPreview} />
+                  {imagenUrl && <img src={imagenUrl} alt="Vista previa" style={s.imagenPreview} />}
                   <button type="button" onClick={handleQuitarImagen} style={s.btnQuitarImagen}>
                     Quitar foto
                   </button>
@@ -502,7 +536,7 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
               )}
               {subiendoImagen && <p style={s.info}>Subiendo imagen...</p>}
 
-              {imagenUrl && (
+              {imagenPath && (
                 <>
                   <label style={s.label}>Disposición de la imagen</label>
                   <select
@@ -575,32 +609,6 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
           </div>
         </form>
       </div>
-
-      {/* Apilado por defecto (celular/panel angosto); desde 860px pasa a
-          2 columnas, preview a la izquierda con scroll propio, formulario
-          a la derecha -mismo breakpoint que se usaba en el modal antiguo-. */}
-      <style>{`
-        .constructor-editor-grid {
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-        }
-        @media (min-width: 860px) {
-          .constructor-editor-grid {
-            flex-direction: row;
-            align-items: flex-start;
-          }
-          .constructor-editor-grid > .constructor-preview-col {
-            flex: 0 0 44%;
-            position: sticky;
-            top: 0;
-          }
-          .constructor-editor-grid > .constructor-form-col {
-            flex: 1;
-            min-width: 0;
-          }
-        }
-      `}</style>
     </div>
   );
 }
@@ -629,16 +637,17 @@ const s = {
   itemDesc: { fontSize: 12, color: "#94A3B8", margin: "2px 0 0" },
   btnEliminar: { background: "none", border: "none", color: "#D1495B", fontSize: 16, cursor: "pointer", padding: "4px 8px", flexShrink: 0 },
 
-  // Editor: ocupa TODO el resto del ancho de pantalla -antes maxWidth:1100
-  // dentro de un modal centrado con espacio vacio a los costados-.
+  // Editor: ocupa TODO el resto del ancho de pantalla. Apilado siempre:
+  // preview grande arriba (todo el ancho), formulario debajo (todo el
+  // ancho) -antes eran 2 columnas lado a lado (44%/56%)-.
   editorPanel: { flex: 1, minWidth: 0, overflowY: "auto", padding: "24px 32px 60px" },
-  editorGrid: { width: "100%" },
+  editorStack: { display: "flex", flexDirection: "column", gap: 28, width: "100%" },
   editorTitulo: { fontSize: 16, fontWeight: 700, margin: "0 0 16px" },
 
   vacioWrap: { height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px" },
   vacioTexto: { color: "#64748B", fontSize: 15, textAlign: "center", maxWidth: 360 },
 
-  form: { display: "flex", flexDirection: "column", gap: 8 },
+  form: { display: "flex", flexDirection: "column", gap: 8, maxWidth: 640 },
   label: { fontSize: 12.5, color: "#94A3B8", marginTop: 6 },
   input: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "13px 14px", color: "#F4F1EA", fontSize: 15, marginBottom: 4 },
   inputFile: { background: "#16213A", border: "1px dashed rgba(244,241,233,0.25)", borderRadius: 10, padding: "12px 14px", color: "#94A3B8", fontSize: 13, marginBottom: 4 },
@@ -655,13 +664,12 @@ const s = {
   btnQuitarImagen: { alignSelf: "flex-start", background: "none", border: "1px solid rgba(209,73,91,0.4)", borderRadius: 8, color: "#D1495B", padding: "6px 12px", fontSize: 12.5, cursor: "pointer" },
 };
 
-// Estilos de la miniatura de preview — proporción 16:9, escalado hacia abajo
-// desde los mismos valores usados en ProyeccionClase.jsx.
-// visualesRow/visualBox: imagen manual y grafico IA lado a lado, cada uno
-// hasta 42% del ancho -antes la imagen sola usaba 60%-, para que quepan
-// ambos sin taparse ni tapar los bullets de abajo.
+// Estilos de la vista previa — proporción 16:9, ahora ocupando todo el
+// ancho disponible del panel derecho (antes limitado a maxWidth:480
+// porque competía con el formulario al lado; el formulario ahora va
+// debajo, no al costado).
 const p = {
-  wrap: { marginBottom: 18, maxWidth: 480 },
+  wrap: { marginBottom: 18, maxWidth: 900 },
   label: { fontSize: 11, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" },
   pantalla: {
     background: "#0E1526",
@@ -684,8 +692,8 @@ const p = {
     color: "#F4F1EA",
     fontFamily: "sans-serif",
   },
-  titulo: { fontSize: "clamp(11px, 4.2cqw, 18px)", fontWeight: 800, margin: "0 0 8px", lineHeight: 1.2 },
-  vacio: { fontSize: 11, color: "#64748B" },
+  titulo: { fontSize: "clamp(14px, 2.6cqw, 26px)", fontWeight: 800, margin: "0 0 8px", lineHeight: 1.2 },
+  vacio: { fontSize: 13, color: "#64748B" },
   // Lado a lado -no apilado-: en una caja 16:9 hay mas espacio horizontal
   // que vertical, asi que grafico y bullets se reparten el ANCHO cuando
   // coexisten, cada uno con la altura completa disponible para escalar
@@ -706,17 +714,17 @@ const p = {
   // inline -que React nunca aplica-, por eso quedaban sin separacion
   // visual real entre lineas. Ahora cada bullet es su propia fila con
   // fondo, borde y gap real, mismo lenguaje visual que p.alternativa.
-  bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6, textAlign: "left", fontSize: 9.5, lineHeight: 1.3, maxWidth: "92%", width: "92%" },
-  bulletItem: { display: "flex", alignItems: "flex-start", gap: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 6, padding: "5px 8px" },
+  bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10, textAlign: "left", fontSize: 15, lineHeight: 1.3, maxWidth: "92%", width: "92%" },
+  bulletItem: { display: "flex", alignItems: "flex-start", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "9px 14px" },
   // Version compacta para cuando comparten espacio con un grafico/imagen
   // al lado -letra mas chica y padding reducido para que quepan mas
   // lineas en menos ancho-.
-  bulletsLado: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4, textAlign: "left", fontSize: 7.5, lineHeight: 1.25, flex: 1, minWidth: 0, maxHeight: "100%", overflow: "hidden" },
-  bulletItemLado: { display: "flex", alignItems: "flex-start", gap: 4, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 5, padding: "3px 6px" },
+  bulletsLado: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8, textAlign: "left", fontSize: 12.5, lineHeight: 1.25, flex: 1, minWidth: 0, maxHeight: "100%", overflow: "hidden" },
+  bulletItemLado: { display: "flex", alignItems: "flex-start", gap: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 6, padding: "6px 10px" },
   bulletMarcador: { color: ACENTO, fontWeight: 800, flexShrink: 0 },
   trivia: { width: "100%" },
-  pregunta: { fontSize: 10.5, margin: "0 0 8px", lineHeight: 1.3 },
-  alternativas: { display: "flex", flexDirection: "column", gap: 4, textAlign: "left", maxWidth: "85%", margin: "0 auto" },
-  alternativa: { display: "flex", alignItems: "center", gap: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 6, padding: "4px 8px", fontSize: 8.5 },
-  letra: { width: 14, height: 14, borderRadius: "50%", background: ACENTO, color: "#0E1526", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 7, flexShrink: 0 },
+  pregunta: { fontSize: 17, margin: "0 0 14px", lineHeight: 1.3 },
+  alternativas: { display: "flex", flexDirection: "column", gap: 8, textAlign: "left", maxWidth: "85%", margin: "0 auto" },
+  alternativa: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "8px 14px", fontSize: 14 },
+  letra: { width: 22, height: 22, borderRadius: "50%", background: ACENTO, color: "#0E1526", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, flexShrink: 0 },
 };
