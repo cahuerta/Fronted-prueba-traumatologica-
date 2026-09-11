@@ -45,6 +45,18 @@ const DISPOSICION_LABEL = {
 // Si el docente no lo quita explicitamente, se preserva tal cual al guardar
 // cualquier otro cambio de la pagina (texto, titulo, imagen manual, etc).
 
+// Paginas guardadas ANTES de este cambio tienen config.imagen_url (el link
+// firmado que vencia, ya vencido) pero nunca guardaron config.imagen_path
+// -el backend lo devolvia, pero el frontend viejo no lo tomaba-. El path
+// real sigue adentro de ese link vencido, como texto: se extrae con esta
+// regex para no obligar a resubir nada. Al guardar la pagina de nuevo
+// (aunque sea solo el titulo), queda migrada a imagen_path para siempre.
+function extraerPathDeUrlVencida(urlVieja) {
+  if (!urlVieja) return null;
+  const match = urlVieja.match(/\/object\/sign\/casos\/([^?]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 // ---------------- LAYOUT: lista fija a la izquierda, editor a la derecha ----------------
 // Mismo patron que Ficha.jsx (MiSalud): sin modal/overlay, lista siempre
 // visible, panel de detalle/edicion ocupando el resto del ancho, se
@@ -324,21 +336,26 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
   // siempre-. imagenUrl es solo el token de visualizacion, se resuelve
   // fresco cada vez (al subir una foto nueva, o al abrir una pagina que ya
   // tenia una guardada), nunca se persiste tal cual.
-  const [imagenPath, setImagenPath] = useState(configPrevia.imagen_path || "");
+  // Path existente: el nuevo campo si ya esta migrado, o extraido del link
+  // vencido antiguo si la pagina es de antes de este cambio (autorreparacion,
+  // sin pedir resubir la foto).
+  const pathExistente = configPrevia.imagen_path || extraerPathDeUrlVencida(configPrevia.imagen_url);
+
+  const [imagenPath, setImagenPath] = useState(pathExistente || "");
   const [imagenUrl, setImagenUrl] = useState("");
   const [disposicionImagen, setDisposicionImagen] = useState(configPrevia.disposicion_imagen || "grande");
   const [subiendoImagen, setSubiendoImagen] = useState(false);
-  const [cargandoImagen, setCargandoImagen] = useState(Boolean(configPrevia.imagen_path));
+  const [cargandoImagen, setCargandoImagen] = useState(Boolean(pathExistente));
 
-  // Al abrir una pagina que ya tenia una imagen guardada (imagen_path),
-  // pide un token de acceso fresco -el bucket sigue privado, esto nunca
-  // expone el archivo publicamente, solo genera un link temporal nuevo
-  // cada vez que se necesita mostrar la imagen.
+  // Al abrir una pagina que ya tenia una imagen (path nuevo, o extraido del
+  // link vencido antiguo), pide un token de acceso fresco -el bucket sigue
+  // privado, esto nunca expone el archivo publicamente, solo genera un link
+  // temporal nuevo cada vez que se necesita mostrar la imagen.
   useEffect(() => {
-    if (!configPrevia.imagen_path) return;
+    if (!pathExistente) return;
     let cancelado = false;
     setCargandoImagen(true);
-    clasesFormalesMedia.obtenerUrl(configPrevia.imagen_path)
+    clasesFormalesMedia.obtenerUrl(pathExistente)
       .then((r) => { if (!cancelado) setImagenUrl(r.url); })
       .catch((err) => { if (!cancelado) setError(err.message); })
       .finally(() => { if (!cancelado) setCargandoImagen(false); });
