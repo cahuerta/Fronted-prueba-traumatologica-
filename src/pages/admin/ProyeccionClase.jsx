@@ -1,8 +1,20 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { clasesFormalesActual, clasesFormalesTrivia } from "../../api/clasesFormalesCliente";
+import { clasesFormalesActual, clasesFormalesTrivia, clasesFormalesMedia } from "../../api/clasesFormalesCliente";
 
 const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
+
+// Paginas guardadas ANTES del arreglo de imagenes tienen config.imagen_url
+// (el link firmado que vencia, ya vencido) pero nunca guardaron
+// config.imagen_path -el backend lo devolvia, pero el frontend viejo no lo
+// tomaba-. El path real sigue adentro de ese link vencido, como texto: se
+// extrae con esta regex para no obligar a resubir nada (misma logica que
+// en AdminClaseConstructor.jsx).
+function extraerPathDeUrlVencida(urlVieja) {
+  if (!urlVieja) return null;
+  const match = urlVieja.match(/\/object\/sign\/casos\/([^?]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 // Barra de logos institucionales — misma que ProyeccionVivo, ubicada
 // arriba a la izquierda para no chocar con el código de acceso (arriba a la derecha).
@@ -17,18 +29,38 @@ function LogoBar() {
 }
 
 // Bloque visual de una pagina "titulo_texto": imagen manual
-// (config.imagen_url, respetando config.disposicion_imagen) y grafico IA
+// (config.imagen_path, respetando config.disposicion_imagen) y grafico IA
 // (config.imagen_svg) pueden coexistir -no se pisan-. Si disposicion es
 // "grande", ambos visuales van arriba de los bullets, uno al lado del
 // otro. Si es "lado_izquierda"/"lado_derecha", ambos visuales quedan
 // apilados en una columna al costado, y los bullets ocupan el resto del
 // ancho -mismo criterio que ya se uso en el preview del constructor,
 // llevado ahora a la disposicion real de pantalla-.
+//
+// La imagen manual vive en un bucket PRIVADO (compartido con Casos
+// Clinicos): el path es permanente, pero para mostrarla hace falta un
+// token de acceso temporal fresco -se pide aca, solo cuando cambia el
+// path de la pagina activa (no en cada poll de 2s de la pagina).
 function ContenidoTituloTexto({ pagina }) {
   const bullets = pagina.config?.bullets || [];
-  const imagenUrl = pagina.config?.imagen_url;
+  const imagenPath = pagina.config?.imagen_path || extraerPathDeUrlVencida(pagina.config?.imagen_url);
   const imagenSvg = pagina.config?.imagen_svg;
   const disposicion = pagina.config?.disposicion_imagen || "grande";
+
+  const [imagenUrl, setImagenUrl] = useState(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    if (!imagenPath) {
+      setImagenUrl(null);
+      return;
+    }
+    clasesFormalesMedia.obtenerUrl(imagenPath)
+      .then((r) => { if (!cancelado) setImagenUrl(r.url); })
+      .catch(() => { if (!cancelado) setImagenUrl(null); });
+    return () => { cancelado = true; };
+  }, [imagenPath]);
+
   const hayVisuales = Boolean(imagenUrl || imagenSvg);
 
   const bloqueSvg = imagenSvg && (
@@ -252,4 +284,3 @@ const s = {
   alternativaConteo: { flexShrink: 0, minWidth: 32, textAlign: "right", fontWeight: 800, color: "#94A3B8" },
   triviaTotal: { marginTop: 24, fontSize: 18, color: "#64748B" },
 };
-      
