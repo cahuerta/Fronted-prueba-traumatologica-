@@ -45,6 +45,10 @@ const DISPOSICION_LABEL = {
 // Si el docente no lo quita explicitamente, se preserva tal cual al guardar
 // cualquier otro cambio de la pagina (texto, titulo, imagen manual, etc).
 
+// ---------------- LAYOUT: lista fija a la izquierda, editor a la derecha ----------------
+// Mismo patron que Ficha.jsx (MiSalud): sin modal/overlay, lista siempre
+// visible, panel de detalle/edicion ocupando el resto del ancho, se
+// actualiza al hacer clic sin mover ni ocultar la lista.
 export default function AdminClaseConstructor() {
   const { claseFormalId } = useParams();
   const navigate = useNavigate();
@@ -52,7 +56,7 @@ export default function AdminClaseConstructor() {
   const [paginas, setPaginas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
-  const [editando, setEditando] = useState(null); // pagina_id en edicion, o "nueva"
+  const [seleccionada, setSeleccionada] = useState(null); // pagina_id en edicion, "nueva", o null (nada elegido)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -101,10 +105,15 @@ export default function AdminClaseConstructor() {
     try {
       await clasesFormalesPaginas.eliminar(paginaId);
       setPaginas((prev) => prev.filter((p) => p.id !== paginaId));
+      if (seleccionada === paginaId) setSeleccionada(null);
     } catch (err) {
       setError(err.message);
     }
   }
+
+  const paginaSeleccionada = seleccionada && seleccionada !== "nueva"
+    ? paginas.find((p) => p.id === seleccionada)
+    : null;
 
   return (
     <div style={s.wrap}>
@@ -113,49 +122,63 @@ export default function AdminClaseConstructor() {
         <h1 style={s.h1}>Armar clase</h1>
       </header>
 
-      <button onClick={() => setEditando("nueva")} style={s.btnNueva}>+ Nueva página</button>
+      <div style={s.body}>
+        {/* ---------------- IZQUIERDA: lista fija, siempre visible ---------------- */}
+        <aside style={s.sidebar}>
+          <button onClick={() => setSeleccionada("nueva")} style={s.btnNueva}>+ Nueva página</button>
 
-      {cargando && <p style={s.info}>Cargando...</p>}
-      {error && <p style={s.error}>{error}</p>}
-      {!cargando && paginas.length === 0 && <p style={s.info}>Aún no hay páginas. Crea la primera.</p>}
+          {cargando && <p style={s.info}>Cargando...</p>}
+          {error && <p style={s.error}>{error}</p>}
+          {!cargando && paginas.length === 0 && <p style={s.info}>Aún no hay páginas. Crea la primera.</p>}
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={paginas.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-          <div style={s.list}>
-            {paginas.map((pagina, i) => (
-              <PaginaItem
-                key={pagina.id}
-                pagina={pagina}
-                numero={i + 1}
-                onEditar={() => setEditando(pagina.id)}
-                onEliminar={() => handleEliminar(pagina.id)}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={paginas.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+              <div style={s.list}>
+                {paginas.map((pagina, i) => (
+                  <PaginaItem
+                    key={pagina.id}
+                    pagina={pagina}
+                    numero={i + 1}
+                    seleccionada={seleccionada === pagina.id}
+                    onSeleccionar={() => setSeleccionada(pagina.id)}
+                    onEliminar={() => handleEliminar(pagina.id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </aside>
 
-      {editando && (
-        <PaginaModal
-          claseFormalId={claseFormalId}
-          pagina={editando === "nueva" ? null : paginas.find((p) => p.id === editando)}
-          onClose={() => setEditando(null)}
-          onGuardada={(pagina) => {
-            if (editando === "nueva") {
-              setPaginas((prev) => [...prev, pagina]);
-            } else {
-              setPaginas((prev) => prev.map((p) => (p.id === pagina.id ? pagina : p)));
-            }
-            setEditando(null);
-          }}
-        />
-      )}
+        {/* ---------------- DERECHA: editor, ocupa todo el resto del ancho ---------------- */}
+        <main style={s.editorPanel}>
+          {seleccionada ? (
+            <PaginaEditor
+              key={seleccionada}
+              claseFormalId={claseFormalId}
+              pagina={paginaSeleccionada}
+              onCerrar={() => setSeleccionada(null)}
+              onGuardada={(pagina) => {
+                if (seleccionada === "nueva") {
+                  setPaginas((prev) => [...prev, pagina]);
+                } else {
+                  setPaginas((prev) => prev.map((p) => (p.id === pagina.id ? pagina : p)));
+                }
+                setSeleccionada(pagina.id);
+              }}
+            />
+          ) : (
+            <div style={s.vacioWrap}>
+              <p style={s.vacioTexto}>Selecciona una página de la izquierda para editarla, o crea una nueva.</p>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
 
-// ---------------- ITEM ARRASTRABLE ----------------
-function PaginaItem({ pagina, numero, onEditar, onEliminar }) {
+// ---------------- ITEM ARRASTRABLE (lista izquierda) ----------------
+function PaginaItem({ pagina, numero, seleccionada, onSeleccionar, onEliminar }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: pagina.id });
 
   const style = {
@@ -170,10 +193,10 @@ function PaginaItem({ pagina, numero, onEditar, onEliminar }) {
   ].filter(Boolean);
 
   return (
-    <div ref={setNodeRef} style={{ ...s.item, ...style }}>
+    <div ref={setNodeRef} style={{ ...s.item, ...style, ...(seleccionada ? s.itemSeleccionado : {}) }}>
       <button {...attributes} {...listeners} style={s.handle} aria-label="Arrastrar para reordenar">⠿</button>
       <span style={s.numero}>{numero}</span>
-      <div style={s.itemInfo} onClick={onEditar}>
+      <div style={s.itemInfo} onClick={onSeleccionar}>
         <p style={s.itemTitulo}>{pagina.titulo}</p>
         <p style={s.itemDesc}>
           {HERRAMIENTA_LABEL[pagina.tipo_herramienta] || pagina.tipo_herramienta}
@@ -281,8 +304,8 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
   );
 }
 
-// ---------------- MODAL CREAR/EDITAR ----------------
-function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
+// ---------------- EDITOR (panel derecho, antes era el modal) ----------------
+function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
   const [titulo, setTitulo] = useState(pagina?.titulo || "");
   const [tipoHerramienta, setTipoHerramienta] = useState(pagina?.tipo_herramienta || "ninguna");
 
@@ -397,188 +420,182 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
   }
 
   return (
-    <div style={s.overlay} onClick={onClose}>
-      {/* Modal ampliado y en 2 columnas en escritorio (preview a la izquierda,
-          formulario a la derecha) -antes maxWidth:420 apilado, muy angosto y
-          centrado con espacio vacio a los costados-. En pantallas chicas
-          (<860px) se mantiene apilado como antes, via media query. */}
-      <div style={s.modal} className="constructor-modal-grid" onClick={(e) => e.stopPropagation()}>
-        <div className="constructor-preview-col">
-          <p style={s.modalTitulo}>{pagina ? "Editar página" : "Nueva página"}</p>
+    <div style={s.editorGrid} className="constructor-editor-grid">
+      <div className="constructor-preview-col">
+        <p style={s.editorTitulo}>{pagina ? "Editar página" : "Nueva página"}</p>
 
-          <PreviewPagina
-            titulo={titulo}
-            tipoHerramienta={tipoHerramienta}
-            textoLineas={textoLineas}
-            imagenUrl={imagenUrl}
-            imagenSvg={imagenSvg}
-            pregunta={pregunta}
-            alternativas={alternativas}
-            numAlternativas={numAlternativas}
-          />
-        </div>
-
-        <div className="constructor-form-col">
-          <form onSubmit={handleGuardar} style={s.form}>
-            <label style={s.label}>Título</label>
-            <input
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Ej. Clasificación de Garden"
-              autoFocus
-              style={s.input}
-            />
-
-            <label style={s.label}>Plantilla</label>
-            <select value={tipoHerramienta} onChange={(e) => setTipoHerramienta(e.target.value)} style={s.input}>
-              {Object.entries(HERRAMIENTA_LABEL).map(([valor, label]) => (
-                <option key={valor} value={valor}>{label}</option>
-              ))}
-            </select>
-
-            {tipoHerramienta === "titulo_texto" && (
-              <>
-                <label style={s.label}>Texto (una línea = un punto en pantalla)</label>
-                <textarea
-                  value={textoLineas}
-                  onChange={(e) => setTextoLineas(e.target.value)}
-                  placeholder={"Ej.\nIncidencia 30% en mayores de 65 años\nMás frecuente en mujeres"}
-                  rows={6}
-                  style={s.textarea}
-                />
-
-                {imagenSvg && (
-                  <>
-                    <label style={s.label}>Gráfico generado por IA</label>
-                    <div style={s.imagenPreviewWrap}>
-                      <div
-                        className="grafico-ia-modal"
-                        style={s.graficoPreview}
-                        dangerouslySetInnerHTML={{ __html: imagenSvg }}
-                      />
-                      <button type="button" onClick={handleQuitarGrafico} style={s.btnQuitarImagen}>
-                        Quitar gráfico
-                      </button>
-                    </div>
-                    <style>{`.grafico-ia-modal svg { width: 100%; height: 100%; display: block; }`}</style>
-                  </>
-                )}
-
-                <label style={s.label}>Imagen (opcional — ej. radiografía)</label>
-
-                {imagenUrl ? (
-                  <div style={s.imagenPreviewWrap}>
-                    <img src={imagenUrl} alt="Vista previa" style={s.imagenPreview} />
-                    <button type="button" onClick={handleQuitarImagen} style={s.btnQuitarImagen}>
-                      Quitar foto
-                    </button>
-                  </div>
-                ) : (
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleSubirImagen}
-                    disabled={subiendoImagen}
-                    style={s.inputFile}
-                  />
-                )}
-                {subiendoImagen && <p style={s.info}>Subiendo imagen...</p>}
-
-                {imagenUrl && (
-                  <>
-                    <label style={s.label}>Disposición de la imagen</label>
-                    <select
-                      value={disposicionImagen}
-                      onChange={(e) => setDisposicionImagen(e.target.value)}
-                      style={s.input}
-                    >
-                      {Object.entries(DISPOSICION_LABEL).map(([valor, label]) => (
-                        <option key={valor} value={valor}>{label}</option>
-                      ))}
-                    </select>
-                  </>
-                )}
-              </>
-            )}
-
-            {tipoHerramienta === "trivia" && (
-              <>
-                <label style={s.label}>Pregunta</label>
-                <input
-                  value={pregunta}
-                  onChange={(e) => setPregunta(e.target.value)}
-                  placeholder="Ej. ¿Cuál es el tipo Garden más inestable?"
-                  style={s.input}
-                />
-
-                <label style={s.label}>Número de alternativas</label>
-                <select
-                  value={numAlternativas}
-                  onChange={(e) => {
-                    const n = Number(e.target.value);
-                    setNumAlternativas(n);
-                    if (correcta >= n) setCorrecta(0);
-                  }}
-                  style={s.input}
-                >
-                  {[2, 3, 4, 5].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-
-                {LETRAS.slice(0, numAlternativas).map((letra, i) => (
-                  <div key={letra} style={s.altFila}>
-                    <span style={s.altLetra}>{letra}</span>
-                    <input
-                      value={alternativas[i]}
-                      onChange={(e) => handleAlternativaChange(i, e.target.value)}
-                      placeholder={`Alternativa ${letra}`}
-                      style={{ ...s.input, flex: 1, marginBottom: 0 }}
-                    />
-                  </div>
-                ))}
-
-                <label style={s.label}>Alternativa correcta</label>
-                <select value={correcta} onChange={(e) => setCorrecta(Number(e.target.value))} style={s.input}>
-                  {LETRAS.slice(0, numAlternativas).map((letra, i) => (
-                    <option key={letra} value={i}>{letra}</option>
-                  ))}
-                </select>
-              </>
-            )}
-
-            {error && <p style={s.error}>{error}</p>}
-
-            <div style={s.modalBtns}>
-              <button type="button" onClick={onClose} style={s.btnCancelar}>Cancelar</button>
-              <button type="submit" disabled={guardando || subiendoImagen || !titulo.trim()} style={s.btn}>
-                {guardando ? "Guardando..." : "Guardar"}
-              </button>
-            </div>
-          </form>
-        </div>
+        <PreviewPagina
+          titulo={titulo}
+          tipoHerramienta={tipoHerramienta}
+          textoLineas={textoLineas}
+          imagenUrl={imagenUrl}
+          imagenSvg={imagenSvg}
+          pregunta={pregunta}
+          alternativas={alternativas}
+          numAlternativas={numAlternativas}
+        />
       </div>
 
-      {/* Apilado por defecto (celular); desde 860px pasa a 2 columnas,
-          preview a la izquierda con scroll propio si el contenido es alto,
-          formulario a la derecha con su propio scroll independiente. */}
+      <div className="constructor-form-col">
+        <form onSubmit={handleGuardar} style={s.form}>
+          <label style={s.label}>Título</label>
+          <input
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Ej. Clasificación de Garden"
+            autoFocus
+            style={s.input}
+          />
+
+          <label style={s.label}>Plantilla</label>
+          <select value={tipoHerramienta} onChange={(e) => setTipoHerramienta(e.target.value)} style={s.input}>
+            {Object.entries(HERRAMIENTA_LABEL).map(([valor, label]) => (
+              <option key={valor} value={valor}>{label}</option>
+            ))}
+          </select>
+
+          {tipoHerramienta === "titulo_texto" && (
+            <>
+              <label style={s.label}>Texto (una línea = un punto en pantalla)</label>
+              <textarea
+                value={textoLineas}
+                onChange={(e) => setTextoLineas(e.target.value)}
+                placeholder={"Ej.\nIncidencia 30% en mayores de 65 años\nMás frecuente en mujeres"}
+                rows={6}
+                style={s.textarea}
+              />
+
+              {imagenSvg && (
+                <>
+                  <label style={s.label}>Gráfico generado por IA</label>
+                  <div style={s.imagenPreviewWrap}>
+                    <div
+                      className="grafico-ia-modal"
+                      style={s.graficoPreview}
+                      dangerouslySetInnerHTML={{ __html: imagenSvg }}
+                    />
+                    <button type="button" onClick={handleQuitarGrafico} style={s.btnQuitarImagen}>
+                      Quitar gráfico
+                    </button>
+                  </div>
+                  <style>{`.grafico-ia-modal svg { width: 100%; height: 100%; display: block; }`}</style>
+                </>
+              )}
+
+              <label style={s.label}>Imagen (opcional — ej. radiografía)</label>
+
+              {imagenUrl ? (
+                <div style={s.imagenPreviewWrap}>
+                  <img src={imagenUrl} alt="Vista previa" style={s.imagenPreview} />
+                  <button type="button" onClick={handleQuitarImagen} style={s.btnQuitarImagen}>
+                    Quitar foto
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSubirImagen}
+                  disabled={subiendoImagen}
+                  style={s.inputFile}
+                />
+              )}
+              {subiendoImagen && <p style={s.info}>Subiendo imagen...</p>}
+
+              {imagenUrl && (
+                <>
+                  <label style={s.label}>Disposición de la imagen</label>
+                  <select
+                    value={disposicionImagen}
+                    onChange={(e) => setDisposicionImagen(e.target.value)}
+                    style={s.input}
+                  >
+                    {Object.entries(DISPOSICION_LABEL).map(([valor, label]) => (
+                      <option key={valor} value={valor}>{label}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </>
+          )}
+
+          {tipoHerramienta === "trivia" && (
+            <>
+              <label style={s.label}>Pregunta</label>
+              <input
+                value={pregunta}
+                onChange={(e) => setPregunta(e.target.value)}
+                placeholder="Ej. ¿Cuál es el tipo Garden más inestable?"
+                style={s.input}
+              />
+
+              <label style={s.label}>Número de alternativas</label>
+              <select
+                value={numAlternativas}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setNumAlternativas(n);
+                  if (correcta >= n) setCorrecta(0);
+                }}
+                style={s.input}
+              >
+                {[2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+
+              {LETRAS.slice(0, numAlternativas).map((letra, i) => (
+                <div key={letra} style={s.altFila}>
+                  <span style={s.altLetra}>{letra}</span>
+                  <input
+                    value={alternativas[i]}
+                    onChange={(e) => handleAlternativaChange(i, e.target.value)}
+                    placeholder={`Alternativa ${letra}`}
+                    style={{ ...s.input, flex: 1, marginBottom: 0 }}
+                  />
+                </div>
+              ))}
+
+              <label style={s.label}>Alternativa correcta</label>
+              <select value={correcta} onChange={(e) => setCorrecta(Number(e.target.value))} style={s.input}>
+                {LETRAS.slice(0, numAlternativas).map((letra, i) => (
+                  <option key={letra} value={i}>{letra}</option>
+                ))}
+              </select>
+            </>
+          )}
+
+          {error && <p style={s.error}>{error}</p>}
+
+          <div style={s.editorBtns}>
+            <button type="button" onClick={onCerrar} style={s.btnCancelar}>Cerrar</button>
+            <button type="submit" disabled={guardando || subiendoImagen || !titulo.trim()} style={s.btn}>
+              {guardando ? "Guardando..." : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Apilado por defecto (celular/panel angosto); desde 860px pasa a
+          2 columnas, preview a la izquierda con scroll propio, formulario
+          a la derecha -mismo breakpoint que se usaba en el modal antiguo-. */}
       <style>{`
-        .constructor-modal-grid {
+        .constructor-editor-grid {
           display: flex;
           flex-direction: column;
           gap: 24px;
         }
         @media (min-width: 860px) {
-          .constructor-modal-grid {
+          .constructor-editor-grid {
             flex-direction: row;
             align-items: flex-start;
           }
-          .constructor-modal-grid > .constructor-preview-col {
+          .constructor-editor-grid > .constructor-preview-col {
             flex: 0 0 44%;
             position: sticky;
             top: 0;
           }
-          .constructor-modal-grid > .constructor-form-col {
+          .constructor-editor-grid > .constructor-form-col {
             flex: 1;
             min-width: 0;
           }
@@ -589,42 +606,52 @@ function PaginaModal({ claseFormalId, pagina, onClose, onGuardada }) {
 }
 
 const s = {
-  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "20px 16px 40px", fontFamily: "sans-serif" },
-  header: { display: "flex", alignItems: "center", gap: 16, marginBottom: 24 },
+  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column" },
+  header: { display: "flex", alignItems: "center", gap: 16, padding: "20px 24px", flexShrink: 0 },
   back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer" },
   h1: { fontSize: 18, margin: 0 },
-  btnNueva: { display: "block", width: "100%", background: ACENTO, border: "none", borderRadius: 12, color: "#0E1526", cursor: "pointer", padding: "14px 0", fontSize: 15, fontWeight: 700, marginBottom: 20 },
+
+  // Fila principal: sidebar fijo + editor ocupando TODO el resto del
+  // ancho -antes era una sola columna centrada con modal encima-.
+  body: { display: "flex", flex: 1, minHeight: 0, borderTop: "1px solid rgba(244,241,233,0.08)" },
+
+  sidebar: { width: 360, flexShrink: 0, borderRight: "1px solid rgba(244,241,233,0.1)", padding: "20px 16px", overflowY: "auto" },
+  btnNueva: { display: "block", width: "100%", background: ACENTO, border: "none", borderRadius: 12, color: "#0E1526", cursor: "pointer", padding: "14px 0", fontSize: 15, fontWeight: 700, marginBottom: 16 },
   info: { color: "#94A3B8", fontSize: 14, textAlign: "center", margin: "20px 0" },
   error: { color: "#D1495B", fontSize: 13, margin: "6px 0" },
   list: { display: "flex", flexDirection: "column", gap: 8 },
   item: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.1)", borderRadius: 12, padding: "10px 12px" },
+  itemSeleccionado: { border: `1px solid ${ACENTO}`, background: "rgba(79,195,217,0.08)" },
   handle: { background: "none", border: "none", color: "#94A3B8", fontSize: 18, cursor: "grab", padding: "4px 6px", touchAction: "none" },
   numero: { color: ACENTO, fontWeight: 800, fontSize: 13, width: 20, textAlign: "center", flexShrink: 0 },
-  itemInfo: { flex: 1, cursor: "pointer" },
-  itemTitulo: { fontSize: 14.5, fontWeight: 700, margin: 0 },
+  itemInfo: { flex: 1, cursor: "pointer", minWidth: 0 },
+  itemTitulo: { fontSize: 14.5, fontWeight: 700, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   itemDesc: { fontSize: 12, color: "#94A3B8", margin: "2px 0 0" },
-  btnEliminar: { background: "none", border: "none", color: "#D1495B", fontSize: 16, cursor: "pointer", padding: "4px 8px" },
+  btnEliminar: { background: "none", border: "none", color: "#D1495B", fontSize: 16, cursor: "pointer", padding: "4px 8px", flexShrink: 0 },
 
-  overlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px 16px" },
-  // maxWidth ampliado de 420 a 1100 -antes se veia angosto y agrupado al
-  // centro con espacio vacio a los costados en escritorio-. El layout
-  // interno (1 o 2 columnas) lo resuelve la clase constructor-modal-grid.
-  modal: { width: "100%", maxWidth: 1100, maxHeight: "90vh", overflowY: "auto", background: "#16213A", borderRadius: 18, padding: "24px 20px 32px" },
-  modalTitulo: { fontSize: 16, fontWeight: 700, margin: "0 0 16px" },
+  // Editor: ocupa TODO el resto del ancho de pantalla -antes maxWidth:1100
+  // dentro de un modal centrado con espacio vacio a los costados-.
+  editorPanel: { flex: 1, minWidth: 0, overflowY: "auto", padding: "24px 32px 60px" },
+  editorGrid: { width: "100%" },
+  editorTitulo: { fontSize: 16, fontWeight: 700, margin: "0 0 16px" },
+
+  vacioWrap: { height: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px" },
+  vacioTexto: { color: "#64748B", fontSize: 15, textAlign: "center", maxWidth: 360 },
+
   form: { display: "flex", flexDirection: "column", gap: 8 },
   label: { fontSize: 12.5, color: "#94A3B8", marginTop: 6 },
-  input: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "13px 14px", color: "#F4F1EA", fontSize: 15, marginBottom: 4 },
-  inputFile: { background: "#0E1526", border: "1px dashed rgba(244,241,233,0.25)", borderRadius: 10, padding: "12px 14px", color: "#94A3B8", fontSize: 13, marginBottom: 4 },
-  textarea: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "13px 14px", color: "#F4F1EA", fontSize: 15, marginBottom: 4, fontFamily: "sans-serif", resize: "vertical" },
+  input: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "13px 14px", color: "#F4F1EA", fontSize: 15, marginBottom: 4 },
+  inputFile: { background: "#16213A", border: "1px dashed rgba(244,241,233,0.25)", borderRadius: 10, padding: "12px 14px", color: "#94A3B8", fontSize: 13, marginBottom: 4 },
+  textarea: { background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "13px 14px", color: "#F4F1EA", fontSize: 15, marginBottom: 4, fontFamily: "sans-serif", resize: "vertical" },
   altFila: { display: "flex", alignItems: "center", gap: 8 },
   altLetra: { color: ACENTO, fontWeight: 800, fontSize: 14, width: 18, flexShrink: 0 },
-  modalBtns: { display: "flex", gap: 10, marginTop: 16 },
+  editorBtns: { display: "flex", gap: 10, marginTop: 16, maxWidth: 420 },
   btnCancelar: { flex: 1, background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 10, color: "#F4F1EA", padding: "13px 0", fontSize: 14, cursor: "pointer" },
   btn: { flex: 1, background: ACENTO, border: "none", borderRadius: 10, color: "#0E1526", padding: "13px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" },
 
   imagenPreviewWrap: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 4 },
-  imagenPreview: { width: "100%", maxHeight: 220, objectFit: "contain", borderRadius: 10, border: "1px solid rgba(244,241,233,0.12)", background: "#0E1526" },
-  graficoPreview: { width: "100%", height: 220, borderRadius: 10, border: "1px solid rgba(244,241,233,0.12)", background: "#FFFFFF", padding: 8, boxSizing: "border-box" },
+  imagenPreview: { width: "100%", maxWidth: 420, maxHeight: 220, objectFit: "contain", borderRadius: 10, border: "1px solid rgba(244,241,233,0.12)", background: "#16213A" },
+  graficoPreview: { width: "100%", maxWidth: 420, height: 220, borderRadius: 10, border: "1px solid rgba(244,241,233,0.12)", background: "#FFFFFF", padding: 8, boxSizing: "border-box" },
   btnQuitarImagen: { alignSelf: "flex-start", background: "none", border: "1px solid rgba(209,73,91,0.4)", borderRadius: 8, color: "#D1495B", padding: "6px 12px", fontSize: 12.5, cursor: "pointer" },
 };
 
@@ -634,7 +661,7 @@ const s = {
 // hasta 42% del ancho -antes la imagen sola usaba 60%-, para que quepan
 // ambos sin taparse ni tapar los bullets de abajo.
 const p = {
-  wrap: { marginBottom: 18 },
+  wrap: { marginBottom: 18, maxWidth: 480 },
   label: { fontSize: 11, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" },
   pantalla: {
     background: "#0E1526",
