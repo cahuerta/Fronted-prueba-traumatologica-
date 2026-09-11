@@ -133,6 +133,14 @@ export const clasesFormalesActual = {
   leer: (codigo) => request(`/clases-formales/actual/${codigo}`),
 };
 
+// ---------------- MEDIA (imagen del bucket privado "casos", compartido con
+// Casos Clinicos) — token de acceso temporal por path, sin caso_id. Publico
+// (sin auth) a proposito: lo usa tanto el Constructor (con login, via otro
+// componente) como la Proyeccion, que la ven los alumnos sin sesion iniciada.
+export const clasesFormalesMedia = {
+  obtenerUrl: (path) => request(`/casos-vivo/media-url?path=${encodeURIComponent(path)}`),
+};
+
 // ---------------- SUPRASELECTOR (publico, lo usan alumno/interrogador/proyeccion) ----------------
 export const sesionResolver = {
   resolver: (codigo) => request(`/sesion-activa/${codigo}`),
