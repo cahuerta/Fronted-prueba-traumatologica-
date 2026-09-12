@@ -201,7 +201,7 @@ function PaginaItem({ pagina, numero, seleccionada, onSeleccionar, onEliminar })
 
   const etiquetas = [
     pagina.config?.imagen_svg ? "con gráfico (IA)" : null,
-    pagina.config?.imagen_path ? "con imagen" : null,
+    (pagina.config?.imagen_path || pagina.config?.imagen_url) ? "con imagen" : null,
   ].filter(Boolean);
 
   return (
