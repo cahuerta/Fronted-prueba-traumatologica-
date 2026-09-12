@@ -17,6 +17,12 @@ const REGIONES = [
 ];
 const LETRAS = ["A", "B", "C", "D", "E"];
 
+// ---------------- LAYOUT: sidebar de pasos a la izquierda, editor a la derecha ----------------
+// Mismo patron que AdminClaseConstructor.jsx (Clases Formales): antes era
+// una fila de pestañas arriba (s.pasos) -confusa, poco clara segun
+// Cristobal-, ahora es un sidebar fijo con los 3 pasos seleccionables,
+// siempre visible. La logica interna de cada paso (Datos/Preguntas/
+// Fundamento) NO cambio, solo la forma de navegar entre ellos.
 export default function AdminCasoNuevo() {
   const navigate = useNavigate();
   const { casoId: casoIdParam } = useParams();
@@ -218,21 +224,21 @@ export default function AdminCasoNuevo() {
     }
   }
 
-async function handleGuardarFundamento(casoPreguntaId) {
-  const b = borradores[casoPreguntaId];
-  if (!b) return;
-  setError("");
-  try {
-    await casosVivoAdmin.guardarFundamento(casoId, casoPreguntaId, b.explicacion, b.fuentes);
-    setBorradores((prev) => {
-      const { [casoPreguntaId]: _, ...resto } = prev;
-      return resto;
-    });
-    await cargarCaso(casoId);
-  } catch (err) {
-    setError(err.message);
+  async function handleGuardarFundamento(casoPreguntaId) {
+    const b = borradores[casoPreguntaId];
+    if (!b) return;
+    setError("");
+    try {
+      await casosVivoAdmin.guardarFundamento(casoId, casoPreguntaId, b.explicacion, b.fuentes);
+      setBorradores((prev) => {
+        const { [casoPreguntaId]: _, ...resto } = prev;
+        return resto;
+      });
+      await cargarCaso(casoId);
+    } catch (err) {
+      setError(err.message);
+    }
   }
-}
 
   function handleCambiarBorrador(casoPreguntaId, texto) {
     setBorradores((prev) => ({
@@ -251,261 +257,277 @@ async function handleGuardarFundamento(casoPreguntaId) {
         <h1 style={s.h1}>{titulo || caso?.titulo || "Nuevo caso clínico"}</h1>
       </header>
 
-      <div style={s.pasos}>
-        <button onClick={() => setPaso(1)} style={paso === 1 ? s.pasoActivo : s.paso}>
-          <span style={s.pasoNum}>1</span> Datos del caso
-        </button>
-        <button
-          onClick={() => casoId && setPaso(2)}
-          disabled={!casoId}
-          style={{ ...(paso === 2 ? s.pasoActivo : s.paso), ...(!casoId ? s.pasoDeshabilitado : {}) }}
-        >
-          <span style={s.pasoNum}>2</span> Preguntas {preguntasDelCaso.length > 0 && `(${preguntasDelCaso.length}/5)`}
-        </button>
-        <button
-          onClick={() => casoId && setPaso(3)}
-          disabled={!casoId}
-          style={{ ...(paso === 3 ? s.pasoActivo : s.paso), ...(!casoId ? s.pasoDeshabilitado : {}) }}
-        >
-          <span style={s.pasoNum}>3</span> Fundamento
-        </button>
-      </div>
-
-      {error && <p style={s.error}>{error}</p>}
-
-      {/* ---------------- PASO 1 ---------------- */}
-      {paso === 1 && (
-        <form onSubmit={handleGuardarPaso1} style={s.form}>
-          {casoId && <p style={s.avisoEdicion}>Editando un caso ya creado — los cambios se guardan sobre el mismo caso.</p>}
-
-          <label style={s.label}>Región</label>
-          <select value={region} onChange={(e) => setRegion(e.target.value)} required style={s.input}>
-            <option value="" disabled>Selecciona una región</option>
-            {REGIONES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
-          </select>
-
-          <label style={s.label}>Título del caso</label>
-          <input value={titulo} onChange={(e) => setTitulo(e.target.value)} required style={s.input} />
-
-          <label style={s.label}>Viñeta clínica</label>
-          <textarea value={vineta} onChange={(e) => setVineta(e.target.value)} rows={6} required style={s.input} />
-
-          <label style={s.label}>Foto o video del caso (opcional)</label>
-          <div style={s.mediaRow}>
-            <select value={tipoMedia} onChange={(e) => setTipoMedia(e.target.value)} style={s.select}>
-              <option value="foto">Foto</option>
-              <option value="video">Video</option>
-            </select>
-            <input type="file" onChange={(e) => setArchivo(e.target.files?.[0] || null)} style={s.fileInput} />
-          </div>
-
-          <button type="submit" disabled={guardandoPaso1} style={s.submitBtn}>
-            {guardandoPaso1 ? "Guardando..." : casoId ? "Guardar cambios →" : "Guardar y continuar →"}
+      <div style={s.body}>
+        {/* ---------------- IZQUIERDA: pasos, sidebar fijo ---------------- */}
+        <aside style={s.sidebar}>
+          <button onClick={() => setPaso(1)} style={{ ...s.pasoItem, ...(paso === 1 ? s.pasoItemActivo : {}) }}>
+            <span style={s.pasoNum}>1</span>
+            <span>Datos del caso</span>
           </button>
-        </form>
-      )}
+          <button
+            onClick={() => casoId && setPaso(2)}
+            disabled={!casoId}
+            style={{ ...s.pasoItem, ...(paso === 2 ? s.pasoItemActivo : {}), ...(!casoId ? s.pasoItemDeshabilitado : {}) }}
+          >
+            <span style={s.pasoNum}>2</span>
+            <span>Preguntas {preguntasDelCaso.length > 0 && `(${preguntasDelCaso.length}/5)`}</span>
+          </button>
+          <button
+            onClick={() => casoId && setPaso(3)}
+            disabled={!casoId}
+            style={{ ...s.pasoItem, ...(paso === 3 ? s.pasoItemActivo : {}), ...(!casoId ? s.pasoItemDeshabilitado : {}) }}
+          >
+            <span style={s.pasoNum}>3</span>
+            <span>Fundamento</span>
+          </button>
+        </aside>
 
-      {/* ---------------- PASO 2 ---------------- */}
-      {paso === 2 && (
-        <div style={s.grid2}>
-          <div style={s.columna}>
-            <h3 style={s.h3}>Secuencia del caso ({preguntasDelCaso.length}/5)</h3>
-            {preguntasDelCaso.length === 0 && <p style={s.muted}>Ninguna pregunta creada todavía.</p>}
-            <div style={s.list}>
+        {/* ---------------- DERECHA: editor del paso seleccionado, todo el resto del ancho ---------------- */}
+        <main style={s.editorPanel}>
+          {error && <p style={s.error}>{error}</p>}
+
+          {/* ---------------- PASO 1 ---------------- */}
+          {paso === 1 && (
+            <form onSubmit={handleGuardarPaso1} style={s.form}>
+              {casoId && <p style={s.avisoEdicion}>Editando un caso ya creado — los cambios se guardan sobre el mismo caso.</p>}
+
+              <label style={s.label}>Región</label>
+              <select value={region} onChange={(e) => setRegion(e.target.value)} required style={s.input}>
+                <option value="" disabled>Selecciona una región</option>
+                {REGIONES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
+              </select>
+
+              <label style={s.label}>Título del caso</label>
+              <input value={titulo} onChange={(e) => setTitulo(e.target.value)} required style={s.input} />
+
+              <label style={s.label}>Viñeta clínica</label>
+              <textarea value={vineta} onChange={(e) => setVineta(e.target.value)} rows={6} required style={s.input} />
+
+              <label style={s.label}>Foto o video del caso (opcional)</label>
+              <div style={s.mediaRow}>
+                <select value={tipoMedia} onChange={(e) => setTipoMedia(e.target.value)} style={s.select}>
+                  <option value="foto">Foto</option>
+                  <option value="video">Video</option>
+                </select>
+                <input type="file" onChange={(e) => setArchivo(e.target.files?.[0] || null)} style={s.fileInput} />
+              </div>
+
+              <button type="submit" disabled={guardandoPaso1} style={s.submitBtn}>
+                {guardandoPaso1 ? "Guardando..." : casoId ? "Guardar cambios →" : "Guardar y continuar →"}
+              </button>
+            </form>
+          )}
+
+          {/* ---------------- PASO 2 ---------------- */}
+          {paso === 2 && (
+            <div style={s.grid2}>
+              <div style={s.columna}>
+                <h3 style={s.h3}>Secuencia del caso ({preguntasDelCaso.length}/5)</h3>
+                {preguntasDelCaso.length === 0 && <p style={s.muted}>Ninguna pregunta creada todavía.</p>}
+                <div style={s.list}>
+                  {preguntasDelCaso
+                    .slice()
+                    .sort((a, b) => a.orden - b.orden)
+                    .map((p) => (
+                      <div key={p.id} style={{ ...s.itemOrdenado, ...(editandoId === p.id ? s.itemEnEdicion : {}) }}>
+                        <span style={s.orden}>{p.orden}</span>
+                        <p style={s.itemTexto}>{p.pregunta}{p.media_url ? " 📷" : ""}</p>
+                        <button onClick={() => handleEmpezarEdicion(p)} style={s.editarBtn}>Editar</button>
+                        <button onClick={() => handleQuitarPregunta(p.id)} style={s.quitarBtn}>Quitar</button>
+                      </div>
+                    ))}
+                </div>
+                <button
+                  onClick={() => setPaso(3)}
+                  disabled={preguntasDelCaso.length === 0}
+                  style={s.submitBtn}
+                >
+                  Continuar a fundamento →
+                </button>
+              </div>
+
+              <div style={s.columna}>
+                <h3 style={s.h3}>
+                  {editandoId
+                    ? `Editando pregunta ${preguntasDelCaso.find((p) => p.id === editandoId)?.orden ?? ""}`
+                    : siguienteOrden
+                      ? `Escribir pregunta ${siguienteOrden}`
+                      : "Caso completo (5/5)"}
+                </h3>
+
+                {mostrarFormularioPregunta && (
+                  <div style={s.form}>
+                    <label style={s.label}>Enunciado de la pregunta</label>
+                    <textarea
+                      value={preguntaTexto}
+                      onChange={(e) => setPreguntaTexto(e.target.value)}
+                      rows={3}
+                      style={s.input}
+                    />
+
+                    {!editandoId && (
+                      <>
+                        <label style={s.label}>Respuesta correcta</label>
+                        <input
+                          value={respuestaCorrecta}
+                          onChange={(e) => setRespuestaCorrecta(e.target.value)}
+                          style={s.input}
+                          disabled={opciones !== null}
+                        />
+                      </>
+                    )}
+
+                    <label style={s.label}>Foto o video de esta pregunta (opcional)</label>
+
+                    {mediaActual && !quitarMediaActual && !archivoPregunta && (
+                      <div style={s.mediaActualBox}>
+                        <span style={s.mediaActualTexto}>Ya tiene {mediaActual.tipo === "video" ? "un video" : "una foto"} guardado</span>
+                        <button type="button" onClick={() => setQuitarMediaActual(true)} style={s.quitarBtn}>Quitar</button>
+                      </div>
+                    )}
+                    {quitarMediaActual && (
+                      <p style={s.mediaActualTexto}>Se quitará la foto/video al guardar.</p>
+                    )}
+
+                    <div style={s.mediaRow}>
+                      <select value={tipoMediaPregunta} onChange={(e) => setTipoMediaPregunta(e.target.value)} style={s.select}>
+                        <option value="">{mediaActual && !quitarMediaActual ? "Reemplazar por..." : "Sin foto/video"}</option>
+                        <option value="foto">Foto</option>
+                        <option value="video">Video</option>
+                      </select>
+                      {tipoMediaPregunta && (
+                        <input
+                          type="file"
+                          accept={tipoMediaPregunta === "foto" ? "image/*" : "video/*"}
+                          onChange={(e) => { setArchivoPregunta(e.target.files?.[0] || null); setQuitarMediaActual(false); }}
+                          style={s.fileInput}
+                        />
+                      )}
+                    </div>
+
+                    {opciones === null ? (
+                      <button onClick={handleGenerarAlternativas} disabled={generandoAlternativas} style={s.iaBtn}>
+                        {generandoAlternativas ? "Generando alternativas..." : "Generar alternativas falsas con IA"}
+                      </button>
+                    ) : (
+                      <>
+                        <label style={s.label}>Alternativas</label>
+                        {opciones.map((op, i) => (
+                          <div key={i} style={s.opcionRow}>
+                            <button
+                              onClick={() => setCorrectaIdx(i)}
+                              style={{ ...s.letraBtn, ...(correctaIdx === i ? s.letraBtnActiva : {}) }}
+                            >
+                              {LETRAS[i]}
+                            </button>
+                            <input
+                              value={op}
+                              onChange={(e) => handleEditarOpcion(i, e.target.value)}
+                              style={{ ...s.input, flex: 1, marginBottom: 0 }}
+                            />
+                          </div>
+                        ))}
+
+                        <div style={s.btnRow}>
+                          {!editandoId && (
+                            <button onClick={() => { setOpciones(null); setCorrectaIdx(null); }} style={s.secondaryBtn}>
+                              Regenerar
+                            </button>
+                          )}
+                          {editandoId && (
+                            <button onClick={limpiarFormularioPregunta} style={s.secondaryBtn}>
+                              Cancelar
+                            </button>
+                          )}
+                          <button onClick={handleGuardarPregunta} disabled={guardandoPregunta} style={s.submitBtn}>
+                            {guardandoPregunta ? "Guardando..." : editandoId ? "Guardar cambios" : `Guardar pregunta ${siguienteOrden}`}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ---------------- PASO 3 ---------------- */}
+          {paso === 3 && (
+            <div>
               {preguntasDelCaso
                 .slice()
                 .sort((a, b) => a.orden - b.orden)
-                .map((p) => (
-                  <div key={p.id} style={{ ...s.itemOrdenado, ...(editandoId === p.id ? s.itemEnEdicion : {}) }}>
-                    <span style={s.orden}>{p.orden}</span>
-                    <p style={s.itemTexto}>{p.pregunta}{p.media_url ? " 📷" : ""}</p>
-                    <button onClick={() => handleEmpezarEdicion(p)} style={s.editarBtn}>Editar</button>
-                    <button onClick={() => handleQuitarPregunta(p.id)} style={s.quitarBtn}>Quitar</button>
-                  </div>
-                ))}
-            </div>
-            <button
-              onClick={() => setPaso(3)}
-              disabled={preguntasDelCaso.length === 0}
-              style={s.submitBtn}
-            >
-              Continuar a fundamento →
-            </button>
-          </div>
+                .map((p) => {
+                  const borrador = borradores[p.id];
+                  const yaGuardado = p.explicacion_generada;
+                  return (
+                    <div key={p.id} style={s.fundamentoCard}>
+                      <p style={s.ordenGrande}>Pregunta {p.orden}</p>
+                      <p style={s.itemTexto}>{p.pregunta}</p>
 
-          <div style={s.columna}>
-            <h3 style={s.h3}>
-              {editandoId
-                ? `Editando pregunta ${preguntasDelCaso.find((p) => p.id === editandoId)?.orden ?? ""}`
-                : siguienteOrden
-                  ? `Escribir pregunta ${siguienteOrden}`
-                  : "Caso completo (5/5)"}
-            </h3>
+                      {yaGuardado && !borrador && (
+                        <p style={s.guardadoTexto}>✓ Fundamento guardado: {yaGuardado.slice(0, 140)}…</p>
+                      )}
 
-            {mostrarFormularioPregunta && (
-              <div style={s.form}>
-                <label style={s.label}>Enunciado de la pregunta</label>
-                <textarea
-                  value={preguntaTexto}
-                  onChange={(e) => setPreguntaTexto(e.target.value)}
-                  rows={3}
-                  style={s.input}
-                />
-
-                {!editandoId && (
-                  <>
-                    <label style={s.label}>Respuesta correcta</label>
-                    <input
-                      value={respuestaCorrecta}
-                      onChange={(e) => setRespuestaCorrecta(e.target.value)}
-                      style={s.input}
-                      disabled={opciones !== null}
-                    />
-                  </>
-                )}
-
-                <label style={s.label}>Foto o video de esta pregunta (opcional)</label>
-
-                {mediaActual && !quitarMediaActual && !archivoPregunta && (
-                  <div style={s.mediaActualBox}>
-                    <span style={s.mediaActualTexto}>Ya tiene {mediaActual.tipo === "video" ? "un video" : "una foto"} guardado</span>
-                    <button type="button" onClick={() => setQuitarMediaActual(true)} style={s.quitarBtn}>Quitar</button>
-                  </div>
-                )}
-                {quitarMediaActual && (
-                  <p style={s.mediaActualTexto}>Se quitará la foto/video al guardar.</p>
-                )}
-
-                <div style={s.mediaRow}>
-                  <select value={tipoMediaPregunta} onChange={(e) => setTipoMediaPregunta(e.target.value)} style={s.select}>
-                    <option value="">{mediaActual && !quitarMediaActual ? "Reemplazar por..." : "Sin foto/video"}</option>
-                    <option value="foto">Foto</option>
-                    <option value="video">Video</option>
-                  </select>
-                  {tipoMediaPregunta && (
-                    <input
-                      type="file"
-                      accept={tipoMediaPregunta === "foto" ? "image/*" : "video/*"}
-                      onChange={(e) => { setArchivoPregunta(e.target.files?.[0] || null); setQuitarMediaActual(false); }}
-                      style={s.fileInput}
-                    />
-                  )}
-                </div>
-
-                {opciones === null ? (
-                  <button onClick={handleGenerarAlternativas} disabled={generandoAlternativas} style={s.iaBtn}>
-                    {generandoAlternativas ? "Generando alternativas..." : "Generar alternativas falsas con IA"}
-                  </button>
-                ) : (
-                  <>
-                    <label style={s.label}>Alternativas</label>
-                    {opciones.map((op, i) => (
-                      <div key={i} style={s.opcionRow}>
+                      {!borrador && (
                         <button
-                          onClick={() => setCorrectaIdx(i)}
-                          style={{ ...s.letraBtn, ...(correctaIdx === i ? s.letraBtnActiva : {}) }}
+                          onClick={() => handleGenerarBorrador(p.id)}
+                          disabled={generandoFundamento === p.id}
+                          style={s.actionBtn}
                         >
-                          {LETRAS[i]}
+                          {generandoFundamento === p.id ? "Buscando en materiales..." : yaGuardado ? "Regenerar borrador" : "Generar borrador con IA"}
                         </button>
-                        <input
-                          value={op}
-                          onChange={(e) => handleEditarOpcion(i, e.target.value)}
-                          style={{ ...s.input, flex: 1, marginBottom: 0 }}
-                        />
-                      </div>
-                    ))}
+                      )}
 
-                    <div style={s.btnRow}>
-                      {!editandoId && (
-                        <button onClick={() => { setOpciones(null); setCorrectaIdx(null); }} style={s.secondaryBtn}>
-                          Regenerar
-                        </button>
+                      {borrador && (
+                        <>
+                          <textarea
+                            value={borrador.explicacion}
+                            onChange={(e) => handleCambiarBorrador(p.id, e.target.value)}
+                            rows={5}
+                            style={s.input}
+                          />
+                          {borrador.fuentes?.length > 0 && (
+                            <p style={s.fuentes}>Fuentes: {borrador.fuentes.join(", ")}</p>
+                          )}
+                          <button onClick={() => handleGuardarFundamento(p.id)} style={s.submitBtn}>
+                            Confirmar y guardar
+                          </button>
+                        </>
                       )}
-                      {editandoId && (
-                        <button onClick={limpiarFormularioPregunta} style={s.secondaryBtn}>
-                          Cancelar
-                        </button>
-                      )}
-                      <button onClick={handleGuardarPregunta} disabled={guardandoPregunta} style={s.submitBtn}>
-                        {guardandoPregunta ? "Guardando..." : editandoId ? "Guardar cambios" : `Guardar pregunta ${siguienteOrden}`}
-                      </button>
                     </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+                  );
+                })}
 
-      {/* ---------------- PASO 3 ---------------- */}
-      {paso === 3 && (
-        <div>
-          {preguntasDelCaso
-            .slice()
-            .sort((a, b) => a.orden - b.orden)
-            .map((p) => {
-              const borrador = borradores[p.id];
-              const yaGuardado = p.explicacion_generada;
-              return (
-                <div key={p.id} style={s.fundamentoCard}>
-                  <p style={s.ordenGrande}>Pregunta {p.orden}</p>
-                  <p style={s.itemTexto}>{p.pregunta}</p>
-
-                  {yaGuardado && !borrador && (
-                    <p style={s.guardadoTexto}>✓ Fundamento guardado: {yaGuardado.slice(0, 140)}…</p>
-                  )}
-
-                  {!borrador && (
-                    <button
-                      onClick={() => handleGenerarBorrador(p.id)}
-                      disabled={generandoFundamento === p.id}
-                      style={s.actionBtn}
-                    >
-                      {generandoFundamento === p.id ? "Buscando en materiales..." : yaGuardado ? "Regenerar borrador" : "Generar borrador con IA"}
-                    </button>
-                  )}
-
-                  {borrador && (
-                    <>
-                      <textarea
-                        value={borrador.explicacion}
-                        onChange={(e) => handleCambiarBorrador(p.id, e.target.value)}
-                        rows={5}
-                        style={s.input}
-                      />
-                      {borrador.fuentes?.length > 0 && (
-                        <p style={s.fuentes}>Fuentes: {borrador.fuentes.join(", ")}</p>
-                      )}
-                      <button onClick={() => handleGuardarFundamento(p.id)} style={s.submitBtn}>
-                        Confirmar y guardar
-                      </button>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-
-          <button onClick={() => navigate("/admin/casos-vivo")} style={s.finBtn}>
-            Terminar — volver a casos clínicos
-          </button>
-        </div>
-      )}
+              <button onClick={() => navigate("/admin/casos-vivo")} style={s.finBtn}>
+                Terminar — volver a casos clínicos
+              </button>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
 
 const s = {
-  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "24px 32px 60px", fontFamily: "sans-serif" },
-  header: { display: "flex", alignItems: "center", gap: 16, marginBottom: 16, flexWrap: "wrap" },
+  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column" },
+  header: { display: "flex", alignItems: "center", gap: 16, padding: "20px 24px", flexShrink: 0, flexWrap: "wrap" },
   back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer" },
   h1: { fontSize: 20, margin: 0 },
-  pasos: { display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" },
-  paso: { display: "flex", alignItems: "center", gap: 8, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, color: "#94A3B8", fontSize: 13, cursor: "pointer", padding: "9px 14px" },
-  pasoActivo: { display: "flex", alignItems: "center", gap: 8, background: "rgba(79,195,217,0.12)", border: "1px solid #4FC3D9", borderRadius: 8, color: "#4FC3D9", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "9px 14px" },
-  pasoDeshabilitado: { opacity: 0.4, cursor: "not-allowed" },
-  pasoNum: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: "50%", background: "rgba(244,241,233,0.15)", fontSize: 11, fontWeight: 700 },
+
+  // Fila principal: sidebar fijo de pasos + editor ocupando TODO el resto
+  // del ancho -antes era una fila de pestañas arriba (s.pasos), confusa-.
+  body: { display: "flex", flex: 1, minHeight: 0, borderTop: "1px solid rgba(244,241,233,0.08)" },
+
+  sidebar: { width: 260, flexShrink: 0, borderRight: "1px solid rgba(244,241,233,0.1)", padding: "20px 16px", display: "flex", flexDirection: "column", gap: 8 },
+  pasoItem: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, color: "#94A3B8", fontSize: 14, cursor: "pointer", padding: "12px 14px", textAlign: "left" },
+  pasoItemActivo: { border: "1px solid #4FC3D9", background: "rgba(79,195,217,0.08)", color: "#4FC3D9", fontWeight: 600 },
+  pasoItemDeshabilitado: { opacity: 0.4, cursor: "not-allowed" },
+  pasoNum: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 20, height: 20, borderRadius: "50%", background: "rgba(244,241,233,0.15)", fontSize: 11, fontWeight: 700, flexShrink: 0 },
   avisoEdicion: { color: "#4FC3D9", fontSize: 12.5, background: "#0E1526", border: "1px solid rgba(79,195,217,0.3)", borderRadius: 8, padding: "8px 12px", marginBottom: 12 },
+
+  editorPanel: { flex: 1, minWidth: 0, overflowY: "auto", padding: "24px 32px 60px" },
 
   form: { display: "flex", flexDirection: "column", gap: 4, maxWidth: 560 },
   label: { fontSize: 11.5, color: "#94A3B8", marginTop: 10, marginBottom: 4 },
