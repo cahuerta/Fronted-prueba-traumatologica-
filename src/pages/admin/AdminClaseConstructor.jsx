@@ -631,7 +631,7 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
 }
 
 const s = {
-  wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column" },
+  wrap: { height: "100vh", overflow: "hidden", background: "#0E1526", color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column" },
   header: { display: "flex", alignItems: "center", gap: 16, padding: "20px 24px", flexShrink: 0 },
   back: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#94A3B8", padding: "6px 12px", fontSize: 13, cursor: "pointer" },
   h1: { fontSize: 18, margin: 0 },
