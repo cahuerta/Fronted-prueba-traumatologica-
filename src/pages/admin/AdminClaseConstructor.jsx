@@ -296,6 +296,15 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
 
         {tipoHerramienta === "trivia" && (
           <div style={p.trivia}>
+            {imagenUrl && (
+              <div style={p.triviaImagenBox}>
+                <img
+                  src={imagenUrl}
+                  alt=""
+                  style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", display: "block" }}
+                />
+              </div>
+            )}
             <p style={p.pregunta}>{pregunta || "Pregunta de la trivia"}</p>
             <div style={p.alternativas}>
               {LETRAS.slice(0, numAlternativas).map((letra, i) => (
@@ -433,6 +442,12 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
         alternativas: alternativas.slice(0, numAlternativas).map((a) => a.trim()),
         correcta,
       };
+      // Imagen opcional en trivia -mismo path permanente que titulo_texto,
+      // sin disposicion (siempre arriba de la pregunta, no hay texto/bullets
+      // con los que repartir el layout aca).
+      if (imagenPath) {
+        config.imagen_path = imagenPath;
+      }
     } else if (tipoHerramienta === "titulo_texto") {
       config = {
         bullets: textoLineas.split("\n").map((l) => l.trim()).filter(Boolean),
@@ -579,6 +594,28 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
                 placeholder="Ej. ¿Cuál es el tipo Garden más inestable?"
                 style={s.input}
               />
+
+              <label style={s.label}>Imagen (opcional — se muestra arriba de la pregunta)</label>
+
+              {cargandoImagen ? (
+                <p style={s.info}>Cargando imagen...</p>
+              ) : imagenPath ? (
+                <div style={s.imagenPreviewWrap}>
+                  {imagenUrl && <img src={imagenUrl} alt="Vista previa" style={s.imagenPreview} />}
+                  <button type="button" onClick={handleQuitarImagen} style={s.btnQuitarImagen}>
+                    Quitar foto
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSubirImagen}
+                  disabled={subiendoImagen}
+                  style={s.inputFile}
+                />
+              )}
+              {subiendoImagen && <p style={s.info}>Subiendo imagen...</p>}
 
               <label style={s.label}>Número de alternativas</label>
               <select
@@ -740,6 +777,7 @@ const p = {
   bulletItemLado: { display: "flex", alignItems: "flex-start", gap: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 6, padding: "6px 10px" },
   bulletMarcador: { color: ACENTO, fontWeight: 800, flexShrink: 0 },
   trivia: { width: "100%" },
+  triviaImagenBox: { maxWidth: "60%", maxHeight: "34%", margin: "0 auto 3%", borderRadius: 6, background: "#FFFFFF", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" },
   pregunta: { fontSize: 17, margin: "0 0 14px", lineHeight: 1.3 },
   alternativas: { display: "flex", flexDirection: "column", gap: 8, textAlign: "left", maxWidth: "85%", margin: "0 auto" },
   alternativa: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "8px 14px", fontSize: 14 },
