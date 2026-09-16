@@ -103,6 +103,29 @@ function ContenidoTituloTexto({ pagina }) {
   );
 }
 
+// Imagen opcional de una pagina "trivia" (config.imagen_path, sin
+// disposicion -siempre arriba de la pregunta-). Mismo patron de
+// resolucion que ContenidoTituloTexto: token fresco solo cuando cambia
+// el path, no en cada poll de 2s.
+function ImagenTrivia({ imagenPath }) {
+  const [imagenUrl, setImagenUrl] = useState(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    if (!imagenPath) {
+      setImagenUrl(null);
+      return;
+    }
+    clasesFormalesMedia.obtenerUrl(imagenPath)
+      .then((r) => { if (!cancelado) setImagenUrl(r.url); })
+      .catch(() => { if (!cancelado) setImagenUrl(null); });
+    return () => { cancelado = true; };
+  }, [imagenPath]);
+
+  if (!imagenUrl) return null;
+  return <img src={imagenUrl} alt="" style={s.triviaImagen} />;
+}
+
 // Pantalla grande (proyector). Publica, sin auth -mismo patron que el
 // alumno y el admin usan para leer la pagina activa-. Aca SI se
 // muestran pregunta y alternativas de la trivia -es la contraparte
@@ -177,6 +200,7 @@ export default function ProyeccionClase() {
 
         {pagina.tipo_herramienta === "trivia" && pagina.config?.pregunta && (
           <div style={s.trivia}>
+            {pagina.config.imagen_path && <ImagenTrivia imagenPath={pagina.config.imagen_path} />}
             <p style={s.pregunta}>{pagina.config.pregunta}</p>
             <div style={s.alternativas}>
               {(pagina.config.alternativas || []).map((alt, i) => {
@@ -266,6 +290,7 @@ const s = {
   visualBox: { maxWidth: "100%", maxHeight: "38vh", borderRadius: 12, background: "#F4F1EA", padding: 10, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center" },
 
   trivia: { marginTop: 20 },
+  triviaImagen: { maxWidth: "50%", maxHeight: "34vh", borderRadius: 12, background: "#F4F1EA", padding: 10, boxSizing: "border-box", objectFit: "contain", display: "block", margin: "0 auto 28px" },
   pregunta: { fontSize: 34, margin: "0 0 40px" },
   alternativas: { display: "flex", flexDirection: "column", gap: 18, textAlign: "left", maxWidth: 700, margin: "0 auto" },
   alternativa: { display: "flex", alignItems: "center", gap: 20, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 16, padding: "20px 28px", fontSize: 26 },
