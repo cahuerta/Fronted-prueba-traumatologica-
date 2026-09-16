@@ -57,7 +57,11 @@ export default function AdminClasesFormales() {
   return (
     <div style={s.wrap}>
       <header style={s.header}>
-        <button onClick={() => navigate("/admin/dashboard")} style={s.back}>‹ Volver</button>
+        {/* Vuelve al hub mixto (donde tambien esta "Presentar"/"Iniciar
+            presentacion", confirmado en App.jsx: /admin/casos-vivo ->
+            AdminCasosVivoHub.jsx) -desde ahi se entra a este listado,
+            no desde el dashboard principal-. */}
+        <button onClick={() => navigate("/admin/casos-vivo")} style={s.back}>‹ Volver</button>
         <h1 style={s.h1}>Clases Formales</h1>
       </header>
 
