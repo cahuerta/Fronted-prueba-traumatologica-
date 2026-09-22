@@ -3,32 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { casosVivoAlumno } from "../../api/client";
 import { sesionResolver, clasesFormalesIngreso } from "../../api/clasesFormalesCliente";
 
-function formatearRut(valor) {
-  const limpio = valor.replace(/[^0-9kK]/g, "").toUpperCase();
-  if (limpio.length === 0) return "";
-  const cuerpo = limpio.slice(0, -1);
-  const dv = limpio.slice(-1);
-  const cuerpoFormateado = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return cuerpo.length > 0 ? `${cuerpoFormateado}-${dv}` : dv;
-}
-
-function validarRut(rutFormateado) {
-  const limpio = rutFormateado.replace(/\./g, "").replace("-", "");
-  if (limpio.length < 2) return false;
-  const cuerpo = limpio.slice(0, -1);
-  const dv = limpio.slice(-1).toUpperCase();
-
-  let suma = 0;
-  let multiplicador = 2;
-  for (let i = cuerpo.length - 1; i >= 0; i--) {
-    suma += parseInt(cuerpo[i], 10) * multiplicador;
-    multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
-  }
-  const resto = 11 - (suma % 11);
-  const dvEsperado = resto === 11 ? "0" : resto === 10 ? "K" : String(resto);
-  return dv === dvEsperado;
-}
-
 export default function AlumnoVivoIngreso() {
   const navigate = useNavigate();
   const { codigo } = useParams();
@@ -60,18 +34,22 @@ export default function AlumnoVivoIngreso() {
   }, [codigo]);
 
   function handleRutChange(e) {
-    setRut(formatearRut(e.target.value));
+    // Texto libre -sin formatear ni validar como RUT-: el campo acepta
+    // tanto RUT como numero de matricula, y formatearRut/validarRut
+    // (que exigian formato con puntos, guion y digito verificador
+    // calculado modulo 11) rechazaban cualquier matricula numerica.
+    setRut(e.target.value);
   }
 
   async function handleIngresoCaso(e) {
     e.preventDefault();
     setError("");
 
-    if (!validarRut(rut)) {
-      setError("RUT inválido");
+    const rutLimpio = rut.trim();
+    if (!rutLimpio) {
+      setError("Ingresa tu RUT o número de matrícula");
       return;
     }
-    const rutLimpio = rut.replace(/\./g, "");
 
     setEntrando(true);
     try {
@@ -90,11 +68,11 @@ export default function AlumnoVivoIngreso() {
     e.preventDefault();
     setError("");
 
-    if (!validarRut(rut)) {
-      setError("RUT inválido");
+    const rutLimpio = rut.trim();
+    if (!rutLimpio) {
+      setError("Ingresa tu RUT o número de matrícula");
       return;
     }
-    const rutLimpio = rut.replace(/\./g, "");
 
     setEntrando(true);
     try {
@@ -133,7 +111,7 @@ export default function AlumnoVivoIngreso() {
       <div style={s.wrap}>
         <div style={s.card}>
           <p style={s.titulo}>Clase en vivo</p>
-          <p style={s.subtitulo}>Ingresa tu nombre y RUT para participar</p>
+          <p style={s.subtitulo}>Ingresa tu nombre y tu RUT o número de matrícula para participar</p>
           <form onSubmit={handleIngresoCaso} style={s.form}>
             <input
               value={nombre}
@@ -145,8 +123,7 @@ export default function AlumnoVivoIngreso() {
             <input
               value={rut}
               onChange={handleRutChange}
-              placeholder="RUT (ej. 12.345.678-9)"
-              maxLength={12}
+              placeholder="RUT o número de matrícula"
               required
               style={s.input}
             />
@@ -165,13 +142,12 @@ export default function AlumnoVivoIngreso() {
     <div style={s.wrap}>
       <div style={s.card}>
         <p style={s.titulo}>Clase en vivo</p>
-        <p style={s.subtitulo}>Ingresa tu RUT para participar</p>
+        <p style={s.subtitulo}>Ingresa tu RUT o número de matrícula para participar</p>
         <form onSubmit={handleIngresoClase} style={s.form}>
           <input
             value={rut}
             onChange={handleRutChange}
-            placeholder="RUT (ej. 12.345.678-9)"
-            maxLength={12}
+            placeholder="RUT o número de matrícula"
             required
             style={s.input}
           />
@@ -195,3 +171,4 @@ const s = {
   error: { color: "#D1495B", fontSize: 13, margin: 0 },
   btn: { background: "#4FC3D9", border: "none", borderRadius: 10, color: "#0E1526", padding: "15px 0", fontSize: 16, fontWeight: 700, cursor: "pointer", marginTop: 8 },
 };
+  
