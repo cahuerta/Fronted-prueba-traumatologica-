@@ -3,16 +3,6 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-function normalizarRut(valor) {
-  // Quita puntos, espacios y guion; sube la K; repone el guion antes
-  // del digito verificador -mismo formato que espera el backend-.
-  const limpio = valor.replace(/[.\s-]/g, "").toUpperCase();
-  if (limpio.length < 2) return limpio;
-  const cuerpo = limpio.slice(0, -1);
-  const verificador = limpio.slice(-1);
-  return `${cuerpo}-${verificador}`;
-}
-
 export default function AlumnoIngreso() {
   const { sesionId } = useParams();
   const navigate = useNavigate();
@@ -28,16 +18,18 @@ export default function AlumnoIngreso() {
     setError("");
     setCargando(true);
     try {
-      const rutNormalizado = normalizarRut(rut);
-
+      // Se envia tal cual lo escribe el alumno -sin normalizar formato-,
+      // porque el campo acepta tanto RUT como numero de matricula, y
+      // forzar formato de RUT (guion antes del digito verificador)
+      // corromperia una matricula numerica.
       const res = await fetch(`${API_URL}/sesiones/${sesionId}/asistencia`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre: nombre.trim(), rut: rutNormalizado }),
+        body: JSON.stringify({ nombre: nombre.trim(), rut: rut.trim() }),
       });
       if (!res.ok) {
         const detail = await res.json().catch(() => ({}));
-        throw new Error(detail.detail || "No pudimos verificarte, revisa tu nombre y RUT");
+        throw new Error(detail.detail || "No pudimos verificarte, revisa tu nombre y RUT o matrícula");
       }
       const data = await res.json();
       sessionStorage.setItem(`alumno_id_${sesionId}`, data.alumno_id);
@@ -66,8 +58,8 @@ export default function AlumnoIngreso() {
         <label style={s.label}>Nombre completo</label>
         <input value={nombre} onChange={(e) => setNombre(e.target.value)} required style={s.input} />
 
-        <label style={s.label}>RUT</label>
-        <input value={rut} onChange={(e) => setRut(e.target.value)} required style={s.input} placeholder="12345678-9" />
+        <label style={s.label}>RUT o N° de matrícula</label>
+        <input value={rut} onChange={(e) => setRut(e.target.value)} required style={s.input} placeholder="RUT o número de matrícula" />
 
         {error && <p style={s.error}>{error}</p>}
 
