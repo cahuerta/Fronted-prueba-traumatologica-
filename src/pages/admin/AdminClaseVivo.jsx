@@ -26,6 +26,7 @@ export default function AdminClaseVivo() {
   const [revelando, setRevelando] = useState(false);
   const [error, setError] = useState("");
   const [avanzando, setAvanzando] = useState(false);
+  const [retrocediendo, setRetrocediendo] = useState(false);
 
   const codigoRef = useRef(null);
 
@@ -89,6 +90,22 @@ export default function AdminClaseVivo() {
       setError(err.message);
     } finally {
       setAvanzando(false);
+    }
+  }
+
+  // Vuelve a la pagina anterior. Las trivias conservan sus votos (la
+  // cache vive por pagina_id). En la primera pagina no hace nada: nunca
+  // vuelve a la pantalla de asistencia -el QR ya esta siempre en la
+  // esquina de la proyeccion para los atrasados-.
+  async function handleRetroceder() {
+    setRetrocediendo(true);
+    setError("");
+    try {
+      await clasesFormalesActual.retroceder(sesionId);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRetrocediendo(false);
     }
   }
 
@@ -173,9 +190,14 @@ export default function AdminClaseVivo() {
       <div style={s.card}>
         <p style={s.label}>Página en pantalla</p>
         <p style={s.paginaTitulo}>{paginaActual?.titulo || "—"}</p>
-        <button onClick={handleAvanzar} disabled={avanzando} style={s.btnAvanzar}>
-          {avanzando ? "..." : "Siguiente página →"}
-        </button>
+        <div style={s.navFila}>
+          <button onClick={handleRetroceder} disabled={retrocediendo || avanzando} style={s.btnRetroceder}>
+            {retrocediendo ? "..." : "← Anterior"}
+          </button>
+          <button onClick={handleAvanzar} disabled={avanzando || retrocediendo} style={s.btnAvanzarFila}>
+            {avanzando ? "..." : "Siguiente página →"}
+          </button>
+        </div>
       </div>
 
       {/* ---------------- TRIVIA (solo si la pagina actual es de tipo trivia) ---------------- */}
@@ -258,6 +280,11 @@ const s = {
   label: { fontSize: 12.5, color: "#94A3B8", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: 0.4 },
   paginaTitulo: { fontSize: 18, fontWeight: 700, margin: "0 0 14px" },
   btnAvanzar: { display: "block", width: "100%", background: ACENTO, border: "none", borderRadius: 10, color: "#0E1526", padding: "14px 0", fontSize: 15, fontWeight: 700, cursor: "pointer" },
+  // Anterior / Siguiente en una fila: Siguiente mas ancho (es el uso
+  // principal), Anterior secundario con borde, para no tocarlo por error.
+  navFila: { display: "flex", gap: 10 },
+  btnRetroceder: { flex: "0 0 36%", background: "none", border: `1px solid ${ACENTO}`, borderRadius: 10, color: ACENTO, padding: "14px 0", fontSize: 15, fontWeight: 700, cursor: "pointer" },
+  btnAvanzarFila: { flex: 1, background: ACENTO, border: "none", borderRadius: 10, color: "#0E1526", padding: "14px 0", fontSize: 15, fontWeight: 700, cursor: "pointer" },
   semaforoFila: { display: "flex", alignItems: "center", gap: 10 },
   semaforoLuz: { width: 22, height: 22, borderRadius: "50%", flexShrink: 0 },
   semaforoTexto: { fontSize: 14, margin: 0 },
