@@ -34,69 +34,77 @@ function LogoBar() {
   );
 }
 
-// Bloque visual de una pagina "titulo_texto": imagen manual
-// (config.imagen_path, respetando config.disposicion_imagen) y grafico IA
-// (config.imagen_svg) pueden coexistir -no se pisan-. Si disposicion es
-// "grande", ambos visuales van arriba de los bullets, uno al lado del
-// otro. Si es "lado_izquierda"/"lado_derecha", ambos visuales quedan
-// apilados en una columna al costado, y los bullets ocupan el resto del
-// ancho -mismo criterio que ya se uso en el preview del constructor,
-// llevado ahora a la disposicion real de pantalla-.
+// Bloque de una pagina "titulo_texto": imagen manual (config.imagen_path,
+// respetando config.disposicion_imagen) y grafico IA (config.imagen_svg)
+// pueden coexistir -no se pisan-.
+//
+// Todo el contenido llena el area disponible de la pantalla (s.cuerpo,
+// altura definida): los visuales reciben SIEMPRE una caja de tamaño
+// definido y se escalan adentro preservando su proporcion. Antes la caja
+// solo tenia maxWidth/maxHeight dentro de contenedores que median segun
+// su contenido: una imagen lo resistia (tiene tamaño natural), pero el
+// SVG del grafico IA no tiene tamaño propio y colapsaba a 0x0 -se veia
+// solo un punto (el padding de la caja)-.
+//
+// - "grande": visuales arriba ocupando todo el alto que sobra, bullets
+//   debajo (en 2 columnas si son varios, para no robarle alto al visual).
+// - "lado_izquierda"/"lado_derecha": visuales en una columna de la mitad
+//   del ancho y alto completo, bullets al otro lado.
 //
 // La imagen manual vive en un bucket PRIVADO (compartido con Casos
 // Clinicos): el path es permanente, pero para mostrarla hace falta un
-// token de acceso temporal fresco -se pide aca, solo cuando cambia el
-// path de la pagina activa (no en cada poll de 2s de la pagina).
+// token de acceso temporal fresco -se pide solo cuando cambia el path de
+// la pagina activa (no en cada poll de 2s)-.
 function ContenidoTituloTexto({ pagina }) {
   const bullets = pagina.config?.bullets || [];
   const imagenPath = pagina.config?.imagen_path || extraerPathDeUrlVencida(pagina.config?.imagen_url);
   const imagenSvg = pagina.config?.imagen_svg;
   const disposicion = pagina.config?.disposicion_imagen || "grande";
 
-  const [imagenUrl, setImagenUrl] = useState(null);
-
-  useEffect(() => {
-    let cancelado = false;
-    if (!imagenPath) {
-      setImagenUrl(null);
-      return;
-    }
-    clasesFormalesMedia.obtenerUrl(imagenPath)
-      .then((r) => { if (!cancelado) setImagenUrl(r.url); })
-      .catch(() => { if (!cancelado) setImagenUrl(null); });
-    return () => { cancelado = true; };
-  }, [imagenPath]);
-
+  const imagenUrl = useUrlImagen(imagenPath);
   const hayVisuales = Boolean(imagenUrl || imagenSvg);
+  const hayBullets = bullets.length > 0;
 
   const bloqueSvg = imagenSvg && (
-    <div className="grafico-ia-proyeccion" style={s.visualBox} dangerouslySetInnerHTML={{ __html: imagenSvg }} />
+    <div style={s.cajaVisual}>
+      <div className="grafico-ia-proyeccion" style={s.marcoGrafico} dangerouslySetInnerHTML={{ __html: imagenSvg }} />
+    </div>
   );
   const bloqueImg = imagenUrl && (
-    <img src={imagenUrl} alt="" style={{ ...s.visualBox, objectFit: "contain" }} />
+    <div style={s.cajaVisual}>
+      <img src={imagenUrl} alt="" style={s.imagen} />
+    </div>
   );
 
-  const listaBullets = bullets.length > 0 && (
-    <ul style={disposicion === "grande" ? s.bullets : s.bulletsLado}>
-      {bullets.map((linea, i) => (
-        <li key={i} style={s.bulletItem}>
-          <span style={s.bulletMarcador}>•</span>
-          <span>{linea}</span>
-        </li>
-      ))}
-    </ul>
-  );
-
-  if (!hayVisuales) {
-    return listaBullets || null;
+  function listaBullets(variante) {
+    if (!hayBullets) return null;
+    const estiloLista =
+      variante === "lado" ? s.bulletsLado
+      : variante === "bajo" ? { ...s.bulletsBajo, gridTemplateColumns: bullets.length > 2 ? "1fr 1fr" : "1fr" }
+      : { ...s.bullets, gridTemplateColumns: bullets.length > 7 ? "1fr 1fr" : "1fr" };
+    const estiloItem = variante === "bajo" ? s.bulletItemBajo : variante === "lado" ? s.bulletItemLado : s.bulletItem;
+    return (
+      <ul style={estiloLista}>
+        {bullets.map((linea, i) => (
+          <li key={i} style={estiloItem}>
+            <span style={s.bulletMarcador}>•</span>
+            <span>{linea}</span>
+          </li>
+        ))}
+      </ul>
+    );
   }
 
-  if (disposicion === "grande") {
+  if (!hayVisuales) {
+    return listaBullets("solo");
+  }
+
+  if (disposicion === "grande" || !hayBullets) {
     return (
-      <>
-        <div style={s.visualesRowGrande}>{bloqueSvg}{bloqueImg}</div>
-        {listaBullets}
-      </>
+      <div style={s.columnaGrande}>
+        <div style={s.filaVisuales}>{bloqueSvg}{bloqueImg}</div>
+        {listaBullets("bajo")}
+      </div>
     );
   }
 
@@ -104,7 +112,7 @@ function ContenidoTituloTexto({ pagina }) {
   return (
     <div style={{ ...s.filaLado, flexDirection: disposicion === "lado_derecha" ? "row-reverse" : "row" }}>
       <div style={s.columnaVisual}>{bloqueSvg}{bloqueImg}</div>
-      {listaBullets}
+      {listaBullets("lado")}
     </div>
   );
 }
@@ -251,7 +259,7 @@ export default function ProyeccionClase() {
 
   if (!pagina) {
     return (
-      <div style={s.wrap}>
+      <div style={s.pantallaCentrada}>
         <LogoBar />
         <div style={s.qrBox}>
           <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
@@ -262,67 +270,62 @@ export default function ProyeccionClase() {
     );
   }
 
+  const esquina = (
+    <div style={s.esquina}>
+      <p style={s.esquinaLabel}>Código de acceso</p>
+      <p style={s.esquinaCodigo}>{codigo}</p>
+    </div>
+  );
+
   if (mostrarSoloImagen) {
     return (
-      <div style={s.wrap}>
+      <div style={s.pantallaCentrada}>
         <LogoBar />
         <img src={imagenTriviaUrl} alt="" style={s.imagenGrande} />
       </div>
     );
   }
 
-  if (mostrarImagenLado) {
-    return (
-      <div style={s.wrap}>
-        <LogoBar />
-        <div style={s.esquina}>
-          <p style={s.esquinaLabel}>Código de acceso</p>
-          <p style={s.esquinaCodigo}>{codigo}</p>
-        </div>
-
-        <div style={s.contenidoLado}>
-          <h1 style={s.tituloLado}>{pagina.titulo}</h1>
-          <div style={s.filaTrivia}>
-            <div style={s.triviaTextoLado}>
-              <p style={s.pregunta}>{pagina.config.pregunta}</p>
-              <AlternativasTrivia pagina={pagina} trivia={trivia} />
-              {trivia && (
-                <p style={s.triviaTotal}>
-                  {trivia.total} {trivia.total === 1 ? "respuesta" : "respuestas"}
-                </p>
-              )}
-            </div>
-            <div style={s.triviaImagenLado}>
-              <img src={imagenTriviaUrl} alt="" style={s.triviaImagen} />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const totalRespuestas = trivia && (
+    <p style={s.triviaTotal}>
+      {trivia.total} {trivia.total === 1 ? "respuesta" : "respuestas"}
+    </p>
+  );
 
   return (
-    <div style={s.wrap}>
+    <div style={s.pantalla}>
       <LogoBar />
-      <div style={s.esquina}>
-        <p style={s.esquinaLabel}>Código de acceso</p>
-        <p style={s.esquinaCodigo}>{codigo}</p>
-      </div>
+      {esquina}
 
-      <div style={s.contenido}>
-        <h1 style={s.titulo}>{pagina.titulo}</h1>
+      <h1 style={s.titulo}>{pagina.titulo}</h1>
 
+      <div style={s.cuerpo}>
         {pagina.tipo_herramienta === "titulo_texto" && <ContenidoTituloTexto pagina={pagina} />}
 
-        {esTrivia && (
-          <div style={s.trivia}>
+        {/* Trivia con imagen, fase 2 (50% votado o revelada): pregunta +
+            alternativas con votacion en vivo a la izquierda, imagen
+            completa a la derecha. */}
+        {mostrarImagenLado && (
+          <div style={s.filaLado}>
+            <div style={s.triviaTexto}>
+              <p style={s.pregunta}>{pagina.config.pregunta}</p>
+              <AlternativasTrivia pagina={pagina} trivia={trivia} />
+              {totalRespuestas}
+            </div>
+            <div style={s.columnaVisual}>
+              <div style={s.cajaVisual}>
+                <img src={imagenTriviaUrl} alt="" style={s.imagen} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Trivia sin imagen */}
+        {esTrivia && !imagenTriviaUrl && (
+          <div style={s.triviaTextoSolo}>
             <p style={s.pregunta}>{pagina.config.pregunta}</p>
             <AlternativasTrivia pagina={pagina} trivia={trivia} />
-            {trivia && (
-              <p style={s.triviaTotal}>
-                {trivia.total} {trivia.total === 1 ? "respuesta" : "respuestas"}
-              </p>
-            )}
+            {totalRespuestas}
           </div>
         )}
 
@@ -330,92 +333,92 @@ export default function ProyeccionClase() {
           <p style={s.subtitulo}>Responde en tu celular: ¿sigo la clase?</p>
         )}
       </div>
-      {/* Escala el SVG del grafico IA preservando su propia proporcion
-          (viewBox propio) para caber en su contenedor -max-width/max-height,
-          no width/height fijos que lo distorsionarian estirandolo-. */}
-      <style>{`.grafico-ia-proyeccion svg { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }`}</style>
+
+      {/* El SVG del grafico IA trae viewBox propio (800x600): con
+          width/height 100% llena su marco y el navegador lo escala
+          preservando la proporcion (preserveAspectRatio por defecto),
+          sin deformarlo. */}
+      <style>{`.grafico-ia-proyeccion svg { width: 100%; height: 100%; display: block; }`}</style>
     </div>
   );
 }
 
-const s = {
-  // Pantalla fija, sin scroll -igual que ProyeccionVivo-: un proyector
-  // nunca debe hacer scroll. Antes era minHeight y la trivia con imagen
-  // + 5 alternativas crecia por sobre 100vh.
-  wrap: { height: "100vh", width: "100vw", boxSizing: "border-box", overflow: "hidden", background: "#0E1526", color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 80px", position: "relative" },
+const ACENTO = "#4FC3D9";
+const FONDO = "#0E1526";
+const TARJETA = "#16213A";
+const BORDE = "1px solid rgba(244,241,233,0.12)";
 
-  // Fase 1 de trivia con imagen: imagen sola y completa (mismo tope que
-  // imagenGrande de ProyeccionVivo).
-  imagenGrande: { maxWidth: "92vw", maxHeight: "86vh", borderRadius: 12, objectFit: "contain", display: "block" },
+const s = {
+  // position:fixed + inset:0 -en vez de 100vw/100vh-: ocupa exactamente
+  // la pantalla sin importar el margen por defecto del body (el proyecto
+  // no tiene CSS global), sin barras de scroll ni borde claro.
+  pantalla: { position: "fixed", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column", padding: "clamp(96px, 14vh, 140px) 5vw 5vh" },
+  pantallaCentrada: { position: "fixed", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "4vh 4vw" },
 
   logoBar: { position: "absolute", top: 32, left: 40, display: "flex", alignItems: "center", gap: 20, zIndex: 50 },
   logoImg: { height: 32, width: "auto", objectFit: "contain", opacity: 0.92 },
 
-  esquina: { position: "absolute", top: 32, right: 40, textAlign: "right" },
-  esquinaLabel: { fontSize: 16, color: "#94A3B8", margin: "0 0 4px" },
-  esquinaCodigo: { fontSize: 32, fontWeight: 800, letterSpacing: 4, color: "#4FC3D9", margin: 0 },
+  esquina: { position: "absolute", top: 28, right: 40, textAlign: "right" },
+  esquinaLabel: { fontSize: 14, color: "#94A3B8", margin: "0 0 2px" },
+  esquinaCodigo: { fontSize: 28, fontWeight: 800, letterSpacing: 4, color: ACENTO, margin: 0 },
 
   qrBox: { textAlign: "center" },
   qrImg: { width: "min(40vw, 40vh)", height: "min(40vw, 40vh)", borderRadius: 14, background: "#F4F1EA", padding: 14, marginBottom: 18 },
   codigoLabel: { fontSize: "1.4vw", color: "#94A3B8", margin: 0 },
-  codigo: { fontSize: "3vw", fontWeight: 800, letterSpacing: 6, color: "#4FC3D9", margin: "6px 0 0" },
+  codigo: { fontSize: "3vw", fontWeight: 800, letterSpacing: 6, color: ACENTO, margin: "6px 0 0" },
 
-  contenido: { textAlign: "center", maxWidth: 1000 },
-  titulo: { fontSize: "clamp(28px, 5.2vh, 56px)", fontWeight: 800, margin: "0 0 2.4vh" },
-  subtitulo: { fontSize: 28, color: "#94A3B8", margin: 0 },
+  // Titulo alineado a la izquierda con una barra de acento: ancla la
+  // pagina arriba y deja todo el resto del alto para el contenido.
+  titulo: { flexShrink: 0, fontSize: "clamp(30px, 6.2vh, 68px)", fontWeight: 800, lineHeight: 1.1, margin: "0 0 3.5vh", paddingLeft: 22, borderLeft: `7px solid ${ACENTO}` },
+  subtitulo: { fontSize: "clamp(20px, 3.6vh, 36px)", color: "#94A3B8", margin: 0 },
 
-  bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 16, textAlign: "left", maxWidth: 800, marginLeft: "auto", marginRight: "auto" },
-  bulletsLado: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 14, textAlign: "left", flex: 1 },
-  // Antes dependia de un marcador ::before en un objeto de estilos inline
-  // -que nunca se aplica en React-, por eso quedaba sin separacion visual
-  // real. Ahora cada bullet es su propia fila con fondo, borde y marcador
-  // explicito, mismo lenguaje visual que 'alternativa' (trivia).
-  bulletItem: { display: "flex", alignItems: "flex-start", gap: 14, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: "14px 20px", fontSize: 28, lineHeight: 1.4 },
-  bulletMarcador: { color: "#4FC3D9", fontWeight: 800, flexShrink: 0 },
+  // Area de contenido: altura definida (flex:1 + minHeight:0), la base
+  // para que imagenes y graficos sepan cuanto pueden crecer.
+  cuerpo: { flex: "1 1 auto", minHeight: 0, width: "100%", display: "flex", flexDirection: "column", justifyContent: "center" },
 
-  // "grande": ambos visuales (grafico IA + imagen manual) uno al lado del
-  // otro, arriba de los bullets, hasta 42% del ancho cada uno.
-  visualesRowGrande: { display: "flex", gap: 24, justifyContent: "center", alignItems: "center", width: "100%", maxHeight: "38vh", marginBottom: 32 },
+  // ---- visuales ----
+  cajaVisual: { flex: "1 1 0", minWidth: 0, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" },
+  // Marco del grafico IA: fondo claro -los SVG vienen con fondo blanco o
+  // transparente y texto oscuro-, proporcion 4:3 como su viewBox.
+  marcoGrafico: { height: "100%", maxWidth: "100%", aspectRatio: "4 / 3", boxSizing: "border-box", background: "#FFFFFF", borderRadius: 14, padding: "1.5vh" },
+  imagen: { maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", borderRadius: 14, display: "block" },
+  imagenGrande: { maxWidth: "92vw", maxHeight: "86vh", borderRadius: 12, objectFit: "contain", display: "block" },
 
-  // "lado_izquierda"/"lado_derecha": columna de visuales (apilados si hay
-  // dos) al costado, bullets ocupando el resto del ancho.
-  filaLado: { display: "flex", gap: 40, alignItems: "center", width: "100%", textAlign: "left" },
-  columnaVisual: { display: "flex", flexDirection: "column", gap: 16, flex: "0 0 38%", maxHeight: "60vh" },
+  // "grande": visuales arriba con todo el alto que sobra, bullets debajo
+  columnaGrande: { flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", gap: "3vh" },
+  filaVisuales: { flex: "1 1 0", minHeight: 0, display: "flex", gap: "3vw" },
 
-  // Centrado para que el grafico/imagen -con ancho/alto "auto" preservando
-  // su propia proporcion- quede bien posicionado dentro de la caja, no
-  // pegado a una esquina.
-  visualBox: { maxWidth: "100%", maxHeight: "38vh", borderRadius: 12, background: "#F4F1EA", padding: 10, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center" },
+  // "lado": columna visual de la mitad del ancho, alto completo
+  filaLado: { flex: "1 1 auto", minHeight: 0, display: "flex", gap: "4vw", alignItems: "stretch" },
+  columnaVisual: { flex: "0 0 48%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: "2vh" },
 
-  trivia: { marginTop: 20 },
-  // Tamaños en vh (con tope en px) para que 5 alternativas quepan tambien
-  // en proyectores de baja resolucion -mismo criterio que ProyeccionVivo-.
-  pregunta: { fontSize: "clamp(20px, 3.2vh, 34px)", margin: "0 0 3vh" },
-  alternativas: { display: "flex", flexDirection: "column", gap: "1.6vh", textAlign: "left", maxWidth: 700, margin: "0 auto" },
-  alternativa: { display: "flex", alignItems: "center", gap: 20, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 16, padding: "1.6vh 28px", fontSize: "clamp(16px, 2.4vh, 26px)" },
+  // ---- bullets ----
+  bulletMarcador: { color: ACENTO, fontWeight: 800, flexShrink: 0 },
+  // Sin visuales: ocupan todo el ancho util
+  bullets: { listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "2vh 3vw", width: "100%" },
+  bulletItem: { display: "flex", alignItems: "flex-start", gap: 18, background: TARJETA, border: BORDE, borderRadius: 14, padding: "2vh 2vw", fontSize: "clamp(20px, 3.4vh, 38px)", lineHeight: 1.3 },
+  // Al lado de un visual: centrados en vertical en su mitad
+  bulletsLado: { listStyle: "none", padding: 0, margin: 0, flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: "2vh" },
+  bulletItemLado: { display: "flex", alignItems: "flex-start", gap: 16, background: TARJETA, border: BORDE, borderRadius: 14, padding: "1.8vh 1.6vw", fontSize: "clamp(18px, 3vh, 32px)", lineHeight: 1.3 },
+  // Debajo de un visual grande: compactos, en 2 columnas si son varios
+  bulletsBajo: { listStyle: "none", padding: 0, margin: 0, flexShrink: 0, display: "grid", gap: "1.4vh 2vw" },
+  bulletItemBajo: { display: "flex", alignItems: "flex-start", gap: 14, background: TARJETA, border: BORDE, borderRadius: 12, padding: "1.2vh 1.4vw", fontSize: "clamp(16px, 2.5vh, 26px)", lineHeight: 1.3 },
 
-  // Fase 2 de trivia con imagen: pregunta + alternativas a la izquierda,
-  // imagen a la derecha usando toda la altura disponible, completa
-  // (contain, nunca recortada).
-  contenidoLado: { display: "flex", flexDirection: "column", width: "100%", maxWidth: 1500, height: "100%", minHeight: 0, textAlign: "center" },
-  tituloLado: { fontSize: "clamp(24px, 4.4vh, 48px)", fontWeight: 800, margin: "0 0 2.5vh", flexShrink: 0 },
-  filaTrivia: { display: "flex", gap: 40, alignItems: "center", flex: "1 1 auto", minHeight: 0, width: "100%" },
-  triviaTextoLado: { flex: "1 1 0", minWidth: 0, maxHeight: "100%", display: "flex", flexDirection: "column", justifyContent: "center" },
-  triviaImagenLado: { flex: "0 0 44%", height: "100%", minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" },
-  triviaImagen: { maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", borderRadius: 12, display: "block" },
+  // ---- trivia ----
+  triviaTexto: { flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" },
+  triviaTextoSolo: { width: "100%", maxWidth: 1300, margin: "0 auto", display: "flex", flexDirection: "column", justifyContent: "center" },
+  pregunta: { fontSize: "clamp(22px, 3.6vh, 40px)", fontWeight: 700, lineHeight: 1.25, margin: "0 0 3vh" },
+  alternativas: { display: "flex", flexDirection: "column", gap: "1.6vh", textAlign: "left" },
+  alternativa: { display: "flex", alignItems: "center", gap: 20, background: TARJETA, border: BORDE, borderRadius: 16, padding: "1.6vh 1.6vw", fontSize: "clamp(16px, 2.6vh, 28px)" },
   // Mismo verde que AdminClaseVivo/Casos Clinicos para la opcion correcta
   // al revelar -#7FD98F-, consistente en todo el ecosistema.
   alternativaCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
-  // Antes flexShrink:0 -una alternativa larga se salia de la fila-. Ahora
-  // puede ajustarse en varias lineas, la barra conserva su minWidth.
   alternativaTexto: { flex: "0 1 auto", minWidth: 0 },
-  letra: { width: 44, height: 44, borderRadius: "50%", background: "#4FC3D9", color: "#0E1526", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 22, flexShrink: 0 },
+  letra: { width: "clamp(32px, 4.6vh, 48px)", height: "clamp(32px, 4.6vh, 48px)", borderRadius: "50%", background: ACENTO, color: FONDO, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "clamp(16px, 2.4vh, 24px)", flexShrink: 0 },
   letraCorrecta: { background: "#7FD98F" },
-  // Barra de conteo en vivo, aparece junto al texto y crece con el % de
-  // respuestas -mismo lenguaje visual que las barras de AdminClaseVivo,
-  // escalado al tamaño de pantalla grande de proyeccion-.
-  alternativaBarraFondo: { flex: 1, height: 14, borderRadius: 8, background: "#0E1526", overflow: "hidden", minWidth: 60 },
-  alternativaBarraLlena: { height: "100%", background: "#4FC3D9", borderRadius: 8, transition: "width 0.4s ease" },
+  // Barra de conteo en vivo, crece con el % de respuestas.
+  alternativaBarraFondo: { flex: 1, height: 14, borderRadius: 8, background: FONDO, overflow: "hidden", minWidth: 60 },
+  alternativaBarraLlena: { height: "100%", background: ACENTO, borderRadius: 8, transition: "width 0.4s ease" },
   alternativaBarraLlenaCorrecta: { background: "#7FD98F" },
   alternativaConteo: { flexShrink: 0, minWidth: 32, textAlign: "right", fontWeight: 800, color: "#94A3B8" },
   triviaTotal: { marginTop: "2vh", fontSize: 18, color: "#64748B" },
