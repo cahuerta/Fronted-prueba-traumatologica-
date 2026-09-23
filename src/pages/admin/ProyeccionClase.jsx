@@ -10,118 +10,51 @@ import {
 
 const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 
+// ============================================================================
+// PANTALLA COMPARTIDA: proyeccion real + preview del constructor
+// ============================================================================
+// <PantallaClase> es UN SOLO componente que dibuja una pagina de la clase.
+// Lo usan esta proyeccion (a pantalla completa) y el preview de
+// AdminClaseConstructor.jsx (dentro de su caja 16:9). Como es el mismo
+// codigo, el preview es una copia a escala exacta de lo que se proyecta:
+// si algo se ve mal en el preview, se ve mal en la proyeccion, y viceversa.
+//
+// Para que escale igual en ambos lugares, TODAS las medidas estan en
+// unidades del contenedor (cqh = % del alto, cqw = % del ancho de la
+// pantalla que lo contiene), nunca en px ni en vh/vw (esos dependen de la
+// ventana del navegador, no de la pantalla dibujada). El contenedor que lo
+// envuelve debe declarar containerType: "size" (ver s.contenedorFijo aca
+// y el preview del constructor).
+// ============================================================================
+
 // Paginas guardadas ANTES del arreglo de imagenes tienen config.imagen_url
 // (el link firmado que vencia, ya vencido) pero nunca guardaron
-// config.imagen_path -el backend lo devolvia, pero el frontend viejo no lo
-// tomaba-. El path real sigue adentro de ese link vencido, como texto: se
-// extrae con esta regex para no obligar a resubir nada (misma logica que
-// en AdminClaseConstructor.jsx).
-function extraerPathDeUrlVencida(urlVieja) {
+// config.imagen_path. El path real sigue adentro de ese link vencido, como
+// texto: se extrae con esta regex para no obligar a resubir nada (misma
+// logica que en AdminClaseConstructor.jsx).
+export function extraerPathDeUrlVencida(urlVieja) {
   if (!urlVieja) return null;
   const match = urlVieja.match(/\/object\/sign\/casos\/([^?]+)/);
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-// Barra de logos institucionales, arriba a la izquierda dentro de la franja
-// superior -no choca con el QR + codigo (arriba a la derecha)-.
-function LogoBar() {
-  return (
-    <div style={s.logoBar}>
-      <img src="/logo-utal.png" alt="UTAL" style={s.logoImg} />
-      <img src="/logo-ica.png" alt="ICA" style={s.logoImg} />
-      <img src="/logo-hipokratia.png" alt="Hipokratia" style={s.logoImg} />
-    </div>
-  );
+// Path permanente de la imagen manual de una pagina (titulo_texto o trivia).
+export function pathImagenPagina(config) {
+  return config?.imagen_path || extraerPathDeUrlVencida(config?.imagen_url) || null;
 }
 
-// Bloque de una pagina "titulo_texto": imagen manual (config.imagen_path,
-// respetando config.disposicion_imagen) y grafico IA (config.imagen_svg)
-// pueden coexistir -no se pisan-.
-//
-// Todo el contenido llena el area disponible de la pantalla (s.cuerpo,
-// altura definida): los visuales reciben SIEMPRE una caja de tamaño
-// definido y se escalan adentro preservando su proporcion. Antes la caja
-// solo tenia maxWidth/maxHeight dentro de contenedores que median segun
-// su contenido: una imagen lo resistia (tiene tamaño natural), pero el
-// SVG del grafico IA no tiene tamaño propio y colapsaba a 0x0 -se veia
-// solo un punto (el padding de la caja)-.
-//
-// - "grande": visuales arriba ocupando todo el alto que sobra, bullets
-//   debajo (en 2 columnas si son varios, para no robarle alto al visual).
-// - "lado_izquierda"/"lado_derecha": visuales en una columna de la mitad
-//   del ancho y alto completo, bullets al otro lado.
-//
-// La imagen manual vive en un bucket PRIVADO (compartido con Casos
-// Clinicos): el path es permanente, pero para mostrarla hace falta un
-// token de acceso temporal fresco -se pide solo cuando cambia el path de
-// la pagina activa (no en cada poll de 2s)-.
-function ContenidoTituloTexto({ pagina }) {
-  const bullets = pagina.config?.bullets || [];
-  const imagenPath = pagina.config?.imagen_path || extraerPathDeUrlVencida(pagina.config?.imagen_url);
-  const imagenSvg = pagina.config?.imagen_svg;
-  const disposicion = pagina.config?.disposicion_imagen || "grande";
-
-  const imagenUrl = useUrlImagen(imagenPath);
-  const hayVisuales = Boolean(imagenUrl || imagenSvg);
-  const hayBullets = bullets.length > 0;
-
-  const bloqueSvg = imagenSvg && (
-    <div style={s.cajaVisual}>
-      <div className="grafico-ia-proyeccion" style={s.marcoGrafico} dangerouslySetInnerHTML={{ __html: imagenSvg }} />
-    </div>
-  );
-  const bloqueImg = imagenUrl && (
-    <div style={s.cajaVisual}>
-      <img src={imagenUrl} alt="" style={s.imagen} />
-    </div>
-  );
-
-  function listaBullets(variante) {
-    if (!hayBullets) return null;
-    const estiloLista =
-      variante === "lado" ? s.bulletsLado
-      : variante === "bajo" ? { ...s.bulletsBajo, gridTemplateColumns: bullets.length > 2 ? "1fr 1fr" : "1fr" }
-      : { ...s.bullets, gridTemplateColumns: bullets.length > 7 ? "1fr 1fr" : "1fr" };
-    const estiloItem = variante === "bajo" ? s.bulletItemBajo : variante === "lado" ? s.bulletItemLado : s.bulletItem;
-    return (
-      <ul style={estiloLista}>
-        {bullets.map((linea, i) => (
-          <li key={i} style={estiloItem}>
-            <span style={s.bulletMarcador}>•</span>
-            <span>{linea}</span>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  if (!hayVisuales) {
-    return listaBullets("solo");
-  }
-
-  if (disposicion === "grande" || !hayBullets) {
-    return (
-      <div style={s.columnaGrande}>
-        <div style={s.filaVisuales}>{bloqueSvg}{bloqueImg}</div>
-        {listaBullets("bajo")}
-      </div>
-    );
-  }
-
-  // lado_izquierda / lado_derecha
-  return (
-    <div style={{ ...s.filaLado, flexDirection: disposicion === "lado_derecha" ? "row-reverse" : "row" }}>
-      <div style={s.columnaVisual}>{bloqueSvg}{bloqueImg}</div>
-      {listaBullets("lado")}
-    </div>
-  );
+// REGLA DE DISPOSICION (unica, la usan proyeccion y constructor):
+//   - Hay texto + imagen/grafico -> SIEMPRE al lado. Solo se elige el lado:
+//     "lado_derecha" pone la imagen a la derecha; cualquier otro valor
+//     (incluido el "grande" antiguo) la deja a la izquierda.
+//   - Imagen/grafico SIN texto  -> grande y centrada (automatico).
+export function resolverDisposicion(config, hayTexto) {
+  if (!hayTexto) return "grande";
+  return config?.disposicion_imagen === "lado_derecha" ? "lado_derecha" : "lado_izquierda";
 }
 
-// Imagen opcional de una pagina "trivia" (config.imagen_path). Ahora es
-// un hook -no un componente- porque la URL resuelta decide el LAYOUT
-// completo de la pantalla (imagen sola vs imagen al lado), no solo si se
-// dibuja un <img>. Mismo patron de resolucion que ContenidoTituloTexto:
-// token fresco solo cuando cambia el path, no en cada poll de 2s.
+// Token de acceso fresco para una imagen del bucket privado "casos": solo
+// se pide cuando cambia el path, no en cada poll de 2s.
 function useUrlImagen(imagenPath) {
   const [imagenUrl, setImagenUrl] = useState(null);
 
@@ -140,19 +73,117 @@ function useUrlImagen(imagenPath) {
   return imagenUrl;
 }
 
-// Alternativas de la trivia con barra de conteo en vivo. Compartido por
-// el layout sin imagen (centrado) y el layout con imagen al lado.
-function AlternativasTrivia({ pagina, trivia }) {
+// Logos institucionales, arriba a la izquierda dentro de la franja superior.
+function LogoBar() {
+  return (
+    <div style={s.logoBar}>
+      <img src="/logo-utal.png" alt="UTAL" style={s.logoImg} />
+      <img src="/logo-ica.png" alt="ICA" style={s.logoImg} />
+      <img src="/logo-hipokratia.png" alt="Hipokratia" style={s.logoImg} />
+    </div>
+  );
+}
+
+// QR siempre visible en la esquina, con el codigo al lado como respaldo:
+// un atrasado se une en cualquier momento. Vive dentro de la franja
+// superior (igual que los logos), nunca le quita espacio al contenido.
+function Esquina({ codigo, qrUrl }) {
+  return (
+    <div style={s.esquina}>
+      <div style={s.esquinaTexto}>
+        <p style={s.esquinaLabel}>Únete a la clase</p>
+        <p style={s.esquinaCodigo}>{codigo}</p>
+      </div>
+      {qrUrl && <img src={qrUrl} alt="QR de la sesión" style={s.esquinaQr} />}
+    </div>
+  );
+}
+
+// Imagen manual y/o grafico IA, cada uno en una caja de tamaño definido
+// (se escala adentro preservando su proporcion). Sin caja definida el SVG
+// del grafico IA no tiene tamaño propio y colapsaba a 0x0.
+function BloqueVisuales({ imagenUrl, imagenSvg, apilados }) {
+  return (
+    <div style={apilados ? s.visualesApilados : s.visualesFila}>
+      {imagenSvg && (
+        <div style={s.cajaVisual}>
+          <div className="grafico-ia-pantalla" style={s.marcoGrafico} dangerouslySetInnerHTML={{ __html: imagenSvg }} />
+        </div>
+      )}
+      {imagenUrl && (
+        <div style={s.cajaVisual}>
+          <img src={imagenUrl} alt="" style={s.imagen} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ContenidoTituloTexto({ config, imagenUrl }) {
+  const bullets = config?.bullets || [];
+  const imagenSvg = config?.imagen_svg;
+  const hayVisuales = Boolean(imagenUrl || imagenSvg);
+  const hayTexto = bullets.length > 0;
+
+  if (!hayVisuales && !hayTexto) return null;
+
+  // Solo texto: todo el ancho util (2 columnas si son muchos puntos)
+  if (!hayVisuales) {
+    return (
+      <ul style={{ ...s.bullets, gridTemplateColumns: bullets.length > 7 ? "1fr 1fr" : "1fr" }}>
+        {bullets.map((linea, i) => (
+          <li key={i} style={s.bulletItem}>
+            <span style={s.bulletMarcador}>•</span>
+            <span>{linea}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  const disposicion = resolverDisposicion(config, hayTexto);
+
+  // Imagen/grafico sin texto: grande y centrado, todo el espacio
+  if (disposicion === "grande") {
+    return <BloqueVisuales imagenUrl={imagenUrl} imagenSvg={imagenSvg} />;
+  }
+
+  // Texto + imagen: al lado. Visual en la mitad del ancho con el alto
+  // completo, texto al otro lado centrado en vertical.
+  return (
+    <div style={{ ...s.filaLado, flexDirection: disposicion === "lado_derecha" ? "row-reverse" : "row" }}>
+      <div style={s.columnaVisual}>
+        <BloqueVisuales imagenUrl={imagenUrl} imagenSvg={imagenSvg} apilados />
+      </div>
+      <ul style={s.bulletsLado}>
+        {bullets.map((linea, i) => (
+          <li key={i} style={s.bulletItemLado}>
+            <span style={s.bulletMarcador}>•</span>
+            <span>{linea}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Alternativas de la trivia con barra de votos en vivo. Cada fila es una
+// grilla de columnas FIJAS (letra | texto | barra | conteo): todas las
+// barras tienen el mismo ancho y empiezan en el mismo punto, sin importar
+// el largo del texto -si no, una barra al 50% se veria distinta en cada
+// fila y no se podria comparar cual gana-. El texto largo se ajusta en
+// varias lineas dentro de su columna.
+function AlternativasTrivia({ config, trivia, compacta }) {
   return (
     <div style={s.alternativas}>
-      {(pagina.config.alternativas || []).map((alt, i) => {
+      {(config.alternativas || []).map((alt, i) => {
         const letra = String.fromCharCode(65 + i);
         const total = trivia?.total || 0;
         const conteo = trivia?.conteos?.[letra] || 0;
         const pct = total > 0 ? Math.round((conteo / total) * 100) : 0;
-        const esCorrecta = Boolean(trivia?.revelada) && pagina.config.correcta === i;
+        const esCorrecta = Boolean(trivia?.revelada) && config.correcta === i;
         return (
-          <div key={i} style={{ ...s.alternativa, ...(esCorrecta ? s.alternativaCorrecta : {}) }}>
+          <div key={i} style={{ ...s.alternativa, ...(compacta ? s.alternativaCompacta : {}), ...(esCorrecta ? s.alternativaCorrecta : {}) }}>
             <span style={{ ...s.letra, ...(esCorrecta ? s.letraCorrecta : {}) }}>{letra}</span>
             <span style={s.alternativaTexto}>{alt}</span>
             <div style={s.alternativaBarraFondo}>
@@ -172,17 +203,74 @@ function AlternativasTrivia({ pagina, trivia }) {
   );
 }
 
-// Pantalla grande (proyector). Publica, sin auth -mismo patron que el
-// alumno y el admin usan para leer la pagina activa-. Aca SI se
-// muestran pregunta y alternativas de la trivia -es la contraparte
-// visual del selector ciego de letras que ve el alumno en su celular,
-// como un sistema de clickers real-. Ademas se muestran las barras de
-// conteo en vivo y, al revelar, la alternativa correcta resaltada en
-// verde -mismo criterio que Casos Clinicos usa en su Proyeccion-.
-//
-// Mientras la sesion aun no tiene pagina activa (pagina_actual_orden
-// null en el backend -> este endpoint responde 404), se muestra el QR
-// grande, igual que ProyeccionVivo muestra el QR mientras "esperando".
+// Una pagina completa (franja con logos + QR, titulo y contenido). Debe ir
+// dentro de un contenedor con containerType:"size".
+//   pagina    -> { titulo, tipo_herramienta, config }
+//   imagenUrl -> token ya resuelto de la imagen manual (o null)
+//   trivia    -> { total, conteos, revelada } (o null: barras en cero)
+export function PantallaClase({ pagina, imagenUrl, trivia, codigo, qrUrl }) {
+  const config = pagina?.config || {};
+  const tipo = pagina?.tipo_herramienta;
+  const esTrivia = tipo === "trivia";
+
+  const totalRespuestas = trivia && (
+    <p style={s.triviaTotal}>
+      {trivia.total} {trivia.total === 1 ? "respuesta" : "respuestas"}
+    </p>
+  );
+
+  return (
+    <div style={s.pantalla}>
+      <LogoBar />
+      <Esquina codigo={codigo} qrUrl={qrUrl} />
+
+      <h1 style={s.titulo}>{pagina?.titulo || "Título de la página"}</h1>
+
+      <div style={s.cuerpo}>
+        {tipo === "titulo_texto" && <ContenidoTituloTexto config={config} imagenUrl={imagenUrl} />}
+
+        {/* Trivia con imagen (fase de votacion en vivo): pregunta +
+            alternativas a la izquierda, imagen completa a la derecha. */}
+        {esTrivia && imagenUrl && (
+          <div style={s.filaLado}>
+            <div style={s.triviaTexto}>
+              <p style={s.pregunta}>{config.pregunta || "Pregunta de la trivia"}</p>
+              <AlternativasTrivia config={config} trivia={trivia} compacta />
+              {totalRespuestas}
+            </div>
+            <div style={s.columnaVisualTrivia}>
+              <BloqueVisuales imagenUrl={imagenUrl} apilados />
+            </div>
+          </div>
+        )}
+
+        {esTrivia && !imagenUrl && (
+          <div style={s.triviaTextoSolo}>
+            <p style={s.pregunta}>{config.pregunta || "Pregunta de la trivia"}</p>
+            <AlternativasTrivia config={config} trivia={trivia} />
+            {totalRespuestas}
+          </div>
+        )}
+
+        {tipo === "semaforo" && (
+          <p style={s.subtitulo}>Responde en tu celular: ¿sigo la clase?</p>
+        )}
+      </div>
+
+      {/* El SVG del grafico IA trae viewBox propio (800x600): con
+          width/height 100% llena su marco 4:3 y se escala preservando su
+          proporcion, sin deformarse. */}
+      <style>{`.grafico-ia-pantalla svg { width: 100%; height: 100%; display: block; }`}</style>
+    </div>
+  );
+}
+
+// ============================================================================
+// PROYECCION (pantalla grande). Publica, sin auth. Muestra pregunta y
+// alternativas de la trivia con barras de conteo en vivo y, al revelar, la
+// correcta en verde. Mientras la sesion no tiene pagina activa (404 en
+// /actual), muestra el QR grande.
+// ============================================================================
 export default function ProyeccionClase() {
   const { codigo } = useParams();
   const [pagina, setPagina] = useState(null);
@@ -191,8 +279,8 @@ export default function ProyeccionClase() {
   const [presentes, setPresentes] = useState(0);
 
   // sesion_id a partir del codigo (una sola vez): hace falta para leer la
-  // asistencia, que es la base del umbral del 50% -mismo criterio que
-  // Casos Clinicos: votos / presentes-.
+  // asistencia, base del umbral del 50% (votos / presentes, igual que
+  // Casos Clinicos).
   useEffect(() => {
     let cancelado = false;
     sesionResolver.resolver(codigo)
@@ -207,15 +295,11 @@ export default function ProyeccionClase() {
         const data = await clasesFormalesActual.leer(codigo);
         setPagina(data);
 
-        // Mismo poll, sin llamada nueva y separada: solo cuando la pagina
-        // activa es trivia se pide tambien su resultado (conteos +
-        // revelada) -no toca Supabase, es lectura en RAM, sin costo real-.
         if (data?.tipo_herramienta === "trivia") {
           const resultadoTrivia = await clasesFormalesTrivia.resultado(data.id);
           setTrivia(resultadoTrivia);
 
-          // Asistencia aparte: si falla, no debe tumbar el resultado de
-          // la trivia (se mantiene el ultimo valor conocido).
+          // Asistencia aparte: si falla, no tumba el resultado de la trivia.
           if (sesionId) {
             try {
               const a = await clasesFormalesSesiones.asistencia(sesionId);
@@ -228,8 +312,7 @@ export default function ProyeccionClase() {
           setTrivia(null);
         }
       } catch {
-        // Sin pagina activa todavia (o cualquier otro fallo transitorio):
-        // se muestra el QR, el proximo poll reintenta solo.
+        // Sin pagina activa todavia (o fallo transitorio): QR grande.
         setPagina(null);
         setTrivia(null);
       }
@@ -239,20 +322,18 @@ export default function ProyeccionClase() {
     return () => clearInterval(id);
   }, [codigo, sesionId]);
 
-  // Hook antes de cualquier return temprano (reglas de hooks).
-  const esTrivia = pagina?.tipo_herramienta === "trivia" && Boolean(pagina?.config?.pregunta);
-  const imagenTriviaUrl = useUrlImagen(esTrivia ? pagina.config.imagen_path : null);
+  // Hook antes de cualquier return temprano (reglas de hooks). Sirve para
+  // titulo_texto y trivia (incluye paginas antiguas con imagen_url).
+  const imagenUrl = useUrlImagen(pathImagenPagina(pagina?.config));
 
-  // Mismo flujo que Casos Clinicos (ProyeccionVivo): mientras se vota y
-  // aun no responde el 50% de los presentes, la imagen va SOLA y completa
-  // a pantalla grande. Al llegar al 50% (o al revelar), pasa al layout
-  // con la pregunta + alternativas con votacion en vivo y la imagen a la
-  // derecha. Sin imagen, la trivia se muestra como siempre.
+  // Trivia con imagen, igual que Casos Clinicos: mientras se vota y aun no
+  // responde el 50% de los presentes, la imagen va SOLA y completa. Al
+  // llegar al 50% (o al revelar) pasa a alternativas + imagen al lado.
+  const esTrivia = pagina?.tipo_herramienta === "trivia" && Boolean(pagina?.config?.pregunta);
   const totalVotos = trivia?.total || 0;
   const umbralAlcanzado = presentes > 0 && totalVotos / presentes >= 0.5;
   const revelada = Boolean(trivia?.revelada);
-  const mostrarSoloImagen = esTrivia && Boolean(imagenTriviaUrl) && !revelada && !umbralAlcanzado;
-  const mostrarImagenLado = esTrivia && Boolean(imagenTriviaUrl) && (revelada || umbralAlcanzado);
+  const mostrarSoloImagen = esTrivia && Boolean(imagenUrl) && !revelada && !umbralAlcanzado;
 
   const linkAlumno = `${APP_URL}/alumno-vivo/${codigo}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(linkAlumno)}`;
@@ -260,188 +341,127 @@ export default function ProyeccionClase() {
 
   if (!pagina) {
     return (
-      <div style={s.pantallaCentrada}>
-        <LogoBar />
-        <div style={s.qrBox}>
-          <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
-          <p style={s.codigoLabel}>Código de acceso</p>
-          <p style={s.codigo}>{codigo}</p>
+      <div style={s.contenedorFijo}>
+        <div style={s.pantallaCentrada}>
+          <LogoBar />
+          <div style={s.qrBox}>
+            <img src={qrUrl} alt="QR de la sesión" style={s.qrImg} />
+            <p style={s.codigoLabel}>Código de acceso</p>
+            <p style={s.codigo}>{codigo}</p>
+          </div>
         </div>
       </div>
     );
   }
 
-  // QR siempre visible en la esquina (con el codigo al lado como
-  // respaldo, para quien este lejos): un atrasado se une en cualquier
-  // momento sin tener que volver a la pantalla de QR grande. Vive dentro
-  // de la franja superior (la misma que ocupan los logos), nunca le quita
-  // espacio al contenido.
-  const esquina = (
-    <div style={s.esquina}>
-      <div style={s.esquinaTexto}>
-        <p style={s.esquinaLabel}>Únete a la clase</p>
-        <p style={s.esquinaCodigo}>{codigo}</p>
-      </div>
-      <img src={qrUrlChico} alt="QR de la sesión" style={s.esquinaQr} />
-    </div>
-  );
-
   if (mostrarSoloImagen) {
     return (
-      <div style={s.pantallaImagenSola}>
-        <LogoBar />
-        <img src={imagenTriviaUrl} alt="" style={s.imagenGrande} />
+      <div style={s.contenedorFijo}>
+        <div style={s.pantallaImagenSola}>
+          <LogoBar />
+          <img src={imagenUrl} alt="" style={s.imagenGrande} />
+        </div>
       </div>
     );
   }
 
-  const totalRespuestas = trivia && (
-    <p style={s.triviaTotal}>
-      {trivia.total} {trivia.total === 1 ? "respuesta" : "respuestas"}
-    </p>
-  );
-
   return (
-    <div style={s.pantalla}>
-      <LogoBar />
-      {esquina}
-
-      <h1 style={s.titulo}>{pagina.titulo}</h1>
-
-      <div style={s.cuerpo}>
-        {pagina.tipo_herramienta === "titulo_texto" && <ContenidoTituloTexto pagina={pagina} />}
-
-        {/* Trivia con imagen, fase 2 (50% votado o revelada): pregunta +
-            alternativas con votacion en vivo a la izquierda, imagen
-            completa a la derecha. */}
-        {mostrarImagenLado && (
-          <div style={s.filaLado}>
-            <div style={s.triviaTexto}>
-              <p style={s.pregunta}>{pagina.config.pregunta}</p>
-              <AlternativasTrivia pagina={pagina} trivia={trivia} />
-              {totalRespuestas}
-            </div>
-            <div style={s.columnaVisual}>
-              <div style={s.cajaVisual}>
-                <img src={imagenTriviaUrl} alt="" style={s.imagen} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Trivia sin imagen */}
-        {esTrivia && !imagenTriviaUrl && (
-          <div style={s.triviaTextoSolo}>
-            <p style={s.pregunta}>{pagina.config.pregunta}</p>
-            <AlternativasTrivia pagina={pagina} trivia={trivia} />
-            {totalRespuestas}
-          </div>
-        )}
-
-        {pagina.tipo_herramienta === "semaforo" && (
-          <p style={s.subtitulo}>Responde en tu celular: ¿sigo la clase?</p>
-        )}
-      </div>
-
-      {/* El SVG del grafico IA trae viewBox propio (800x600): con
-          width/height 100% llena su marco y el navegador lo escala
-          preservando la proporcion (preserveAspectRatio por defecto),
-          sin deformarlo. */}
-      <style>{`.grafico-ia-proyeccion svg { width: 100%; height: 100%; display: block; }`}</style>
+    <div style={s.contenedorFijo}>
+      <PantallaClase pagina={pagina} imagenUrl={imagenUrl} trivia={trivia} codigo={codigo} qrUrl={qrUrlChico} />
     </div>
   );
 }
 
+// ============================================================================
+// ESTILOS -todo en cqh/cqw (relativo a la pantalla dibujada)-
+// ============================================================================
 const ACENTO = "#4FC3D9";
 const FONDO = "#0E1526";
 const TARJETA = "#16213A";
 const BORDE = "1px solid rgba(244,241,233,0.12)";
-// Alto de la franja superior (logos + QR) y de lo que va dentro de ella
-const FRANJA = "clamp(96px, 14vh, 140px)";
-const ALTO_LOGO = "clamp(48px, 8vh, 80px)";
-const ALTO_QR = "clamp(84px, 12.5vh, 124px)";
+// Franja superior (logos + QR): el contenido empieza debajo de ella.
+const FRANJA = 14;   // cqh
+const ALTO_LOGO = 8; // cqh
+const ALTO_QR = 12;  // cqh
 
 const s = {
-  // position:fixed + inset:0 -en vez de 100vw/100vh-: ocupa exactamente
-  // la pantalla sin importar el margen por defecto del body (el proyecto
-  // no tiene CSS global), sin barras de scroll ni borde claro.
-  pantalla: { position: "fixed", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column", padding: `${FRANJA} 5vw 5vh` },
-  // Fase 1 de trivia con imagen: imagen sola, debajo de la franja de logos
-  // para que los logos (ahora mas grandes) no queden encima de la imagen.
-  pantallaImagenSola: { position: "fixed", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, display: "flex", alignItems: "center", justifyContent: "center", padding: `${FRANJA} 4vw 3vh` },
-  pantallaCentrada: { position: "fixed", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "4vh 4vw" },
+  // Contenedor de la proyeccion real: ocupa la ventana exacta
+  // (position:fixed + inset:0, sin depender del margen del body, sin
+  // scroll) y declara containerType:"size" para que las unidades
+  // cqh/cqw de PantallaClase se midan contra la pantalla.
+  contenedorFijo: { position: "fixed", inset: 0, containerType: "size", overflow: "hidden", background: FONDO },
 
-  // Franja superior (FRANJA): la reservan logos y QR. El contenido
-  // empieza debajo (padding-top de s.pantalla), asi que agrandar los
-  // logos o poner el QR aqui no le quita espacio a la presentacion.
-  logoBar: { position: "absolute", top: "calc((" + FRANJA + " - " + ALTO_LOGO + ") / 2)", left: "3vw", display: "flex", alignItems: "center", gap: "1.6vw", zIndex: 50 },
-  logoImg: { height: ALTO_LOGO, width: "auto", objectFit: "contain", opacity: 0.95 },
+  pantalla: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column", padding: `${FRANJA}cqh 5cqw 5cqh`, textAlign: "left" },
+  pantallaCentrada: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center" },
+  pantallaImagenSola: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", padding: `${FRANJA}cqh 4cqw 3cqh` },
 
-  esquina: { position: "absolute", top: "calc((" + FRANJA + " - " + ALTO_QR + ") / 2)", right: "3vw", display: "flex", alignItems: "center", gap: 16, zIndex: 50 },
+  logoBar: { position: "absolute", top: `${(FRANJA - ALTO_LOGO) / 2}cqh`, left: "3cqw", display: "flex", alignItems: "center", gap: "1.6cqw", zIndex: 50 },
+  logoImg: { height: `${ALTO_LOGO}cqh`, width: "auto", objectFit: "contain", opacity: 0.95 },
+
+  esquina: { position: "absolute", top: `${(FRANJA - ALTO_QR) / 2}cqh`, right: "3cqw", display: "flex", alignItems: "center", gap: "1.2cqw", zIndex: 50 },
   esquinaTexto: { textAlign: "right" },
-  esquinaLabel: { fontSize: "clamp(12px, 1.7vh, 16px)", color: "#94A3B8", margin: "0 0 2px" },
-  esquinaCodigo: { fontSize: "clamp(20px, 3.4vh, 32px)", fontWeight: 800, letterSpacing: 4, color: ACENTO, margin: 0 },
+  esquinaLabel: { fontSize: "1.8cqh", color: "#94A3B8", margin: "0 0 0.3cqh" },
+  esquinaCodigo: { fontSize: "3.6cqh", fontWeight: 800, letterSpacing: "0.4cqh", color: ACENTO, margin: 0 },
   // Fondo blanco + padding = zona de silencio que necesita el lector de QR
-  esquinaQr: { height: ALTO_QR, width: ALTO_QR, boxSizing: "border-box", background: "#FFFFFF", padding: "0.8vh", borderRadius: 8, display: "block" },
+  esquinaQr: { height: `${ALTO_QR}cqh`, width: `${ALTO_QR}cqh`, boxSizing: "border-box", background: "#FFFFFF", padding: "0.8cqh", borderRadius: "0.8cqh", display: "block" },
 
   qrBox: { textAlign: "center" },
-  qrImg: { width: "min(40vw, 40vh)", height: "min(40vw, 40vh)", borderRadius: 14, background: "#F4F1EA", padding: 14, marginBottom: 18 },
-  codigoLabel: { fontSize: "1.4vw", color: "#94A3B8", margin: 0 },
-  codigo: { fontSize: "3vw", fontWeight: 800, letterSpacing: 6, color: ACENTO, margin: "6px 0 0" },
+  qrImg: { width: "min(40cqw, 40cqh)", height: "min(40cqw, 40cqh)", borderRadius: "1.5cqh", background: "#F4F1EA", padding: "1.5cqh", marginBottom: "2cqh" },
+  codigoLabel: { fontSize: "2.4cqh", color: "#94A3B8", margin: 0 },
+  codigo: { fontSize: "5.4cqh", fontWeight: 800, letterSpacing: "0.6cqh", color: ACENTO, margin: "0.6cqh 0 0" },
 
-  // Titulo alineado a la izquierda con una barra de acento: ancla la
-  // pagina arriba y deja todo el resto del alto para el contenido.
-  titulo: { flexShrink: 0, fontSize: "clamp(30px, 6.2vh, 68px)", fontWeight: 800, lineHeight: 1.1, margin: "0 0 3.5vh", paddingLeft: 22, borderLeft: `7px solid ${ACENTO}` },
-  subtitulo: { fontSize: "clamp(20px, 3.6vh, 36px)", color: "#94A3B8", margin: 0 },
+  // Titulo a la izquierda con barra de acento; el resto del alto es contenido.
+  titulo: { flexShrink: 0, fontSize: "6.2cqh", fontWeight: 800, lineHeight: 1.1, margin: "0 0 3.5cqh", paddingLeft: "1.4cqw", borderLeft: `0.8cqh solid ${ACENTO}` },
+  subtitulo: { fontSize: "3.6cqh", color: "#94A3B8", margin: 0 },
 
-  // Area de contenido: altura definida (flex:1 + minHeight:0), la base
-  // para que imagenes y graficos sepan cuanto pueden crecer.
-  cuerpo: { flex: "1 1 auto", minHeight: 0, width: "100%", display: "flex", flexDirection: "column", justifyContent: "center" },
+  // Area de contenido con alto definido: base para que imagenes y
+  // graficos sepan cuanto pueden crecer.
+  // "safe center": si algo no cupiera, se recorta abajo, nunca tapa el titulo.
+  cuerpo: { flex: "1 1 auto", minHeight: 0, width: "100%", display: "flex", flexDirection: "column", justifyContent: "safe center" },
 
   // ---- visuales ----
+  visualesFila: { flex: "1 1 auto", minHeight: 0, width: "100%", display: "flex", gap: "3cqw" },
+  visualesApilados: { flex: "1 1 auto", minHeight: 0, height: "100%", display: "flex", flexDirection: "column", gap: "2cqh" },
   cajaVisual: { flex: "1 1 0", minWidth: 0, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" },
-  // Marco del grafico IA: fondo claro -los SVG vienen con fondo blanco o
-  // transparente y texto oscuro-, proporcion 4:3 como su viewBox.
-  marcoGrafico: { height: "100%", maxWidth: "100%", aspectRatio: "4 / 3", boxSizing: "border-box", background: "#FFFFFF", borderRadius: 14, padding: "1.5vh" },
-  imagen: { maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", borderRadius: 14, display: "block" },
-  imagenGrande: { maxWidth: "100%", maxHeight: "100%", borderRadius: 12, objectFit: "contain", display: "block" },
+  // Marco del grafico IA: fondo blanco (el SVG viene con fondo blanco o
+  // transparente y texto oscuro), proporcion 4:3 como su viewBox.
+  marcoGrafico: { height: "100%", maxWidth: "100%", aspectRatio: "4 / 3", boxSizing: "border-box", background: "#FFFFFF", borderRadius: "1.5cqh", padding: "1.5cqh" },
+  imagen: { maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", borderRadius: "1.5cqh", display: "block" },
+  imagenGrande: { maxWidth: "100%", maxHeight: "100%", borderRadius: "1.3cqh", objectFit: "contain", display: "block" },
 
-  // "grande": visuales arriba con todo el alto que sobra, bullets debajo
-  columnaGrande: { flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", gap: "3vh" },
-  filaVisuales: { flex: "1 1 0", minHeight: 0, display: "flex", gap: "3vw" },
-
-  // "lado": columna visual de la mitad del ancho, alto completo
-  filaLado: { flex: "1 1 auto", minHeight: 0, display: "flex", gap: "4vw", alignItems: "stretch" },
-  columnaVisual: { flex: "0 0 48%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", gap: "2vh" },
+  // Texto + imagen al lado: visual en la mitad del ancho, alto completo
+  filaLado: { flex: "1 1 auto", minHeight: 0, display: "flex", gap: "4cqw", alignItems: "stretch" },
+  columnaVisual: { flex: "0 0 48%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column" },
+  // Trivia con imagen: la imagen cede algo de ancho a las alternativas,
+  // que llevan texto + barra en la misma fila.
+  columnaVisualTrivia: { flex: "0 0 40%", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column" },
 
   // ---- bullets ----
   bulletMarcador: { color: ACENTO, fontWeight: 800, flexShrink: 0 },
-  // Sin visuales: ocupan todo el ancho util
-  bullets: { listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "2vh 3vw", width: "100%" },
-  bulletItem: { display: "flex", alignItems: "flex-start", gap: 18, background: TARJETA, border: BORDE, borderRadius: 14, padding: "2vh 2vw", fontSize: "clamp(20px, 3.4vh, 38px)", lineHeight: 1.3 },
-  // Al lado de un visual: centrados en vertical en su mitad
-  bulletsLado: { listStyle: "none", padding: 0, margin: 0, flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: "2vh" },
-  bulletItemLado: { display: "flex", alignItems: "flex-start", gap: 16, background: TARJETA, border: BORDE, borderRadius: 14, padding: "1.8vh 1.6vw", fontSize: "clamp(18px, 3vh, 32px)", lineHeight: 1.3 },
-  // Debajo de un visual grande: compactos, en 2 columnas si son varios
-  bulletsBajo: { listStyle: "none", padding: 0, margin: 0, flexShrink: 0, display: "grid", gap: "1.4vh 2vw" },
-  bulletItemBajo: { display: "flex", alignItems: "flex-start", gap: 14, background: TARJETA, border: BORDE, borderRadius: 12, padding: "1.2vh 1.4vw", fontSize: "clamp(16px, 2.5vh, 26px)", lineHeight: 1.3 },
+  bullets: { listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "2cqh 3cqw", width: "100%" },
+  bulletItem: { display: "flex", alignItems: "flex-start", gap: "1.2cqw", background: TARJETA, border: BORDE, borderRadius: "1.5cqh", padding: "2cqh 2cqw", fontSize: "3.4cqh", lineHeight: 1.3 },
+  bulletsLado: { listStyle: "none", padding: 0, margin: 0, flex: "1 1 0", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "safe center", gap: "2cqh" },
+  bulletItemLado: { display: "flex", alignItems: "flex-start", gap: "1cqw", background: TARJETA, border: BORDE, borderRadius: "1.5cqh", padding: "1.8cqh 1.6cqw", fontSize: "3cqh", lineHeight: 1.3 },
 
   // ---- trivia ----
-  triviaTexto: { flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" },
-  triviaTextoSolo: { width: "100%", maxWidth: 1300, margin: "0 auto", display: "flex", flexDirection: "column", justifyContent: "center" },
-  pregunta: { fontSize: "clamp(22px, 3.6vh, 40px)", fontWeight: 700, lineHeight: 1.25, margin: "0 0 3vh" },
-  alternativas: { display: "flex", flexDirection: "column", gap: "1.6vh", textAlign: "left" },
-  alternativa: { display: "flex", alignItems: "center", gap: 20, background: TARJETA, border: BORDE, borderRadius: 16, padding: "1.6vh 1.6vw", fontSize: "clamp(16px, 2.6vh, 28px)" },
-  // Mismo verde que AdminClaseVivo/Casos Clinicos para la opcion correcta
-  // al revelar -#7FD98F-, consistente en todo el ecosistema.
+  triviaTexto: { flex: "1 1 0", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "safe center" },
+  triviaTextoSolo: { width: "100%", maxWidth: "82cqw", margin: "0 auto", display: "flex", flexDirection: "column", justifyContent: "center" },
+  pregunta: { fontSize: "3.6cqh", fontWeight: 700, lineHeight: 1.25, margin: "0 0 3cqh" },
+  alternativas: { display: "flex", flexDirection: "column", gap: "1.6cqh" },
+  // Grilla de columnas fijas: letra | texto | barra (40%, igual en todas
+  // las filas) | conteo.
+  alternativa: { display: "grid", gridTemplateColumns: "auto 1fr 40% 3.2em", alignItems: "center", columnGap: "1.2cqw", background: TARJETA, border: BORDE, borderRadius: "1.7cqh", padding: "1.6cqh 1.6cqw", fontSize: "2.6cqh" },
+  // Mismo verde que AdminClaseVivo/Casos Clinicos para la correcta.
   alternativaCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
-  alternativaTexto: { flex: "0 1 auto", minWidth: 0 },
-  letra: { width: "clamp(32px, 4.6vh, 48px)", height: "clamp(32px, 4.6vh, 48px)", borderRadius: "50%", background: ACENTO, color: FONDO, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "clamp(16px, 2.4vh, 24px)", flexShrink: 0 },
+  // Al lado de una imagen: barra algo mas angosta (igual en todas las
+  // filas) y un poco menos de padding, para que el texto respire.
+  alternativaCompacta: { gridTemplateColumns: "auto 1fr 28% 2.6em", padding: "1.3cqh 1.4cqw", fontSize: "2.5cqh" },
+  alternativaTexto: { minWidth: 0, lineHeight: 1.25 },
+  letra: { width: "4.6cqh", height: "4.6cqh", borderRadius: "50%", background: ACENTO, color: FONDO, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "2.4cqh" },
   letraCorrecta: { background: "#7FD98F" },
-  // Barra de conteo en vivo, crece con el % de respuestas.
-  alternativaBarraFondo: { flex: 1, height: 14, borderRadius: 8, background: FONDO, overflow: "hidden", minWidth: 60 },
-  alternativaBarraLlena: { height: "100%", background: ACENTO, borderRadius: 8, transition: "width 0.4s ease" },
+  alternativaBarraFondo: { height: "1.5cqh", borderRadius: "0.8cqh", background: FONDO, overflow: "hidden" },
+  alternativaBarraLlena: { height: "100%", background: ACENTO, borderRadius: "0.8cqh", transition: "width 0.4s ease" },
   alternativaBarraLlenaCorrecta: { background: "#7FD98F" },
-  alternativaConteo: { flexShrink: 0, minWidth: 32, textAlign: "right", fontWeight: 800, color: "#94A3B8" },
-  triviaTotal: { marginTop: "2vh", fontSize: 18, color: "#64748B" },
+  alternativaConteo: { textAlign: "right", fontWeight: 800, color: "#94A3B8" },
+  triviaTotal: { marginTop: "2cqh", fontSize: "2cqh", color: "#64748B" },
 };
