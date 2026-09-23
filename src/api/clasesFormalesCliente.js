@@ -128,6 +128,8 @@ export const clasesFormalesTrivia = {
 export const clasesFormalesActual = {
   // Interrogador (auth) — mueve a la siguiente pagina de la secuencia
   avanzar: (sesionId) => request(`/clases-formales/sesiones/${sesionId}/avanzar`, { method: "PATCH", auth: true }),
+  // Interrogador (auth) — vuelve a la pagina anterior (se detiene en la primera)
+  retroceder: (sesionId) => request(`/clases-formales/sesiones/${sesionId}/retroceder`, { method: "PATCH", auth: true }),
 
   // Publico (admin control remoto + proyeccion, nunca el alumno)
   leer: (codigo) => request(`/clases-formales/actual/${codigo}`),
