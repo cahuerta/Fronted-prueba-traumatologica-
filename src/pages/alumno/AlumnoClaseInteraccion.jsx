@@ -30,6 +30,11 @@ export default function AlumnoClaseInteraccion() {
   const [semaforoError, setSemaforoError] = useState("");
 
   const [paginaTrivia, setPaginaTrivia] = useState(null); // pagina_id activa si es trivia, o null
+  // Pregunta + alternativas de la trivia activa. El alumno las necesita en
+  // su telefono -igual que Casos Clinicos- porque mientras no vota el 50%
+  // la proyeccion muestra SOLO la imagen, sin alternativas.
+  const [triviaPregunta, setTriviaPregunta] = useState("");
+  const [triviaAlternativas, setTriviaAlternativas] = useState([]);
   const [miLetra, setMiLetra] = useState(null);
   const [triviaError, setTriviaError] = useState("");
 
@@ -46,13 +51,24 @@ export default function AlumnoClaseInteraccion() {
       try {
         const pagina = await clasesFormalesActual.leer(codigo);
         if (pagina.tipo_herramienta === "trivia") {
-          setPaginaTrivia(pagina.id);
+          // Si cambia de una trivia a otra seguida, la letra marcada de
+          // la anterior no debe quedar pintada en la nueva.
+          setPaginaTrivia((prev) => {
+            if (prev !== pagina.id) setMiLetra(null);
+            return pagina.id;
+          });
+          setTriviaPregunta(pagina.config?.pregunta || "");
+          setTriviaAlternativas(pagina.config?.alternativas || []);
         } else {
           setPaginaTrivia(null);
+          setTriviaPregunta("");
+          setTriviaAlternativas([]);
           setMiLetra(null);
         }
       } catch {
         setPaginaTrivia(null);
+        setTriviaPregunta("");
+        setTriviaAlternativas([]);
       }
     }
     poll();
@@ -108,16 +124,19 @@ export default function AlumnoClaseInteraccion() {
         {/* ---------------- TRIVIA (solo aparece si la pagina activa es trivia) ---------------- */}
         {paginaTrivia && (
           <div style={s.seccion}>
-            <p style={s.label}>Pregunta en pantalla</p>
+            <p style={s.label}>{triviaPregunta || "Pregunta en pantalla"}</p>
             <div style={s.triviaBtns}>
-              {LETRAS.map((letra) => (
+              {/* Solo tantas letras como alternativas tenga la trivia
+                  (antes siempre A-E aunque tuviera 4). */}
+              {LETRAS.slice(0, triviaAlternativas.length || LETRAS.length).map((letra, i) => (
                 <button
                   key={letra}
                   type="button"
                   onClick={() => handleTrivia(letra)}
                   style={{ ...s.triviaBtn, ...(miLetra === letra ? s.triviaBtnActivo : {}) }}
                 >
-                  {letra}
+                  <span style={{ ...s.triviaLetra, ...(miLetra === letra ? s.triviaLetraActiva : {}) }}>{letra}</span>
+                  {triviaAlternativas[i] && <span style={s.triviaTexto}>{triviaAlternativas[i]}</span>}
                 </button>
               ))}
             </div>
@@ -181,9 +200,14 @@ const s = {
   semaforoBtn: { flex: 1, background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, color: "#F4F1EA", padding: "14px 0", fontSize: 16, fontWeight: 700, cursor: "pointer" },
   semaforoBtnActivoSi: { background: "#2FBF71", color: "#0E1526", border: "none" },
   semaforoBtnActivoNo: { background: "#D1495B", color: "#0E1526", border: "none" },
-  triviaBtns: { display: "flex", gap: 8 },
-  triviaBtn: { flex: 1, background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, color: "#F4F1EA", padding: "14px 0", fontSize: 16, fontWeight: 700, cursor: "pointer" },
-  triviaBtnActivo: { background: "#4FC3D9", color: "#0E1526", border: "none" },
+  // Alternativas apiladas con su texto -igual que AlumnoVivoVotar de
+  // Casos Clinicos-, antes eran 5 letras ciegas en fila.
+  triviaBtns: { display: "flex", flexDirection: "column", gap: 8 },
+  triviaBtn: { display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, color: "#F4F1EA", padding: "12px 14px", fontSize: 15, cursor: "pointer" },
+  triviaBtnActivo: { background: "#4FC3D9", color: "#0E1526", border: "1px solid #4FC3D9" },
+  triviaLetra: { width: 28, height: 28, borderRadius: "50%", background: "rgba(79,195,217,0.15)", color: "#4FC3D9", fontWeight: 800, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  triviaLetraActiva: { background: "#0E1526", color: "#4FC3D9" },
+  triviaTexto: { flex: 1, minWidth: 0, lineHeight: 1.3 },
   form: { display: "flex", flexDirection: "column", gap: 12 },
   textarea: { background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "14px 16px", color: "#F4F1EA", fontSize: 15, fontFamily: "sans-serif", resize: "vertical" },
   error: { color: "#D1495B", fontSize: 13, margin: 0 },
