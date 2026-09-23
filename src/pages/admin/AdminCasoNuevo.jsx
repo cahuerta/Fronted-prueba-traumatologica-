@@ -1,6 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { casosVivoAdmin } from "../../api/client";
+import { clasesFormalesMedia } from "../../api/clasesFormalesCliente";
+
+const API_URL = import.meta.env.VITE_API_URL;
+
+// Media de PREGUNTA de caso vive en el bucket "preguntas" (no "casos"),
+// asi que no puede usar clasesFormalesMedia.obtenerUrl (fija bucket
+// "casos" por defecto). Reusa el mismo endpoint publico /media-url,
+// ahora con ?bucket=preguntas -sin login, sin depender de banco_preguntas-.
+function obtenerUrlMediaPregunta(path) {
+  return fetch(`${API_URL}/casos-vivo/media-url?path=${encodeURIComponent(path)}&bucket=preguntas`)
+    .then((res) => {
+      if (!res.ok) throw new Error("No se pudo obtener la vista previa");
+      return res.json();
+    })
+    .then((data) => data.url);
+}
 
 const REGIONES = [
   { valor: "hombro", etiqueta: "Hombro" },
@@ -169,8 +185,10 @@ function PresentacionEditor({ casoId, caso, onGuardado }) {
   const [error, setError] = useState("");
 
   // Vista previa de la media: si se selecciono un archivo nuevo, se
-  // previsualiza local (object URL); si no, se usa la media ya guardada
-  // del caso (si existe).
+  // previsualiza local (object URL); si no, se pide la url firmada de
+  // la media ya guardada del caso -media_url que llega de obtenerCaso()
+  // es solo el path crudo del bucket privado "casos", no sirve como
+  // src directo- (mismo patron que AdminClaseConstructor.jsx).
   const [previewLocal, setPreviewLocal] = useState(null);
   useEffect(() => {
     if (!archivo) { setPreviewLocal(null); return; }
@@ -179,7 +197,18 @@ function PresentacionEditor({ casoId, caso, onGuardado }) {
     return () => URL.revokeObjectURL(url);
   }, [archivo]);
 
-  const mediaUrlPreview = previewLocal || caso?.media_url || null;
+  const [imagenUrlExistente, setImagenUrlExistente] = useState(null);
+  useEffect(() => {
+    if (!caso?.media_url) { setImagenUrlExistente(null); return; }
+    let cancelado = false;
+    clasesFormalesMedia.obtenerUrl(caso.media_url)
+      .then((r) => { if (!cancelado) setImagenUrlExistente(r.url); })
+      .catch(() => { if (!cancelado) setImagenUrlExistente(null); });
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caso?.media_url]);
+
+  const mediaUrlPreview = previewLocal || imagenUrlExistente || null;
   const mediaTipoPreview = archivo ? tipoMedia : caso?.media_tipo;
 
   async function handleGuardar(e) {
@@ -266,6 +295,9 @@ function PresentacionEditor({ casoId, caso, onGuardado }) {
 // Preview fiel al estado 'cerrada' real de ProyeccionVivo.jsx: pregunta,
 // alternativas con la correcta resaltada en verde, y el fundamento debajo
 // -misma composicion que ve el alumno cuando se revela la respuesta-.
+// La media de la pregunta se previsualiza igual que en PresentacionEditor
+// (local mientras se selecciona, firmada al cargar una ya guardada) pero
+// contra el bucket "preguntas" en vez de "casos".
 function PreguntaEditor({ casoId, pregunta, siguienteOrden, onGuardada, onEliminar }) {
   const editando = Boolean(pregunta);
 
@@ -281,11 +313,30 @@ function PreguntaEditor({ casoId, pregunta, siguienteOrden, onGuardada, onElimin
   const [guardandoPregunta, setGuardandoPregunta] = useState(false);
   const [error, setError] = useState("");
 
-  // Fundamento -fusionado aca, ya no es un paso aparte-. Solo aplica a
-  // preguntas YA guardadas (necesitan casoPreguntaId para pedirselo a la IA).
-  const [borrador, setBorrador] = useState(null);
-  const [generandoFundamento, setGenerandoFundamento] = useState(false);
-  const [guardandoFundamento, setGuardandoFundamento] = useState(false);
+  // Vista previa local mientras se elige un archivo nuevo (antes de guardar).
+  const [previewLocalPregunta, setPreviewLocalPregunta] = useState(null);
+  useEffect(() => {
+    if (!archivoPregunta) { setPreviewLocalPregunta(null); return; }
+    const url = URL.createObjectURL(archivoPregunta);
+    setPreviewLocalPregunta(url);
+    return () => URL.revokeObjectURL(url);
+  }, [archivoPregunta]);
+
+  // Url firmada de la media YA guardada (mediaActual.url es el path crudo
+  // del bucket privado "preguntas", no sirve como src directo).
+  const [mediaActualUrl, setMediaActualUrl] = useState(null);
+  useEffect(() => {
+    if (!mediaActual?.url) { setMediaActualUrl(null); return; }
+    let cancelado = false;
+    obtenerUrlMediaPregunta(mediaActual.url)
+      .then((url) => { if (!cancelado) setMediaActualUrl(url); })
+      .catch(() => { if (!cancelado) setMediaActualUrl(null); });
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaActual?.url]);
+
+  const mediaPreguntaUrlPreview = quitarMediaActual ? null : (previewLocalPregunta || mediaActualUrl || null);
+  const mediaPreguntaTipoPreview = archivoPregunta ? tipoMediaPregunta : mediaActual?.tipo;
 
   function handleEditarOpcion(i, valor) {
     const nuevas = [...opciones];
@@ -367,6 +418,12 @@ function PreguntaEditor({ casoId, pregunta, siguienteOrden, onGuardada, onElimin
     }
   }
 
+  // Fundamento -fusionado aca, ya no es un paso aparte-. Solo aplica a
+  // preguntas YA guardadas (necesitan casoPreguntaId para pedirselo a la IA).
+  const [borrador, setBorrador] = useState(null);
+  const [generandoFundamento, setGenerandoFundamento] = useState(false);
+  const [guardandoFundamento, setGuardandoFundamento] = useState(false);
+
   async function handleGuardarFundamento() {
     if (!borrador) return;
     setError("");
@@ -391,6 +448,13 @@ function PreguntaEditor({ casoId, pregunta, siguienteOrden, onGuardada, onElimin
         <div style={p.wrap}>
           <p style={p.label}>Vista previa — proyección (así se ve al revelar la respuesta)</p>
           <div style={p.pantallaPregunta}>
+            {mediaPreguntaUrlPreview && (
+              mediaPreguntaTipoPreview === "video" ? (
+                <video src={mediaPreguntaUrlPreview} style={p.mediaPregunta} muted />
+              ) : (
+                <img src={mediaPreguntaUrlPreview} alt="" style={p.mediaPregunta} />
+              )
+            )}
             <p style={p.preguntaTexto}>{preguntaTexto || "Enunciado de la pregunta"}</p>
             <div style={p.opciones}>
               {(opciones || ["", "", "", "", ""]).map((op, i) => {
@@ -622,9 +686,9 @@ const p = {
   vinetaTexto: { fontSize: "clamp(11px, 2cqw, 15px)", lineHeight: 1.4, margin: 0, color: "#C7CDD9" },
   vacio: { fontSize: 12, color: "#64748B" },
 
-  // "Pregunta N" -> replica del estado 'cerrada': pregunta + alternativas
-  // con la correcta en verde + fundamento debajo (opcionRowCorrecta,
-  // explicacionBox reales).
+  // "Pregunta N" -> replica del estado 'cerrada': media (si tiene) +
+  // pregunta + alternativas con la correcta en verde + fundamento debajo
+  // (opcionRowCorrecta, explicacionBox reales; media = imagenChica real).
   pantallaPregunta: {
     background: "#0E1526",
     border: "1px solid rgba(244,241,233,0.12)",
@@ -633,6 +697,7 @@ const p = {
     color: "#F4F1EA",
     fontFamily: "sans-serif",
   },
+  mediaPregunta: { display: "block", maxWidth: "60%", maxHeight: 160, borderRadius: 8, objectFit: "contain", margin: "0 auto 16px" },
   preguntaTexto: { fontSize: 16, fontWeight: 700, lineHeight: 1.3, margin: "0 0 16px" },
   opciones: { display: "flex", flexDirection: "column", gap: 8 },
   opcionRow: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "2px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "9px 14px" },
