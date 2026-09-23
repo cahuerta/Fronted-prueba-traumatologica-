@@ -294,9 +294,26 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
           </>
         )}
 
+        {/* Trivia: el preview muestra la pantalla con votacion (fase 2
+            de ProyeccionClase). Con imagen: pregunta + alternativas a la
+            izquierda, imagen completa a la derecha con toda la altura
+            disponible. Antes la imagen iba arriba con maxHeight:34% sin
+            altura de referencia -no se aplicaba-, desbordaba la caja
+            16:9 y se cortaba (titulo incluido). */}
         {tipoHerramienta === "trivia" && (
-          <div style={p.trivia}>
-            {imagenUrl && (
+          imagenUrl ? (
+            <div style={p.triviaFila}>
+              <div style={p.triviaTextoLado}>
+                <p style={p.preguntaLado}>{pregunta || "Pregunta de la trivia"}</p>
+                <div style={p.alternativasLado}>
+                  {LETRAS.slice(0, numAlternativas).map((letra, i) => (
+                    <div key={letra} style={p.alternativaLado}>
+                      <span style={p.letra}>{letra}</span>
+                      <span>{alternativas[i] || `Alternativa ${letra}`}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div style={p.triviaImagenBox}>
                 <img
                   src={imagenUrl}
@@ -304,17 +321,20 @@ function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagen
                   style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", display: "block" }}
                 />
               </div>
-            )}
-            <p style={p.pregunta}>{pregunta || "Pregunta de la trivia"}</p>
-            <div style={p.alternativas}>
-              {LETRAS.slice(0, numAlternativas).map((letra, i) => (
-                <div key={letra} style={p.alternativa}>
-                  <span style={p.letra}>{letra}</span>
-                  <span>{alternativas[i] || `Alternativa ${letra}`}</span>
-                </div>
-              ))}
             </div>
-          </div>
+          ) : (
+            <div style={p.trivia}>
+              <p style={p.pregunta}>{pregunta || "Pregunta de la trivia"}</p>
+              <div style={p.alternativas}>
+                {LETRAS.slice(0, numAlternativas).map((letra, i) => (
+                  <div key={letra} style={p.alternativa}>
+                    <span style={p.letra}>{letra}</span>
+                    <span>{alternativas[i] || `Alternativa ${letra}`}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
         )}
 
         {tipoHerramienta === "ninguna" && <p style={p.vacio}>Solo se proyecta el título</p>}
@@ -777,7 +797,15 @@ const p = {
   bulletItemLado: { display: "flex", alignItems: "flex-start", gap: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 6, padding: "6px 10px" },
   bulletMarcador: { color: ACENTO, fontWeight: 800, flexShrink: 0 },
   trivia: { width: "100%" },
-  triviaImagenBox: { maxWidth: "60%", maxHeight: "34%", margin: "0 auto 3%", borderRadius: 6, background: "#FFFFFF", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" },
+  // Trivia con imagen: mismo patron que filaLado (flex:1 + minHeight:0),
+  // la imagen ocupa la altura completa disponible a la derecha y se
+  // escala hacia adentro, nunca se corta.
+  triviaFila: { display: "flex", flex: "1 1 auto", minHeight: 0, gap: "4%", alignItems: "center", width: "100%" },
+  triviaTextoLado: { flex: "1 1 0", minWidth: 0, maxHeight: "100%", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "left" },
+  triviaImagenBox: { flex: "0 0 44%", height: "100%", minHeight: 0, borderRadius: 6, background: "#FFFFFF", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" },
+  preguntaLado: { fontSize: 14, margin: "0 0 10px", lineHeight: 1.3 },
+  alternativasLado: { display: "flex", flexDirection: "column", gap: 6 },
+  alternativaLado: { display: "flex", alignItems: "center", gap: 8, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 6, padding: "5px 10px", fontSize: 12, lineHeight: 1.25 },
   pregunta: { fontSize: 17, margin: "0 0 14px", lineHeight: 1.3 },
   alternativas: { display: "flex", flexDirection: "column", gap: 8, textAlign: "left", maxWidth: "85%", margin: "0 auto" },
   alternativa: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "8px 14px", fontSize: 14 },
