@@ -16,6 +16,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { clasesFormalesPaginas, clasesFormalesMedia } from "../../api/clasesFormalesCliente";
 import { casosVivoAdmin } from "../../api/client";
+// El preview usa EXACTAMENTE el mismo componente que la proyeccion real
+// (PantallaClase) y la misma regla de disposicion -si se ve bien aca, se
+// ve bien proyectado-.
+import { PantallaClase, resolverDisposicion } from "./ProyeccionClase";
 
 const ACENTO = "#4FC3D9";
 const LETRAS = ["A", "B", "C", "D", "E"];
@@ -32,10 +36,13 @@ const HERRAMIENTA_LABEL = {
 // (subirMediaCaso) -decision confirmada con Cristobal, mismo bucket,
 // sin separar storage, privado a proposito-. El "tipo" que le mandamos
 // es "foto", igual que casos clinicos.
+// Si la pagina tiene texto + imagen/grafico, la imagen va SIEMPRE al lado
+// del texto: solo se elige el lado. Imagen/grafico sin texto -> grande y
+// centrada automaticamente (no hay nada que elegir). Regla unica en
+// resolverDisposicion (ProyeccionClase.jsx).
 const DISPOSICION_LABEL = {
-  grande: "Grande (protagonista, texto abajo)",
-  lado_izquierda: "Al lado del texto — imagen a la izquierda",
-  lado_derecha: "Al lado del texto — imagen a la derecha",
+  lado_izquierda: "Imagen a la izquierda del texto",
+  lado_derecha: "Imagen a la derecha del texto",
 };
 
 // El grafico generado por IA (config.imagen_svg) y la imagen manual
@@ -221,128 +228,37 @@ function PaginaItem({ pagina, numero, seleccionada, onSeleccionar, onEliminar })
 }
 
 // ---------------- PREVIEW EN MINIATURA ----------------
-// Simula la misma pantalla que ve el proyector (ProyeccionClase.jsx) —
-// mismo fondo oscuro y jerarquía tipográfica, para que el docente vea
-// cómo va a quedar antes de guardar. Ahora ocupa todo el ancho
-// disponible del panel derecho (antes competía 44%/56% con el
-// formulario al lado; el editor completo va debajo, no al costado).
-// Imagen manual y grafico IA pueden coexistir: se muestran lado a lado,
-// para no taparse entre si ni tapar el texto de abajo.
-function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagenSvg, pregunta, alternativas, numAlternativas }) {
+// Copia a escala EXACTA de la proyeccion: dibuja <PantallaClase>, el mismo
+// componente que usa ProyeccionClase.jsx, dentro de una caja 16:9 que
+// declara containerType:"size" -todas las medidas de PantallaClase son
+// relativas a esa caja (cqh/cqw), asi que escalan igual que en el
+// proyector-. Incluye la franja de logos + QR, para ver cuanto espacio
+// queda realmente para el contenido. La trivia se muestra como se ve en
+// la votacion en vivo (barras en cero).
+const QR_MUESTRA = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=${encodeURIComponent("vista-previa")}`;
+
+function PreviewPagina({ titulo, tipoHerramienta, textoLineas, imagenUrl, imagenSvg, disposicionImagen, pregunta, alternativas, numAlternativas, correcta }) {
   const bullets = (textoLineas || "").split("\n").map((l) => l.trim()).filter(Boolean);
-  const hayVisuales = Boolean(imagenUrl || imagenSvg);
 
-  // Lado a lado, no apilado: en una caja 16:9 hay mas espacio horizontal
-  // que vertical, asi que competir gráfico vs bullets por ALTURA nunca
-  // iba a caber bien -por eso los intentos anteriores fallaban-. Cuando
-  // coexisten grafico/imagen y bullets, se reparten el ANCHO: visual a
-  // un lado, bullets al otro (letra mas chica para que quepan). Si solo
-  // hay uno de los dos, ese ocupa todo el espacio disponible.
-  const hayBullets = bullets.length > 0;
-  const numVisuales = (imagenSvg ? 1 : 0) + (imagenUrl ? 1 : 0);
-  const layoutLado = hayVisuales && hayBullets;
+  let config = {};
+  if (tipoHerramienta === "titulo_texto") {
+    config = { bullets, imagen_svg: imagenSvg || undefined, disposicion_imagen: disposicionImagen };
+  } else if (tipoHerramienta === "trivia") {
+    config = {
+      pregunta: pregunta || "Pregunta de la trivia",
+      alternativas: LETRAS.slice(0, numAlternativas).map((letra, i) => alternativas[i] || `Alternativa ${letra}`),
+      correcta,
+    };
+  }
 
-  const bloqueVisual = hayVisuales && (
-    <div style={{ ...(layoutLado ? p.columnaVisualLado : p.visualSolo), ...(numVisuales === 2 ? { gap: "4%" } : {}) }}>
-      {imagenSvg && (
-        <div
-          className="grafico-ia-preview"
-          style={numVisuales === 2 ? { ...p.visualBox, width: "48%" } : p.visualBox}
-          dangerouslySetInnerHTML={{ __html: imagenSvg }}
-        />
-      )}
-      {imagenUrl && (
-        <div style={numVisuales === 2 ? { ...p.visualBox, width: "48%" } : p.visualBox}>
-          <img
-            src={imagenUrl}
-            alt=""
-            style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", display: "block" }}
-          />
-        </div>
-      )}
-    </div>
-  );
-
-  const bloqueBullets = hayBullets && (
-    <ul style={layoutLado ? p.bulletsLado : p.bullets}>
-      {bullets.map((b, i) => (
-        <li key={i} style={layoutLado ? p.bulletItemLado : p.bulletItem}>
-          <span style={p.bulletMarcador}>•</span>
-          <span>{b}</span>
-        </li>
-      ))}
-    </ul>
-  );
+  const pagina = { titulo, tipo_herramienta: tipoHerramienta, config };
 
   return (
     <div style={p.wrap}>
       <p style={p.label}>Vista previa — proyección</p>
-      <div style={p.pantalla}>
-        <p style={p.titulo}>{titulo || "Título de la página"}</p>
-
-        {tipoHerramienta === "titulo_texto" && (
-          <>
-            {layoutLado ? (
-              <div style={p.filaLado}>
-                {bloqueVisual}
-                {bloqueBullets}
-              </div>
-            ) : (
-              <>{bloqueVisual}{bloqueBullets}</>
-            )}
-            {!hayVisuales && !hayBullets && <p style={p.vacio}>Sin contenido todavía</p>}
-          </>
-        )}
-
-        {/* Trivia: el preview muestra la pantalla con votacion (fase 2
-            de ProyeccionClase). Con imagen: pregunta + alternativas a la
-            izquierda, imagen completa a la derecha con toda la altura
-            disponible. Antes la imagen iba arriba con maxHeight:34% sin
-            altura de referencia -no se aplicaba-, desbordaba la caja
-            16:9 y se cortaba (titulo incluido). */}
-        {tipoHerramienta === "trivia" && (
-          imagenUrl ? (
-            <div style={p.triviaFila}>
-              <div style={p.triviaTextoLado}>
-                <p style={p.preguntaLado}>{pregunta || "Pregunta de la trivia"}</p>
-                <div style={p.alternativasLado}>
-                  {LETRAS.slice(0, numAlternativas).map((letra, i) => (
-                    <div key={letra} style={p.alternativaLado}>
-                      <span style={p.letra}>{letra}</span>
-                      <span>{alternativas[i] || `Alternativa ${letra}`}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div style={p.triviaImagenBox}>
-                <img
-                  src={imagenUrl}
-                  alt=""
-                  style={{ maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", display: "block" }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div style={p.trivia}>
-              <p style={p.pregunta}>{pregunta || "Pregunta de la trivia"}</p>
-              <div style={p.alternativas}>
-                {LETRAS.slice(0, numAlternativas).map((letra, i) => (
-                  <div key={letra} style={p.alternativa}>
-                    <span style={p.letra}>{letra}</span>
-                    <span>{alternativas[i] || `Alternativa ${letra}`}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        )}
-
-        {tipoHerramienta === "ninguna" && <p style={p.vacio}>Solo se proyecta el título</p>}
+      <div style={p.caja}>
+        <PantallaClase pagina={pagina} imagenUrl={imagenUrl || null} trivia={null} codigo="CÓDIGO" qrUrl={QR_MUESTRA} />
       </div>
-      {/* Escala el SVG inyectado preservando su propia proporcion (viewBox
-          propio) para caber dentro del contenedor -max-width/max-height,
-          no width/height fijos, que lo estirarian distorsionando su forma-. */}
-      <style>{`.grafico-ia-preview svg { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }`}</style>
     </div>
   );
 }
@@ -358,6 +274,7 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
   // ---- config titulo_texto ----
   const configPrevia = pagina?.config || {};
   const [textoLineas, setTextoLineas] = useState(() => (configPrevia.bullets || []).join("\n"));
+  const hayTexto = textoLineas.split("\n").some((l) => l.trim());
 
   // ---- imagen manual opcional (solo aplica a titulo_texto) ----
   // Se guarda el PATH permanente (config.imagen_path), nunca el link firmado
@@ -372,7 +289,11 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
 
   const [imagenPath, setImagenPath] = useState(pathExistente || "");
   const [imagenUrl, setImagenUrl] = useState("");
-  const [disposicionImagen, setDisposicionImagen] = useState(configPrevia.disposicion_imagen || "grande");
+  // Solo izquierda/derecha. Paginas antiguas guardadas como "grande"
+  // quedan a la izquierda (misma regla que la proyeccion).
+  const [disposicionImagen, setDisposicionImagen] = useState(
+    configPrevia.disposicion_imagen === "lado_derecha" ? "lado_derecha" : "lado_izquierda"
+  );
   const [subiendoImagen, setSubiendoImagen] = useState(false);
   const [cargandoImagen, setCargandoImagen] = useState(Boolean(pathExistente));
 
@@ -463,8 +384,8 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
         correcta,
       };
       // Imagen opcional en trivia -mismo path permanente que titulo_texto,
-      // sin disposicion (siempre arriba de la pregunta, no hay texto/bullets
-      // con los que repartir el layout aca).
+      // sin disposicion: sola mientras votan, y al 50% a la derecha de las
+      // alternativas (ver ProyeccionClase.jsx).
       if (imagenPath) {
         config.imagen_path = imagenPath;
       }
@@ -472,12 +393,16 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
       config = {
         bullets: textoLineas.split("\n").map((l) => l.trim()).filter(Boolean),
       };
+      // Disposicion guardada segun la regla unica: con texto, el lado
+      // elegido; sin texto, "grande". Aplica a imagen manual Y grafico IA.
+      if (imagenPath || imagenSvg) {
+        config.disposicion_imagen = resolverDisposicion({ disposicion_imagen: disposicionImagen }, config.bullets.length > 0);
+      }
       // Imagen manual e imagen IA coexisten -no se pisan-. El grafico IA
       // solo se preserva o se quita aca, nunca se genera ni se sube.
       // Se guarda imagen_path (permanente), NUNCA imagen_url (token que vence).
       if (imagenPath) {
         config.imagen_path = imagenPath;
-        config.disposicion_imagen = disposicionImagen;
       }
       if (imagenSvg) {
         config.imagen_svg = imagenSvg;
@@ -514,9 +439,11 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
           textoLineas={textoLineas}
           imagenUrl={imagenUrl}
           imagenSvg={imagenSvg}
+          disposicionImagen={disposicionImagen}
           pregunta={pregunta}
           alternativas={alternativas}
           numAlternativas={numAlternativas}
+          correcta={correcta}
         />
       </div>
 
@@ -588,19 +515,25 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
               )}
               {subiendoImagen && <p style={s.info}>Subiendo imagen...</p>}
 
-              {imagenPath && (
-                <>
-                  <label style={s.label}>Disposición de la imagen</label>
-                  <select
-                    value={disposicionImagen}
-                    onChange={(e) => setDisposicionImagen(e.target.value)}
-                    style={s.input}
-                  >
-                    {Object.entries(DISPOSICION_LABEL).map(([valor, label]) => (
-                      <option key={valor} value={valor}>{label}</option>
-                    ))}
-                  </select>
-                </>
+              {/* Con texto + imagen/grafico: solo se elige el lado. Sin
+                  texto: grande y centrada, no hay nada que elegir. */}
+              {(imagenPath || imagenSvg) && (
+                hayTexto ? (
+                  <>
+                    <label style={s.label}>Lado de la imagen</label>
+                    <select
+                      value={disposicionImagen}
+                      onChange={(e) => setDisposicionImagen(e.target.value)}
+                      style={s.input}
+                    >
+                      {Object.entries(DISPOSICION_LABEL).map(([valor, label]) => (
+                        <option key={valor} value={valor}>{label}</option>
+                      ))}
+                    </select>
+                  </>
+                ) : (
+                  <p style={s.info}>Sin texto: la imagen se proyecta grande y centrada.</p>
+                )
               )}
             </>
           )}
@@ -615,7 +548,7 @@ function PaginaEditor({ claseFormalId, pagina, onCerrar, onGuardada }) {
                 style={s.input}
               />
 
-              <label style={s.label}>Imagen (opcional — se muestra arriba de la pregunta)</label>
+              <label style={s.label}>Imagen (opcional — sola mientras votan, luego al lado de las alternativas)</label>
 
               {cargandoImagen ? (
                 <p style={s.info}>Cargando imagen...</p>
@@ -745,69 +678,8 @@ const s = {
 const p = {
   wrap: { marginBottom: 18, maxWidth: 900 },
   label: { fontSize: 11, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" },
-  pantalla: {
-    background: "#0E1526",
-    border: "1px solid rgba(244,241,233,0.12)",
-    borderRadius: 10,
-    aspectRatio: "16 / 9",
-    padding: "5% 6%",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    textAlign: "center",
-    // Una pantalla de proyeccion NUNCA tiene scroll -tamaño fijo 16:9,
-    // overflow:hidden real-. El contenido (grafico + bullets) se escala
-    // para caber adentro -ver visualesRow/visualBox con minHeight:0 y
-    // el grafico con max-width/max-height:100% preservando su proporcion-
-    // en vez de desbordarse (bug anterior) o forzar que la caja crezca
-    // y obligue a hacer scroll (parche incorrecto anterior).
-    overflow: "hidden",
-    color: "#F4F1EA",
-    fontFamily: "sans-serif",
-  },
-  titulo: { fontSize: "clamp(14px, 2.6cqw, 26px)", fontWeight: 800, margin: "0 0 8px", lineHeight: 1.2 },
-  vacio: { fontSize: 13, color: "#64748B" },
-  // Lado a lado -no apilado-: en una caja 16:9 hay mas espacio horizontal
-  // que vertical, asi que grafico y bullets se reparten el ANCHO cuando
-  // coexisten, cada uno con la altura completa disponible para escalar
-  // adentro. flex:1 + minHeight:0 en ambos es el override real del bug
-  // de flexbox donde los items no se encogen por debajo del tamaño de su
-  // contenido por defecto -sin esto el maxHeight/height:100% no se
-  // respeta-.
-  filaLado: { display: "flex", flex: "1 1 auto", minHeight: 0, gap: "4%", alignItems: "center", justifyContent: "center", width: "100%" },
-  columnaVisualLado: { flex: "0 0 46%", height: "100%", minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" },
-  // Cuando solo hay grafico/imagen (sin bullets, caso autoexplicativo):
-  // ocupa todo el espacio disponible, no solo la mitad.
-  visualSolo: { flex: "1 1 auto", minHeight: 0, width: "100%", display: "flex", alignItems: "center", justifyContent: "center" },
-  // height:100% + el grafico/imagen adentro con max-width/max-height:100%
-  // y width/height auto -preserva su proporcion, se escala hacia adentro
-  // para caber completo, nunca se corta ni se desborda-.
-  visualBox: { height: "100%", width: "100%", borderRadius: 6, background: "#FFFFFF", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" },
-  // Antes dependian de un marcador ::before en un objeto de estilos
-  // inline -que React nunca aplica-, por eso quedaban sin separacion
-  // visual real entre lineas. Ahora cada bullet es su propia fila con
-  // fondo, borde y gap real, mismo lenguaje visual que p.alternativa.
-  bullets: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10, textAlign: "left", fontSize: 15, lineHeight: 1.3, maxWidth: "92%", width: "92%" },
-  bulletItem: { display: "flex", alignItems: "flex-start", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "9px 14px" },
-  // Version compacta para cuando comparten espacio con un grafico/imagen
-  // al lado -letra mas chica y padding reducido para que quepan mas
-  // lineas en menos ancho-.
-  bulletsLado: { listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8, textAlign: "left", fontSize: 12.5, lineHeight: 1.25, flex: 1, minWidth: 0, maxHeight: "100%", overflow: "hidden" },
-  bulletItemLado: { display: "flex", alignItems: "flex-start", gap: 6, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 6, padding: "6px 10px" },
-  bulletMarcador: { color: ACENTO, fontWeight: 800, flexShrink: 0 },
-  trivia: { width: "100%" },
-  // Trivia con imagen: mismo patron que filaLado (flex:1 + minHeight:0),
-  // la imagen ocupa la altura completa disponible a la derecha y se
-  // escala hacia adentro, nunca se corta.
-  triviaFila: { display: "flex", flex: "1 1 auto", minHeight: 0, gap: "4%", alignItems: "center", width: "100%" },
-  triviaTextoLado: { flex: "1 1 0", minWidth: 0, maxHeight: "100%", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center", textAlign: "left" },
-  triviaImagenBox: { flex: "0 0 44%", height: "100%", minHeight: 0, borderRadius: 6, background: "#FFFFFF", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" },
-  preguntaLado: { fontSize: 14, margin: "0 0 10px", lineHeight: 1.3 },
-  alternativasLado: { display: "flex", flexDirection: "column", gap: 6 },
-  alternativaLado: { display: "flex", alignItems: "center", gap: 8, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 6, padding: "5px 10px", fontSize: 12, lineHeight: 1.25 },
-  pregunta: { fontSize: 17, margin: "0 0 14px", lineHeight: 1.3 },
-  alternativas: { display: "flex", flexDirection: "column", gap: 8, textAlign: "left", maxWidth: "85%", margin: "0 auto" },
-  alternativa: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 8, padding: "8px 14px", fontSize: 14 },
-  letra: { width: 22, height: 22, borderRadius: "50%", background: ACENTO, color: "#0E1526", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11, flexShrink: 0 },
+  // Pantalla a escala: 16:9 y containerType:"size" -las medidas de
+  // PantallaClase (cqh/cqw) se calculan contra esta caja, igual que en la
+  // proyeccion se calculan contra la ventana completa-.
+  caja: { position: "relative", width: "100%", aspectRatio: "16 / 9", containerType: "size", overflow: "hidden", borderRadius: 10, border: "1px solid rgba(244,241,233,0.12)", background: "#0E1526" },
 };
