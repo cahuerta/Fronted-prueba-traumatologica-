@@ -22,8 +22,8 @@ function extraerPathDeUrlVencida(urlVieja) {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-// Barra de logos institucionales — misma que ProyeccionVivo, ubicada
-// arriba a la izquierda para no chocar con el código de acceso (arriba a la derecha).
+// Barra de logos institucionales, arriba a la izquierda dentro de la franja
+// superior -no choca con el QR + codigo (arriba a la derecha)-.
 function LogoBar() {
   return (
     <div style={s.logoBar}>
@@ -256,6 +256,7 @@ export default function ProyeccionClase() {
 
   const linkAlumno = `${APP_URL}/alumno-vivo/${codigo}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(linkAlumno)}`;
+  const qrUrlChico = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=${encodeURIComponent(linkAlumno)}`;
 
   if (!pagina) {
     return (
@@ -270,16 +271,24 @@ export default function ProyeccionClase() {
     );
   }
 
+  // QR siempre visible en la esquina (con el codigo al lado como
+  // respaldo, para quien este lejos): un atrasado se une en cualquier
+  // momento sin tener que volver a la pantalla de QR grande. Vive dentro
+  // de la franja superior (la misma que ocupan los logos), nunca le quita
+  // espacio al contenido.
   const esquina = (
     <div style={s.esquina}>
-      <p style={s.esquinaLabel}>Código de acceso</p>
-      <p style={s.esquinaCodigo}>{codigo}</p>
+      <div style={s.esquinaTexto}>
+        <p style={s.esquinaLabel}>Únete a la clase</p>
+        <p style={s.esquinaCodigo}>{codigo}</p>
+      </div>
+      <img src={qrUrlChico} alt="QR de la sesión" style={s.esquinaQr} />
     </div>
   );
 
   if (mostrarSoloImagen) {
     return (
-      <div style={s.pantallaCentrada}>
+      <div style={s.pantallaImagenSola}>
         <LogoBar />
         <img src={imagenTriviaUrl} alt="" style={s.imagenGrande} />
       </div>
@@ -347,20 +356,33 @@ const ACENTO = "#4FC3D9";
 const FONDO = "#0E1526";
 const TARJETA = "#16213A";
 const BORDE = "1px solid rgba(244,241,233,0.12)";
+// Alto de la franja superior (logos + QR) y de lo que va dentro de ella
+const FRANJA = "clamp(96px, 14vh, 140px)";
+const ALTO_LOGO = "clamp(48px, 8vh, 80px)";
+const ALTO_QR = "clamp(84px, 12.5vh, 124px)";
 
 const s = {
   // position:fixed + inset:0 -en vez de 100vw/100vh-: ocupa exactamente
   // la pantalla sin importar el margen por defecto del body (el proyecto
   // no tiene CSS global), sin barras de scroll ni borde claro.
-  pantalla: { position: "fixed", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column", padding: "clamp(96px, 14vh, 140px) 5vw 5vh" },
+  pantalla: { position: "fixed", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column", padding: `${FRANJA} 5vw 5vh` },
+  // Fase 1 de trivia con imagen: imagen sola, debajo de la franja de logos
+  // para que los logos (ahora mas grandes) no queden encima de la imagen.
+  pantallaImagenSola: { position: "fixed", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, display: "flex", alignItems: "center", justifyContent: "center", padding: `${FRANJA} 4vw 3vh` },
   pantallaCentrada: { position: "fixed", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: "4vh 4vw" },
 
-  logoBar: { position: "absolute", top: 32, left: 40, display: "flex", alignItems: "center", gap: 20, zIndex: 50 },
-  logoImg: { height: 32, width: "auto", objectFit: "contain", opacity: 0.92 },
+  // Franja superior (FRANJA): la reservan logos y QR. El contenido
+  // empieza debajo (padding-top de s.pantalla), asi que agrandar los
+  // logos o poner el QR aqui no le quita espacio a la presentacion.
+  logoBar: { position: "absolute", top: "calc((" + FRANJA + " - " + ALTO_LOGO + ") / 2)", left: "3vw", display: "flex", alignItems: "center", gap: "1.6vw", zIndex: 50 },
+  logoImg: { height: ALTO_LOGO, width: "auto", objectFit: "contain", opacity: 0.95 },
 
-  esquina: { position: "absolute", top: 28, right: 40, textAlign: "right" },
-  esquinaLabel: { fontSize: 14, color: "#94A3B8", margin: "0 0 2px" },
-  esquinaCodigo: { fontSize: 28, fontWeight: 800, letterSpacing: 4, color: ACENTO, margin: 0 },
+  esquina: { position: "absolute", top: "calc((" + FRANJA + " - " + ALTO_QR + ") / 2)", right: "3vw", display: "flex", alignItems: "center", gap: 16, zIndex: 50 },
+  esquinaTexto: { textAlign: "right" },
+  esquinaLabel: { fontSize: "clamp(12px, 1.7vh, 16px)", color: "#94A3B8", margin: "0 0 2px" },
+  esquinaCodigo: { fontSize: "clamp(20px, 3.4vh, 32px)", fontWeight: 800, letterSpacing: 4, color: ACENTO, margin: 0 },
+  // Fondo blanco + padding = zona de silencio que necesita el lector de QR
+  esquinaQr: { height: ALTO_QR, width: ALTO_QR, boxSizing: "border-box", background: "#FFFFFF", padding: "0.8vh", borderRadius: 8, display: "block" },
 
   qrBox: { textAlign: "center" },
   qrImg: { width: "min(40vw, 40vh)", height: "min(40vw, 40vh)", borderRadius: 14, background: "#F4F1EA", padding: 14, marginBottom: 18 },
@@ -382,7 +404,7 @@ const s = {
   // transparente y texto oscuro-, proporcion 4:3 como su viewBox.
   marcoGrafico: { height: "100%", maxWidth: "100%", aspectRatio: "4 / 3", boxSizing: "border-box", background: "#FFFFFF", borderRadius: 14, padding: "1.5vh" },
   imagen: { maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", borderRadius: 14, display: "block" },
-  imagenGrande: { maxWidth: "92vw", maxHeight: "86vh", borderRadius: 12, objectFit: "contain", display: "block" },
+  imagenGrande: { maxWidth: "100%", maxHeight: "100%", borderRadius: 12, objectFit: "contain", display: "block" },
 
   // "grande": visuales arriba con todo el alto que sobra, bullets debajo
   columnaGrande: { flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", gap: "3vh" },
