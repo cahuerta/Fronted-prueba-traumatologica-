@@ -194,6 +194,7 @@ export default function AdminCasoNuevo() {
             <PreguntaEditor
               key={seleccion}
               casoId={casoId}
+              tituloCaso={caso?.titulo || ""}
               pregunta={preguntaSeleccionada}
               siguienteOrden={siguienteOrden}
               onGuardada={async (resultado) => {
@@ -278,6 +279,7 @@ function PresentacionEditor({ casoId, caso, onGuardado }) {
         <PreviewProyeccion etiqueta="Vista previa — proyección (así se ve al mostrar el caso)">
           <PantallaCaso
             modo="presentando"
+            titulo={titulo || "Título del caso"}
             caso={{
               vineta_clinica: vineta || "La viñeta clínica aparecerá aquí",
               media_url: mediaUrlPreview,
@@ -337,7 +339,7 @@ function PresentacionEditor({ casoId, caso, onGuardado }) {
 // La media de la pregunta se previsualiza igual que en PresentacionEditor
 // (local mientras se selecciona, firmada al cargar una ya guardada) pero
 // contra el bucket "preguntas" en vez de "casos".
-function PreguntaEditor({ casoId, pregunta, siguienteOrden, onGuardada, onEliminar }) {
+function PreguntaEditor({ casoId, tituloCaso, pregunta, siguienteOrden, onGuardada, onEliminar }) {
   const editando = Boolean(pregunta);
 
   const [preguntaTexto, setPreguntaTexto] = useState(pregunta?.pregunta || "");
@@ -499,6 +501,7 @@ function PreguntaEditor({ casoId, pregunta, siguienteOrden, onGuardada, onElimin
         <PreviewProyeccion etiqueta="Vista previa — proyección durante la votación">
           <PantallaCaso
             modo="pregunta"
+            titulo={tituloCaso}
             pregunta={preguntaPreview}
             estado="votando"
             conteo={{}}
@@ -512,6 +515,7 @@ function PreguntaEditor({ casoId, pregunta, siguienteOrden, onGuardada, onElimin
           ) : (
             <PantallaCaso
               modo="pregunta"
+              titulo={tituloCaso}
               pregunta={preguntaPreview}
               estado="cerrada"
               conteo={{}}
