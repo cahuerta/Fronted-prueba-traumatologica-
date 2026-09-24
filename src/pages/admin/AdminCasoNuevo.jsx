@@ -2,6 +2,38 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { casosVivoAdmin } from "../../api/client";
 import { clasesFormalesMedia } from "../../api/clasesFormalesCliente";
+// El preview usa EXACTAMENTE el mismo componente que la proyeccion real
+// (PantallaCaso): lo que se ve al armar el caso es lo que se proyecta.
+import { PantallaCaso } from "./ProyeccionVivo";
+
+const QR_MUESTRA = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=${encodeURIComponent("vista-previa")}`;
+
+// Pantalla 16:9 a escala con PantallaCaso adentro (containerType:"size":
+// todas sus medidas son relativas a esta caja, igual que en el proyector).
+function PreviewProyeccion({ etiqueta, children }) {
+  return (
+    <div style={p.wrap}>
+      <p style={p.label}>{etiqueta}</p>
+      <div style={p.caja}>{children}</div>
+    </div>
+  );
+}
+
+// Miniatura en el formulario: deja ver cual foto/video quedo (o cual se
+// va a subir) sin tener que subir a mirar la vista previa.
+function Miniatura({ url, tipo, texto }) {
+  if (!url) return null;
+  return (
+    <div style={s.miniaturaBox}>
+      {tipo === "video" ? (
+        <video src={url} style={s.miniatura} muted />
+      ) : (
+        <img src={url} alt="" style={s.miniatura} />
+      )}
+      <span style={s.mediaActualTexto}>{texto}</span>
+    </div>
+  );
+}
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -143,6 +175,11 @@ export default function AdminCasoNuevo() {
 
           {seleccion === "presentacion" && (
             <PresentacionEditor
+              // Se vuelve a montar cuando el caso termina de cargar: el
+              // formulario toma region/titulo/vineta del caso solo al
+              // montarse, y antes se montaba con el caso aun vacio (al
+              // abrir un caso existente los campos aparecian en blanco).
+              key={caso?.id || "nuevo"}
               casoId={casoId}
               caso={caso}
               onGuardado={async (guardado, esNuevo) => {
@@ -238,21 +275,18 @@ function PresentacionEditor({ casoId, caso, onGuardado }) {
     <div style={s.editorStack}>
       <div>
         <p style={s.editorTitulo}>Presentación del caso</p>
-        <div style={p.wrap}>
-          <p style={p.label}>Vista previa — proyección (así se ve al mostrar el caso)</p>
-          <div style={p.pantalla}>
-            {mediaUrlPreview ? (
-              mediaTipoPreview === "video" ? (
-                <video src={mediaUrlPreview} style={p.media} muted />
-              ) : (
-                <img src={mediaUrlPreview} alt="" style={p.media} />
-              )
-            ) : (
-              <p style={p.vacio}>Sin foto/video todavía</p>
-            )}
-            <p style={p.vinetaTexto}>{vineta || "La viñeta clínica aparecerá aquí"}</p>
-          </div>
-        </div>
+        <PreviewProyeccion etiqueta="Vista previa — proyección (así se ve al mostrar el caso)">
+          <PantallaCaso
+            modo="presentando"
+            caso={{
+              vineta_clinica: vineta || "La viñeta clínica aparecerá aquí",
+              media_url: mediaUrlPreview,
+              media_tipo: mediaTipoPreview,
+            }}
+            codigo="CÓDIGO"
+            qrUrl={QR_MUESTRA}
+          />
+        </PreviewProyeccion>
       </div>
 
       <div>
@@ -279,6 +313,11 @@ function PresentacionEditor({ casoId, caso, onGuardado }) {
             </select>
             <input type="file" onChange={(e) => setArchivo(e.target.files?.[0] || null)} style={s.fileInput} />
           </div>
+          {archivo ? (
+            <Miniatura url={previewLocal} tipo={tipoMedia} texto="Nueva — reemplaza a la actual al guardar" />
+          ) : (
+            <Miniatura url={imagenUrlExistente} tipo={caso?.media_tipo} texto={`${caso?.media_tipo === "video" ? "Video" : "Foto"} actual del caso`} />
+          )}
 
           {error && <p style={s.error}>{error}</p>}
 
@@ -441,40 +480,46 @@ function PreguntaEditor({ casoId, pregunta, siguienteOrden, onGuardada, onElimin
 
   const explicacionAMostrar = borrador?.explicacion ?? pregunta?.explicacion_generada ?? "";
 
+  const preguntaPreview = {
+    texto: preguntaTexto,
+    opciones: opciones || ["", "", "", "", ""],
+    correcta: correctaIdx,
+    explicacion: explicacionAMostrar,
+    media_url: mediaPreguntaUrlPreview,
+    media_tipo: mediaPreguntaTipoPreview,
+  };
+
   return (
     <div style={s.editorStack}>
       <div>
         <p style={s.editorTitulo}>{editando ? `Pregunta ${pregunta.orden}` : `Nueva pregunta ${siguienteOrden}`}</p>
-        <div style={p.wrap}>
-          <p style={p.label}>Vista previa — proyección (así se ve al revelar la respuesta)</p>
-          <div style={p.pantallaPregunta}>
-            {mediaPreguntaUrlPreview && (
-              mediaPreguntaTipoPreview === "video" ? (
-                <video src={mediaPreguntaUrlPreview} style={p.mediaPregunta} muted />
-              ) : (
-                <img src={mediaPreguntaUrlPreview} alt="" style={p.mediaPregunta} />
-              )
-            )}
-            <p style={p.preguntaTexto}>{preguntaTexto || "Enunciado de la pregunta"}</p>
-            <div style={p.opciones}>
-              {(opciones || ["", "", "", "", ""]).map((op, i) => {
-                const esCorrecta = correctaIdx === i;
-                return (
-                  <div key={i} style={{ ...p.opcionRow, ...(esCorrecta ? p.opcionRowCorrecta : {}) }}>
-                    <span style={p.opcionLetra}>{LETRAS[i]}</span>
-                    <span style={p.opcionTexto}>{op || `Alternativa ${LETRAS[i]}`}</span>
-                  </div>
-                );
-              })}
-            </div>
-            {explicacionAMostrar && (
-              <div style={p.explicacionBox}>
-                <p style={p.explicacionTitulo}>Fundamento</p>
-                <p style={p.explicacionTexto}>{explicacionAMostrar}</p>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Las dos pantallas reales de la pregunta: con votos en vivo
+            (desde que vota el 50%) y al revelar (solo la correcta +
+            fundamento). */}
+        <PreviewProyeccion etiqueta="Vista previa — proyección durante la votación">
+          <PantallaCaso
+            modo="pregunta"
+            pregunta={preguntaPreview}
+            estado="votando"
+            conteo={{}}
+            codigo="CÓDIGO"
+            qrUrl={QR_MUESTRA}
+          />
+        </PreviewProyeccion>
+        <PreviewProyeccion etiqueta="Vista previa — proyección al revelar la respuesta">
+          {correctaIdx === null || correctaIdx === undefined ? (
+            <p style={p.vacio}>Genera las alternativas para ver la respuesta correcta.</p>
+          ) : (
+            <PantallaCaso
+              modo="pregunta"
+              pregunta={preguntaPreview}
+              estado="cerrada"
+              conteo={{}}
+              codigo="CÓDIGO"
+              qrUrl={QR_MUESTRA}
+            />
+          )}
+        </PreviewProyeccion>
       </div>
 
       <div>
@@ -503,9 +548,12 @@ function PreguntaEditor({ casoId, pregunta, siguienteOrden, onGuardada, onElimin
 
           {mediaActual && !quitarMediaActual && !archivoPregunta && (
             <div style={s.mediaActualBox}>
-              <span style={s.mediaActualTexto}>Ya tiene {mediaActual.tipo === "video" ? "un video" : "una foto"} guardado</span>
+              <Miniatura url={mediaActualUrl} tipo={mediaActual.tipo} texto={`${mediaActual.tipo === "video" ? "Video" : "Foto"} actual de esta pregunta`} />
               <button type="button" onClick={() => setQuitarMediaActual(true)} style={s.quitarBtn}>Quitar</button>
             </div>
+          )}
+          {archivoPregunta && (
+            <Miniatura url={previewLocalPregunta} tipo={tipoMediaPregunta} texto="Nueva — se guarda al presionar Guardar" />
           )}
           {quitarMediaActual && (
             <p style={s.mediaActualTexto}>Se quitará la foto/video al guardar.</p>
@@ -650,6 +698,8 @@ const s = {
   quitarBtn: { background: "none", border: "1px solid rgba(209,73,91,0.4)", color: "#D1495B", borderRadius: 6, padding: "5px 10px", fontSize: 12, cursor: "pointer" },
   quitarBtnGrande: { background: "none", border: "1px solid rgba(209,73,91,0.4)", color: "#D1495B", borderRadius: 8, padding: "12px 18px", fontSize: 13, cursor: "pointer" },
 
+  miniaturaBox: { display: "flex", alignItems: "center", gap: 12, margin: "4px 0 6px" },
+  miniatura: { width: 120, height: 90, objectFit: "contain", background: "#000", borderRadius: 8, border: "1px solid rgba(244,241,233,0.15)", flexShrink: 0 },
   mediaActualBox: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0E1526", border: "1px solid rgba(244,241,233,0.1)", borderRadius: 8, padding: "8px 12px", marginBottom: 6 },
   mediaActualTexto: { fontSize: 12, color: "#94A3B8", margin: 0 },
 
@@ -658,53 +708,11 @@ const s = {
   fuentes: { fontSize: 12, color: "#94A3B8", margin: "8px 0 0" },
 };
 
-// Estilos de la vista previa — imitan fielmente ProyeccionVivo.jsx a
-// escala reducida (caja 16:9), no son una invencion nueva.
+// Estilos de la vista previa: solo la caja 16:9 que contiene a
+// PantallaCaso (el contenido y su estilo son los de ProyeccionVivo.jsx).
 const p = {
   wrap: { marginBottom: 18, maxWidth: 900 },
   label: { fontSize: 11, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" },
-
-  // "Presentacion del caso" -> replica del estado 'presentando': media
-  // grande arriba, vineta clinica en texto abajo (s.casoBox real).
-  pantalla: {
-    background: "#0E1526",
-    border: "1px solid rgba(244,241,233,0.12)",
-    borderRadius: 10,
-    aspectRatio: "16 / 9",
-    padding: "5% 6%",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    textAlign: "center",
-    overflow: "hidden",
-    color: "#F4F1EA",
-    fontFamily: "sans-serif",
-    gap: 12,
-  },
-  media: { maxWidth: "70%", maxHeight: "60%", borderRadius: 8, objectFit: "contain" },
-  vinetaTexto: { fontSize: "clamp(11px, 2cqw, 15px)", lineHeight: 1.4, margin: 0, color: "#C7CDD9" },
-  vacio: { fontSize: 12, color: "#64748B" },
-
-  // "Pregunta N" -> replica del estado 'cerrada': media (si tiene) +
-  // pregunta + alternativas con la correcta en verde + fundamento debajo
-  // (opcionRowCorrecta, explicacionBox reales; media = imagenChica real).
-  pantallaPregunta: {
-    background: "#0E1526",
-    border: "1px solid rgba(244,241,233,0.12)",
-    borderRadius: 10,
-    padding: "24px 28px",
-    color: "#F4F1EA",
-    fontFamily: "sans-serif",
-  },
-  mediaPregunta: { display: "block", maxWidth: "60%", maxHeight: 160, borderRadius: 8, objectFit: "contain", margin: "0 auto 16px" },
-  preguntaTexto: { fontSize: 16, fontWeight: 700, lineHeight: 1.3, margin: "0 0 16px" },
-  opciones: { display: "flex", flexDirection: "column", gap: 8 },
-  opcionRow: { display: "flex", alignItems: "center", gap: 10, background: "#16213A", border: "2px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "9px 14px" },
-  opcionRowCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
-  opcionLetra: { width: 24, height: 24, borderRadius: "50%", background: "rgba(79,195,217,0.15)", color: "#4FC3D9", fontWeight: 800, fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  opcionTexto: { fontSize: 13, flex: 1 },
-  explicacionBox: { marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(244,241,233,0.15)" },
-  explicacionTitulo: { fontSize: 11, color: "#4FC3D9", fontWeight: 700, textTransform: "uppercase", margin: "0 0 6px" },
-  explicacionTexto: { fontSize: 13, lineHeight: 1.5, margin: 0 },
+  caja: { position: "relative", width: "100%", aspectRatio: "16 / 9", containerType: "size", overflow: "hidden", borderRadius: 10, border: "1px solid rgba(244,241,233,0.12)", background: "#0E1526", display: "flex", alignItems: "center", justifyContent: "center" },
+  vacio: { fontSize: 13, color: "#64748B", margin: 0 },
 };
