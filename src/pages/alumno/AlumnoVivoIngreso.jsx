@@ -68,6 +68,12 @@ export default function AlumnoVivoIngreso() {
     e.preventDefault();
     setError("");
 
+    // Igual que Casos Clinicos: nombre + RUT o matricula
+    const nombreLimpio = nombre.trim();
+    if (!nombreLimpio) {
+      setError("Ingresa tu nombre");
+      return;
+    }
     const rutLimpio = rut.trim();
     if (!rutLimpio) {
       setError("Ingresa tu RUT o número de matrícula");
@@ -76,7 +82,7 @@ export default function AlumnoVivoIngreso() {
 
     setEntrando(true);
     try {
-      await clasesFormalesIngreso.ingresar(sesionId, rutLimpio);
+      await clasesFormalesIngreso.ingresar(sesionId, nombreLimpio, rutLimpio);
       localStorage.setItem("clase_rut", rutLimpio);
       localStorage.setItem("clase_sesion_id", sesionId);
       navigate(`/alumno-vivo/${codigo}/clase`);
@@ -142,8 +148,15 @@ export default function AlumnoVivoIngreso() {
     <div style={s.wrap}>
       <div style={s.card}>
         <p style={s.titulo}>Clase en vivo</p>
-        <p style={s.subtitulo}>Ingresa tu RUT o número de matrícula para participar</p>
+        <p style={s.subtitulo}>Ingresa tu nombre y tu RUT o número de matrícula para participar</p>
         <form onSubmit={handleIngresoClase} style={s.form}>
+          <input
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            placeholder="Nombre completo"
+            required
+            style={s.input}
+          />
           <input
             value={rut}
             onChange={handleRutChange}
@@ -171,4 +184,3 @@ const s = {
   error: { color: "#D1495B", fontSize: 13, margin: 0 },
   btn: { background: "#4FC3D9", border: "none", borderRadius: 10, color: "#0E1526", padding: "15px 0", fontSize: 16, fontWeight: 700, cursor: "pointer", marginTop: 8 },
 };
-  
