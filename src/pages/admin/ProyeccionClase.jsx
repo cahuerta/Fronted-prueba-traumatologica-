@@ -73,13 +73,16 @@ function useUrlImagen(imagenPath) {
   return imagenUrl;
 }
 
-// Logos institucionales, arriba a la izquierda dentro de la franja superior.
-function LogoBar() {
+// Logos institucionales, arriba a la izquierda dentro de la franja
+// superior. En la portada (pagina de solo titulo) van mas grandes: ahi no
+// hay contenido al que quitarle espacio.
+function LogoBar({ grandes }) {
+  const estiloImg = grandes ? s.logoImgGrande : s.logoImg;
   return (
-    <div style={s.logoBar}>
-      <img src="/logo-utal.png" alt="UTAL" style={s.logoImg} />
-      <img src="/logo-ica.png" alt="ICA" style={s.logoImg} />
-      <img src="/logo-hipokratia.png" alt="Hipokratia" style={s.logoImg} />
+    <div style={grandes ? s.logoBarGrande : s.logoBar}>
+      <img src="/logo-utal.png" alt="UTAL" style={estiloImg} />
+      <img src="/logo-ica.png" alt="ICA" style={estiloImg} />
+      <img src="/logo-hipokratia.png" alt="Hipokratia" style={estiloImg} />
     </div>
   );
 }
@@ -213,6 +216,27 @@ export function PantallaClase({ pagina, imagenUrl, trivia, codigo, qrUrl }) {
   const tipo = pagina?.tipo_herramienta;
   const esTrivia = tipo === "trivia";
 
+  // PORTADA: pagina sin contenido (solo titulo, o titulo_texto sin texto
+  // ni imagen ni grafico). Titulo grande al centro de la pantalla y
+  // logos mas grandes. Se mira el config (no la URL ya resuelta de la
+  // imagen) para no mostrar la portada un instante mientras carga.
+  const tieneContenidoTituloTexto =
+    (config.bullets || []).length > 0 || Boolean(config.imagen_svg) || Boolean(pathImagenPagina(config)) || Boolean(imagenUrl);
+  const esPortada = !esTrivia && tipo !== "semaforo" && !(tipo === "titulo_texto" && tieneContenidoTituloTexto);
+
+  if (esPortada) {
+    return (
+      <div style={s.pantalla}>
+        <LogoBar grandes />
+        <Esquina codigo={codigo} qrUrl={qrUrl} />
+        <div style={s.portadaCentro}>
+          <h1 style={s.tituloPortada}>{pagina?.titulo || "Título de la página"}</h1>
+          <div style={s.acentoPortada} />
+        </div>
+      </div>
+    );
+  }
+
   const totalRespuestas = trivia && (
     <p style={s.triviaTotal}>
       {trivia.total} {trivia.total === 1 ? "respuesta" : "respuestas"}
@@ -224,7 +248,10 @@ export function PantallaClase({ pagina, imagenUrl, trivia, codigo, qrUrl }) {
       <LogoBar />
       <Esquina codigo={codigo} qrUrl={qrUrl} />
 
+      {/* Paginas con contenido: titulo centrado arriba, con una linea de
+          acento debajo. */}
       <h1 style={s.titulo}>{pagina?.titulo || "Título de la página"}</h1>
+      <div style={s.acentoTitulo} />
 
       <div style={s.cuerpo}>
         {tipo === "titulo_texto" && <ContenidoTituloTexto config={config} imagenUrl={imagenUrl} />}
@@ -381,7 +408,8 @@ const TARJETA = "#16213A";
 const BORDE = "1px solid rgba(244,241,233,0.12)";
 // Franja superior (logos + QR): el contenido empieza debajo de ella.
 const FRANJA = 14;   // cqh
-const ALTO_LOGO = 8; // cqh
+const ALTO_LOGO = 10;        // cqh (paginas con contenido, dentro de la franja)
+const ALTO_LOGO_PORTADA = 15; // cqh (portada: sin contenido que respetar)
 const ALTO_QR = 12;  // cqh
 
 const s = {
@@ -396,7 +424,9 @@ const s = {
   pantallaImagenSola: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", padding: `${FRANJA}cqh 4cqw 3cqh` },
 
   logoBar: { position: "absolute", top: `${(FRANJA - ALTO_LOGO) / 2}cqh`, left: "3cqw", display: "flex", alignItems: "center", gap: "1.6cqw", zIndex: 50 },
-  logoImg: { height: `${ALTO_LOGO}cqh`, width: "auto", objectFit: "contain", opacity: 0.95 },
+  logoImg: { height: `${ALTO_LOGO}cqh`, width: "auto", objectFit: "contain" },
+  logoBarGrande: { position: "absolute", top: "4cqh", left: "4cqw", display: "flex", alignItems: "center", gap: "2.2cqw", zIndex: 50 },
+  logoImgGrande: { height: `${ALTO_LOGO_PORTADA}cqh`, width: "auto", objectFit: "contain" },
 
   esquina: { position: "absolute", top: `${(FRANJA - ALTO_QR) / 2}cqh`, right: "3cqw", display: "flex", alignItems: "center", gap: "1.2cqw", zIndex: 50 },
   esquinaTexto: { textAlign: "right" },
@@ -410,8 +440,15 @@ const s = {
   codigoLabel: { fontSize: "2.4cqh", color: "#94A3B8", margin: 0 },
   codigo: { fontSize: "5.4cqh", fontWeight: 800, letterSpacing: "0.6cqh", color: ACENTO, margin: "0.6cqh 0 0" },
 
-  // Titulo a la izquierda con barra de acento; el resto del alto es contenido.
-  titulo: { flexShrink: 0, fontSize: "6.2cqh", fontWeight: 800, lineHeight: 1.1, margin: "0 0 3.5cqh", paddingLeft: "1.4cqw", borderLeft: `0.8cqh solid ${ACENTO}` },
+  // Paginas con contenido: titulo centrado arriba + linea de acento
+  // centrada debajo; el resto del alto es contenido.
+  titulo: { flexShrink: 0, fontSize: "6.2cqh", fontWeight: 800, lineHeight: 1.1, margin: 0, textAlign: "center", padding: "0 6cqw" },
+  acentoTitulo: { flexShrink: 0, alignSelf: "center", width: "8cqw", height: "0.6cqh", borderRadius: "0.3cqh", background: ACENTO, margin: "1.6cqh 0 3cqh" },
+
+  // Portada: titulo grande al centro exacto del espacio bajo la franja
+  portadaCentro: { flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingBottom: `${FRANJA / 2}cqh` },
+  tituloPortada: { fontSize: "10cqh", fontWeight: 800, lineHeight: 1.12, margin: 0, textAlign: "center", maxWidth: "80cqw" },
+  acentoPortada: { width: "12cqw", height: "0.9cqh", borderRadius: "0.45cqh", background: ACENTO, marginTop: "3cqh" },
   subtitulo: { fontSize: "3.6cqh", color: "#94A3B8", margin: 0 },
 
   // Area de contenido con alto definido: base para que imagenes y
