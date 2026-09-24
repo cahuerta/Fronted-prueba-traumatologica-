@@ -76,7 +76,20 @@ function useUrlImagen(imagenPath) {
 // Logos institucionales, arriba a la izquierda dentro de la franja
 // superior. En la portada (pagina de solo titulo) van mas grandes: ahi no
 // hay contenido al que quitarle espacio.
-function LogoBar({ grandes }) {
+//
+// variante "columna": apilados en la columna lateral izquierda. Se usa
+// solo en imagen/grafico SIN contenido (un 4:3 deja libres los costados
+// de una pantalla 16:9; subir los logos ahi le devuelve alto a la imagen).
+export function LogoBar({ grandes, columna }) {
+  if (columna) {
+    return (
+      <div style={s.logoColumna}>
+        <img src="/logo-utal.png" alt="UTAL" style={s.logoColumnaAncho} />
+        <img src="/logo-ica.png" alt="ICA" style={s.logoColumnaCuadrado} />
+        <img src="/logo-hipokratia.png" alt="Hipokratia" style={s.logoColumnaCuadrado} />
+      </div>
+    );
+  }
   const estiloImg = grandes ? s.logoImgGrande : s.logoImg;
   return (
     <div style={grandes ? s.logoBarGrande : s.logoBar}>
@@ -90,7 +103,19 @@ function LogoBar({ grandes }) {
 // QR siempre visible en la esquina, con el codigo al lado como respaldo:
 // un atrasado se une en cualquier momento. Vive dentro de la franja
 // superior (igual que los logos), nunca le quita espacio al contenido.
-function Esquina({ codigo, qrUrl }) {
+//
+// variante "columna": QR grande arriba en la columna lateral derecha, con
+// el codigo debajo (solo imagen/grafico sin contenido, igual que LogoBar).
+export function Esquina({ codigo, qrUrl, columna }) {
+  if (columna) {
+    return (
+      <div style={s.qrColumna}>
+        {qrUrl && <img src={qrUrl} alt="QR de la sesión" style={s.qrColumnaImg} />}
+        <p style={s.esquinaLabel}>Únete a la clase</p>
+        <p style={s.qrColumnaCodigo}>{codigo}</p>
+      </div>
+    );
+  }
   return (
     <div style={s.esquina}>
       <div style={s.esquinaTexto}>
@@ -105,12 +130,21 @@ function Esquina({ codigo, qrUrl }) {
 // Imagen manual y/o grafico IA, cada uno en una caja de tamaño definido
 // (se escala adentro preservando su proporcion). Sin caja definida el SVG
 // del grafico IA no tiene tamaño propio y colapsaba a 0x0.
+// Proporcion real del grafico IA, leida de su viewBox (hoy todos son
+// 800x600 = 4:3, pero se respeta cualquier otro formato sin deformarlo).
+function proporcionSvg(svg) {
+  const m = (svg || "").match(/viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i);
+  const ancho = m ? parseFloat(m[1]) : 0;
+  const alto = m ? parseFloat(m[2]) : 0;
+  return ancho > 0 && alto > 0 ? `${ancho} / ${alto}` : "4 / 3";
+}
+
 function BloqueVisuales({ imagenUrl, imagenSvg, apilados }) {
   return (
     <div style={apilados ? s.visualesApilados : s.visualesFila}>
       {imagenSvg && (
         <div style={s.cajaVisual}>
-          <div className="grafico-ia-pantalla" style={s.marcoGrafico} dangerouslySetInnerHTML={{ __html: imagenSvg }} />
+          <div className="grafico-ia-pantalla" style={{ ...s.marcoGrafico, aspectRatio: proporcionSvg(imagenSvg) }} dangerouslySetInnerHTML={{ __html: imagenSvg }} />
         </div>
       )}
       {imagenUrl && (
@@ -237,6 +271,25 @@ export function PantallaClase({ pagina, imagenUrl, trivia, codigo, qrUrl }) {
     );
   }
 
+  // IMAGEN/GRAFICO SIN CONTENIDO (titulo_texto sin texto): logos y QR
+  // pasan a columnas laterales -el espacio que un 4:3 deja libre a los
+  // lados- y el titulo queda en una franja delgada arriba. La imagen gana
+  // todo el alto restante.
+  const esSoloVisual = tipo === "titulo_texto" && (config.bullets || []).length === 0;
+  if (esSoloVisual) {
+    return (
+      <div style={s.pantallaLateral}>
+        <LogoBar columna />
+        <Esquina codigo={codigo} qrUrl={qrUrl} columna />
+        <h1 style={s.tituloLateral}>{pagina?.titulo || "Título de la página"}</h1>
+        <div style={s.cuerpo}>
+          <ContenidoTituloTexto config={config} imagenUrl={imagenUrl} />
+        </div>
+        <style>{`.grafico-ia-pantalla svg { width: 100%; height: 100%; display: block; }`}</style>
+      </div>
+    );
+  }
+
   const totalRespuestas = trivia && (
     <p style={s.triviaTotal}>
       {trivia.total} {trivia.total === 1 ? "respuesta" : "respuestas"}
@@ -248,10 +301,10 @@ export function PantallaClase({ pagina, imagenUrl, trivia, codigo, qrUrl }) {
       <LogoBar />
       <Esquina codigo={codigo} qrUrl={qrUrl} />
 
-      {/* Paginas con contenido: titulo centrado arriba, con una linea de
-          acento debajo. */}
-      <h1 style={s.titulo}>{pagina?.titulo || "Título de la página"}</h1>
-      <div style={s.acentoTitulo} />
+      {/* Paginas con contenido: titulo DENTRO de la franja superior,
+          centrado entre los logos y el QR -no ocupa una fila propia, asi
+          todo el alto bajo la franja queda para el contenido-. */}
+      <h1 style={s.tituloFranja}>{pagina?.titulo || "Título de la página"}</h1>
 
       <div style={s.cuerpo}>
         {tipo === "titulo_texto" && <ContenidoTituloTexto config={config} imagenUrl={imagenUrl} />}
@@ -284,9 +337,8 @@ export function PantallaClase({ pagina, imagenUrl, trivia, codigo, qrUrl }) {
         )}
       </div>
 
-      {/* El SVG del grafico IA trae viewBox propio (800x600): con
-          width/height 100% llena su marco 4:3 y se escala preservando su
-          proporcion, sin deformarse. */}
+      {/* El SVG del grafico IA trae viewBox propio: con width/height 100%
+          llena su marco (de la misma proporcion) sin deformarse. */}
       <style>{`.grafico-ia-pantalla svg { width: 100%; height: 100%; display: block; }`}</style>
     </div>
   );
@@ -384,8 +436,12 @@ export default function ProyeccionClase() {
   if (mostrarSoloImagen) {
     return (
       <div style={s.contenedorFijo}>
+        {/* Imagen sin contenido: logos y QR en columnas laterales para
+            que la imagen use todo el alto. Sin titulo (no adelantar nada
+            mientras votan). */}
         <div style={s.pantallaImagenSola}>
-          <LogoBar />
+          <LogoBar columna />
+          <Esquina codigo={codigo} qrUrl={qrUrlChico} columna />
           <img src={imagenUrl} alt="" style={s.imagenGrande} />
         </div>
       </div>
@@ -411,6 +467,9 @@ const FRANJA = 14;   // cqh
 const ALTO_LOGO = 10;        // cqh (paginas con contenido, dentro de la franja)
 const ALTO_LOGO_PORTADA = 15; // cqh (portada: sin contenido que respetar)
 const ALTO_QR = 12;  // cqh
+// Imagen/grafico sin contenido: columnas laterales y franja delgada
+const LATERAL = 12;         // cqw (ancho de cada columna lateral)
+const FRANJA_DELGADA = 9;   // cqh (solo el titulo)
 
 const s = {
   // Contenedor de la proyeccion real: ocupa la ventana exacta
@@ -419,14 +478,25 @@ const s = {
   // cqh/cqw de PantallaClase se midan contra la pantalla.
   contenedorFijo: { position: "fixed", inset: 0, containerType: "size", overflow: "hidden", background: FONDO },
 
-  pantalla: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column", padding: `${FRANJA}cqh 5cqw 5cqh`, textAlign: "left" },
+  pantalla: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column", padding: `${FRANJA}cqh 5cqw 3cqh`, textAlign: "left" },
+  // Imagen/grafico sin contenido: columnas laterales (logos | QR) de
+  // LATERAL cqw cada una y titulo en una franja delgada arriba.
+  pantallaLateral: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column", padding: `${FRANJA_DELGADA}cqh ${LATERAL}cqw 3cqh` },
   pantallaCentrada: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center" },
-  pantallaImagenSola: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", padding: `${FRANJA}cqh 4cqw 3cqh` },
+  pantallaImagenSola: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", padding: `3cqh ${LATERAL}cqw 3cqh` },
 
   logoBar: { position: "absolute", top: `${(FRANJA - ALTO_LOGO) / 2}cqh`, left: "3cqw", display: "flex", alignItems: "center", gap: "1.6cqw", zIndex: 50 },
   logoImg: { height: `${ALTO_LOGO}cqh`, width: "auto", objectFit: "contain" },
   logoBarGrande: { position: "absolute", top: "4cqh", left: "4cqw", display: "flex", alignItems: "center", gap: "2.2cqw", zIndex: 50 },
   logoImgGrande: { height: `${ALTO_LOGO_PORTADA}cqh`, width: "auto", objectFit: "contain" },
+  // Columna lateral izquierda: logos apilados, centrados en su columna
+  logoColumna: { position: "absolute", top: "3cqh", left: 0, width: `${LATERAL}cqw`, display: "flex", flexDirection: "column", alignItems: "center", gap: "3cqh", zIndex: 50 },
+  logoColumnaAncho: { width: `${LATERAL - 3}cqw`, height: "auto", objectFit: "contain" },
+  logoColumnaCuadrado: { width: `${(LATERAL - 3) * 0.72}cqw`, height: "auto", objectFit: "contain" },
+  // Columna lateral derecha: QR grande con el codigo debajo
+  qrColumna: { position: "absolute", top: "3cqh", right: 0, width: `${LATERAL}cqw`, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", zIndex: 50 },
+  qrColumnaImg: { width: `${LATERAL - 3}cqw`, height: `${LATERAL - 3}cqw`, boxSizing: "border-box", background: "#FFFFFF", padding: "0.8cqh", borderRadius: "0.8cqh", display: "block", marginBottom: "1.4cqh" },
+  qrColumnaCodigo: { fontSize: "3.2cqh", fontWeight: 800, letterSpacing: "0.3cqh", color: ACENTO, margin: 0 },
 
   esquina: { position: "absolute", top: `${(FRANJA - ALTO_QR) / 2}cqh`, right: "3cqw", display: "flex", alignItems: "center", gap: "1.2cqw", zIndex: 50 },
   esquinaTexto: { textAlign: "right" },
@@ -440,10 +510,13 @@ const s = {
   codigoLabel: { fontSize: "2.4cqh", color: "#94A3B8", margin: 0 },
   codigo: { fontSize: "5.4cqh", fontWeight: 800, letterSpacing: "0.6cqh", color: ACENTO, margin: "0.6cqh 0 0" },
 
-  // Paginas con contenido: titulo centrado arriba + linea de acento
-  // centrada debajo; el resto del alto es contenido.
-  titulo: { flexShrink: 0, fontSize: "6.2cqh", fontWeight: 800, lineHeight: 1.1, margin: 0, textAlign: "center", padding: "0 6cqw" },
-  acentoTitulo: { flexShrink: 0, alignSelf: "center", width: "8cqw", height: "0.6cqh", borderRadius: "0.3cqh", background: ACENTO, margin: "1.6cqh 0 3cqh" },
+  // Paginas con contenido: titulo dentro de la franja superior, centrado
+  // en el espacio libre ENTRE los logos (terminan ~29cqw) y el bloque del
+  // QR + codigo (empieza ~78cqw), hasta 2 lineas.
+  tituloFranja: { position: "absolute", top: 0, left: "29cqw", right: "22cqw", height: `${FRANJA}cqh`, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: "4.6cqh", fontWeight: 800, lineHeight: 1.1, zIndex: 40 },
+  // Imagen/grafico sin contenido: titulo en la franja delgada, entre las
+  // columnas laterales, una linea.
+  tituloLateral: { position: "absolute", top: 0, left: `${LATERAL}cqw`, right: `${LATERAL}cqw`, height: `${FRANJA_DELGADA}cqh`, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: "4.4cqh", fontWeight: 800, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", zIndex: 40 },
 
   // Portada: titulo grande al centro exacto del espacio bajo la franja
   portadaCentro: { flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingBottom: `${FRANJA / 2}cqh` },
