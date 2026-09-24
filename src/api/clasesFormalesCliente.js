@@ -76,9 +76,11 @@ export const clasesFormalesPaginas = {
 };
 
 // ---------------- INGRESO (asistencia, publico, sin login) ----------------
+// Igual que Casos Clinicos: nombre + RUT o numero de matricula, validado
+// contra el conjunto activo.
 export const clasesFormalesIngreso = {
-  ingresar: (sesionId, rut) =>
-    request("/clases-formales/ingreso", { method: "POST", body: { sesion_id: sesionId, rut } }),
+  ingresar: (sesionId, nombre, rut) =>
+    request("/clases-formales/ingreso", { method: "POST", body: { sesion_id: sesionId, nombre, rut } }),
 };
 
 // ---------------- PREGUNTAS ANONIMAS ----------------
@@ -122,6 +124,8 @@ export const clasesFormalesTrivia = {
   // Interrogador (auth)
   resultado: (paginaId) => request(`/clases-formales/trivia/${paginaId}/resultado`, { auth: true }),
   revelar: (paginaId) => request(`/clases-formales/trivia/${paginaId}/revelar`, { method: "PATCH", auth: true }),
+  // Nombre -> letra de quienes respondieron (solo el interrogador)
+  detalle: (paginaId) => request(`/clases-formales/trivia/${paginaId}/detalle`, { auth: true }),
 };
 
 // ---------------- PAGINA ACTUAL (avance secuencial en vivo) ----------------
