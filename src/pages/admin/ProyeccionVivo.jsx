@@ -397,7 +397,11 @@ const s = {
 
   // ---- media ----
   cajaMedia: { flex: "1 1 auto", minWidth: 0, minHeight: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" },
-  media: { maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", borderRadius: "1.5cqh", display: "block", background: "#000" },
+  // La foto/video OCUPA toda su caja (width/height 100%) y objectFit:
+  // contain la escala -hacia arriba o hacia abajo- hasta llenar el alto o
+  // el ancho disponible, completa, sin recortar ni deformar. Con solo
+  // maxWidth/maxHeight una foto chica nunca crecia y quedaba flotando.
+  media: { width: "100%", height: "100%", objectFit: "contain", display: "block" },
 
   // ---- layout lado a lado ----
   filaLado: { flex: "1 1 auto", minHeight: 0, display: "flex", gap: "3.5cqw", alignItems: "stretch" },
@@ -407,7 +411,7 @@ const s = {
   columnaTextoSola: { width: "100%", maxWidth: "84cqw", margin: "0 auto", display: "flex", flexDirection: "column", justifyContent: "safe center" },
 
   // ---- presentacion del caso ----
-  vinetaLado: { fontSize: "3.4cqh", lineHeight: 1.45, color: "#E2E6EE", margin: 0, whiteSpace: "pre-line" },
+  vinetaLado: { fontSize: "4.2cqh", lineHeight: 1.45, color: "#E2E6EE", margin: 0, whiteSpace: "pre-line" },
   vinetaSola: { fontSize: "4cqh", lineHeight: 1.5, color: "#E2E6EE", margin: "0 auto", maxWidth: "80cqw", textAlign: "center", whiteSpace: "pre-line" },
 
   // ---- pregunta ----
