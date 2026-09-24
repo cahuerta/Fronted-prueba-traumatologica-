@@ -22,7 +22,12 @@ export default function AdminClaseVivo() {
   const [semaforo, setSemaforo] = useState(null);
   const [preguntas, setPreguntas] = useState([]);
   const [trivia, setTrivia] = useState(null);
-  const [asistencia, setAsistencia] = useState({ presentes: 0, total_habilitados: 0 });
+  const [asistencia, setAsistencia] = useState({ presentes: 0, total_habilitados: 0, lista_presentes: [] });
+  // Nombre -> letra de la trivia activa (solo lo ves tu, igual que el
+  // detalle de Casos Clinicos) y que letra esta desplegada.
+  const [detalleTrivia, setDetalleTrivia] = useState([]);
+  const [letraAbierta, setLetraAbierta] = useState(null);
+  const [verPresentes, setVerPresentes] = useState(false);
   const [revelando, setRevelando] = useState(false);
   const [error, setError] = useState("");
   const [avanzando, setAvanzando] = useState(false);
@@ -53,26 +58,44 @@ export default function AdminClaseVivo() {
     if (!sesion) return;
 
     async function poll() {
-      try {
-        const [pagina, resultadoSemaforo, listaPreguntas, resultadoAsistencia] = await Promise.all([
-          codigoRef.current ? clasesFormalesActual.leer(codigoRef.current) : Promise.resolve(null),
-          clasesFormalesSemaforo.resultado(sesionId),
-          clasesFormalesPreguntas.listar(sesionId),
-          clasesFormalesSesiones.asistencia(sesionId),
-        ]);
-        setPaginaActual(pagina);
-        setSemaforo(resultadoSemaforo);
-        setPreguntas(listaPreguntas);
-        setAsistencia(resultadoAsistencia);
+      // Cada consulta es independiente (allSettled, no all): antes, si UNA
+      // fallaba, se perdian TODAS. Antes de iniciar la clase /actual
+      // responde 404 ("sin pagina activa"), y eso tumbaba el poll completo:
+      // la asistencia nunca se actualizaba en la pantalla de asistencia.
+      const [rPagina, rSemaforo, rPreguntas, rAsistencia] = await Promise.allSettled([
+        codigoRef.current ? clasesFormalesActual.leer(codigoRef.current) : Promise.resolve(null),
+        clasesFormalesSemaforo.resultado(sesionId),
+        clasesFormalesPreguntas.listar(sesionId),
+        clasesFormalesSesiones.asistencia(sesionId),
+      ]);
 
-        if (pagina?.tipo_herramienta === "trivia") {
-          const resultadoTrivia = await clasesFormalesTrivia.resultado(pagina.id);
-          setTrivia(resultadoTrivia);
-        } else {
-          setTrivia(null);
-        }
-      } catch {
-        // silencioso: el proximo poll reintenta solo
+      if (rSemaforo.status === "fulfilled") setSemaforo(rSemaforo.value);
+      if (rPreguntas.status === "fulfilled") setPreguntas(rPreguntas.value);
+      if (rAsistencia.status === "fulfilled") setAsistencia(rAsistencia.value);
+
+      let pagina;
+      if (rPagina.status === "fulfilled") {
+        pagina = rPagina.value;
+      } else if (/pagina activa/i.test(rPagina.reason?.message || "")) {
+        // 404 esperado: la clase aun no se inicia -> pantalla de asistencia
+        pagina = null;
+      } else {
+        // Fallo transitorio (red, servidor): se conserva la pagina que se
+        // estaba mostrando y el proximo poll reintenta.
+        return;
+      }
+      setPaginaActual(pagina);
+
+      if (pagina?.tipo_herramienta === "trivia") {
+        const [rResultado, rDetalle] = await Promise.allSettled([
+          clasesFormalesTrivia.resultado(pagina.id),
+          clasesFormalesTrivia.detalle(pagina.id),
+        ]);
+        if (rResultado.status === "fulfilled") setTrivia(rResultado.value);
+        if (rDetalle.status === "fulfilled") setDetalleTrivia(rDetalle.value || []);
+      } else {
+        setTrivia(null);
+        setDetalleTrivia([]);
       }
     }
 
@@ -80,6 +103,11 @@ export default function AdminClaseVivo() {
     const id = setInterval(poll, 2000);
     return () => clearInterval(id);
   }, [sesion, sesionId]);
+
+  // Al cambiar de pagina se cierra la lista de nombres desplegada.
+  useEffect(() => {
+    setLetraAbierta(null);
+  }, [paginaActual?.id]);
 
   async function handleAvanzar() {
     setAvanzando(true);
@@ -164,6 +192,9 @@ export default function AdminClaseVivo() {
           </div>
         </div>
 
+        {/* Nombres de quienes ingresaron, en orden de llegada (solo tu los ves) */}
+        <ListaPresentes lista={asistencia.lista_presentes} />
+
         {error && <p style={s.error}>{error}</p>}
 
         <button onClick={handleAvanzar} disabled={avanzando} style={s.btnAvanzar}>
@@ -203,25 +234,47 @@ export default function AdminClaseVivo() {
       {/* ---------------- TRIVIA (solo si la pagina actual es de tipo trivia) ---------------- */}
       {trivia && (
         <div style={s.card}>
-          <p style={s.label}>Trivia ({trivia.total} respuestas)</p>
+          <p style={s.label}>Trivia ({trivia.total} respuestas) · toca una letra para ver quién la eligió</p>
           <div style={s.triviaBarras}>
             {LETRAS.map((letra) => {
               const n = trivia.conteos[letra] || 0;
               const pct = trivia.total > 0 ? Math.round((n / trivia.total) * 100) : 0;
               const esCorrecta = trivia.revelada && letra === letraCorrecta;
+              // Toca una letra para ver QUIEN la eligio (igual que el
+              // detalle por opcion de Casos Clinicos).
+              const abierta = letraAbierta === letra;
+              const nombres = detalleTrivia.filter((d) => d.letra === letra);
               return (
-                <div key={letra} style={{ ...s.triviaFila, ...(esCorrecta ? s.triviaFilaCorrecta : {}) }}>
-                  <span style={s.triviaLetra}>{letra}</span>
-                  <div style={s.triviaBarraFondo}>
-                    <div
-                      style={{
-                        ...s.triviaBarraLlena,
-                        width: `${pct}%`,
-                        ...(esCorrecta ? s.triviaBarraLlenaCorrecta : {}),
-                      }}
-                    />
-                  </div>
-                  <span style={s.triviaConteo}>{n}</span>
+                <div key={letra}>
+                  <button
+                    type="button"
+                    onClick={() => setLetraAbierta(abierta ? null : letra)}
+                    style={{ ...s.triviaFila, ...(esCorrecta ? s.triviaFilaCorrecta : {}), ...(abierta ? s.triviaFilaAbierta : {}) }}
+                  >
+                    <span style={s.triviaLetra}>{letra}</span>
+                    <div style={s.triviaBarraFondo}>
+                      <div
+                        style={{
+                          ...s.triviaBarraLlena,
+                          width: `${pct}%`,
+                          ...(esCorrecta ? s.triviaBarraLlenaCorrecta : {}),
+                        }}
+                      />
+                    </div>
+                    <span style={s.triviaConteo}>{n}</span>
+                    <span style={s.triviaFlecha}>{abierta ? "▲" : "▼"}</span>
+                  </button>
+                  {abierta && (
+                    <div style={s.triviaNombres}>
+                      {nombres.length === 0 ? (
+                        <p style={s.info}>Nadie ha elegido la {letra}.</p>
+                      ) : (
+                        nombres.map((d, i) => (
+                          <p key={i} style={s.triviaNombre}>{d.nombre || d.rut}</p>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -231,6 +284,15 @@ export default function AdminClaseVivo() {
           </button>
         </div>
       )}
+
+      {/* ---------------- ASISTENCIA (durante la clase) ---------------- */}
+      <div style={s.card}>
+        <button type="button" onClick={() => setVerPresentes((v) => !v)} style={s.asistenciaToggle}>
+          <span style={s.label}>Asistencia: {asistencia.presentes} / {asistencia.total_habilitados}</span>
+          <span style={s.triviaFlecha}>{verPresentes ? "▲" : "▼"}</span>
+        </button>
+        {verPresentes && <ListaPresentes lista={asistencia.lista_presentes} sinMarco />}
+      </div>
 
       {/* ---------------- SEMAFORO ---------------- */}
       <div style={s.card}>
@@ -271,6 +333,26 @@ export default function AdminClaseVivo() {
   );
 }
 
+// Lista de presentes con nombre, en orden de llegada. Solo en el mando.
+function ListaPresentes({ lista, sinMarco }) {
+  const presentes = lista || [];
+  return (
+    <div style={sinMarco ? s.presentesLista : { ...s.card, ...s.presentesLista }}>
+      {!sinMarco && <p style={s.label}>Presentes</p>}
+      {presentes.length === 0 ? (
+        <p style={s.info}>Nadie ha ingresado todavía.</p>
+      ) : (
+        presentes.map((p, i) => (
+          <div key={p.alumno_id || i} style={s.presenteFila}>
+            <span style={s.presenteNumero}>{i + 1}</span>
+            <span style={s.presenteNombre}>{p.nombre || p.rut}</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 const s = {
   wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "20px 16px 40px", fontFamily: "sans-serif" },
   header: { display: "flex", alignItems: "center", gap: 16, marginBottom: 20 },
@@ -296,7 +378,17 @@ const s = {
   upvotes: { fontSize: 12.5, color: ACENTO, fontWeight: 700 },
   btnResponder: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#F4F1EA", fontSize: 12, padding: "6px 10px", cursor: "pointer" },
   triviaBarras: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 },
-  triviaFila: { display: "flex", alignItems: "center", gap: 10, borderRadius: 8, padding: "4px 6px" },
+  // Ahora es un boton (toca para ver nombres): se resetea el estilo nativo.
+  triviaFila: { display: "flex", alignItems: "center", gap: 10, borderRadius: 8, padding: "6px 6px", width: "100%", background: "none", border: "2px solid transparent", color: "#F4F1EA", font: "inherit", cursor: "pointer", textAlign: "left" },
+  triviaFilaAbierta: { background: "rgba(79,195,217,0.08)" },
+  triviaFlecha: { fontSize: 10, color: "#64748B", flexShrink: 0, width: 12, textAlign: "center" },
+  triviaNombres: { padding: "4px 8px 10px 40px", display: "flex", flexDirection: "column", gap: 2 },
+  triviaNombre: { fontSize: 15, margin: 0, padding: "6px 0", borderBottom: "1px solid rgba(244,241,233,0.06)" },
+  asistenciaToggle: { display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "none", border: "none", padding: 0, color: "inherit", cursor: "pointer" },
+  presentesLista: { display: "flex", flexDirection: "column", gap: 2, marginTop: 8 },
+  presenteFila: { display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: "1px solid rgba(244,241,233,0.06)" },
+  presenteNumero: { width: 24, fontSize: 12, color: "#64748B", textAlign: "right", flexShrink: 0 },
+  presenteNombre: { fontSize: 15 },
   triviaFilaCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
   triviaLetra: { width: 20, fontWeight: 800, fontSize: 13, color: ACENTO, flexShrink: 0 },
   triviaBarraFondo: { flex: 1, height: 10, borderRadius: 6, background: "#0E1526", overflow: "hidden" },
