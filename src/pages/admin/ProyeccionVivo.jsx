@@ -27,7 +27,19 @@ const CASOS_POR_PAGINA = 4; // suficiente espacio para letras grandes, sin amont
 // siempre en Casos Clinicos. Para pasarla a la derecha: "derecha".
 const LADO_IMAGEN_PREGUNTA = "izquierda";
 
-function LogoBar() {
+// variante "columna": logos apilados en la columna lateral izquierda, solo
+// para la imagen sin contenido (fase de votacion con imagen sola): la
+// imagen recupera el alto de la franja superior.
+function LogoBar({ columna }) {
+  if (columna) {
+    return (
+      <div style={s.logoColumna}>
+        <img src="/logo-utal.png" alt="UTAL" style={s.logoColumnaAncho} />
+        <img src="/logo-ica.png" alt="ICA" style={s.logoColumnaCuadrado} />
+        <img src="/logo-hipokratia.png" alt="Hipokratia" style={s.logoColumnaCuadrado} />
+      </div>
+    );
+  }
   return (
     <div style={s.logoBar}>
       <img src="/logo-utal.png" alt="UTAL" style={s.logoImg} />
@@ -39,8 +51,17 @@ function LogoBar() {
 
 // QR siempre visible, con el codigo al lado como respaldo: un atrasado se
 // une en cualquier momento.
-function Esquina({ codigo, qrUrl }) {
+function Esquina({ codigo, qrUrl, columna }) {
   if (!codigo) return null;
+  if (columna) {
+    return (
+      <div style={s.qrColumna}>
+        {qrUrl && <img src={qrUrl} alt="QR de la sesión" style={s.qrColumnaImg} />}
+        <p style={s.esquinaLabel}>Únete a la clase</p>
+        <p style={s.qrColumnaCodigo}>{codigo}</p>
+      </div>
+    );
+  }
   return (
     <div style={s.esquina}>
       <div style={s.esquinaTexto}>
@@ -72,11 +93,13 @@ function Media({ url, tipo, controles }) {
 //   modo "pregunta":    pregunta = { texto, opciones, correcta, explicacion,
 //                        media_url, media_tipo }, estado ("votando" |
 //                        "discusion" | "cerrada" | ...), conteo {indice: votos}
-export function PantallaCaso({ modo, caso, pregunta, estado, conteo, codigo, qrUrl, controlesVideo }) {
+//   titulo -> titulo del caso, dentro de la franja superior entre logos y QR
+export function PantallaCaso({ modo, titulo, caso, pregunta, estado, conteo, codigo, qrUrl, controlesVideo }) {
   return (
     <div style={s.pantalla}>
       <LogoBar />
       <Esquina codigo={codigo} qrUrl={qrUrl} />
+      {titulo && <h1 style={s.tituloFranja}>{titulo}</h1>}
 
       <div style={s.cuerpo}>
         {modo === "presentando" && <ContenidoPresentacion caso={caso} controlesVideo={controlesVideo} />}
@@ -308,6 +331,7 @@ export default function ProyeccionVivo() {
     contenido = (
       <PantallaCaso
         modo="presentando"
+        titulo={panel.caso?.titulo}
         caso={panel.caso}
         codigo={panel.codigo_acceso}
         qrUrl={qrUrlChico}
@@ -323,8 +347,11 @@ export default function ProyeccionVivo() {
     );
   } else if (mostrarSoloImagen) {
     contenido = (
+      // Imagen sin contenido: logos y QR en columnas laterales, la
+      // imagen usa todo el alto. Sin titulo mientras votan.
       <div style={s.pantallaImagenSola}>
-        <LogoBar />
+        <LogoBar columna />
+        <Esquina codigo={panel.codigo_acceso} qrUrl={qrUrlChico} columna />
         <Media url={panel.media_url} tipo={panel.media_tipo} controles />
       </div>
     );
@@ -332,6 +359,7 @@ export default function ProyeccionVivo() {
     contenido = (
       <PantallaCaso
         modo="pregunta"
+        titulo={panel.caso?.titulo}
         pregunta={{
           texto: panel.pregunta,
           opciones: panel.opciones,
@@ -364,16 +392,26 @@ const VERDE = "#7FD98F";
 const FRANJA = 14;   // cqh: franja superior (logos + QR)
 const ALTO_LOGO = 10; // cqh
 const ALTO_QR = 12;  // cqh
+const LATERAL = 12;  // cqw: columnas laterales (logos | QR) en imagen sin contenido
 
 const s = {
   contenedorFijo: { position: "fixed", inset: 0, containerType: "size", overflow: "hidden", background: FONDO },
 
-  pantalla: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column", padding: `${FRANJA}cqh 4cqw 4cqh` },
+  pantalla: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column", padding: `${FRANJA}cqh 4cqw 3cqh` },
   pantallaCentrada: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: `${FRANJA}cqh 4cqw 4cqh` },
-  pantallaImagenSola: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, display: "flex", padding: `${FRANJA}cqh 3cqw 3cqh` },
+  pantallaImagenSola: { position: "absolute", inset: 0, boxSizing: "border-box", overflow: "hidden", background: FONDO, color: "#F4F1EA", fontFamily: "sans-serif", display: "flex", padding: `3cqh ${LATERAL}cqw 3cqh` },
 
   logoBar: { position: "absolute", top: `${(FRANJA - ALTO_LOGO) / 2}cqh`, left: "3cqw", display: "flex", alignItems: "center", gap: "1.6cqw", zIndex: 50 },
   logoImg: { height: `${ALTO_LOGO}cqh`, width: "auto", objectFit: "contain" },
+  logoColumna: { position: "absolute", top: "3cqh", left: 0, width: `${LATERAL}cqw`, display: "flex", flexDirection: "column", alignItems: "center", gap: "3cqh", zIndex: 50 },
+  logoColumnaAncho: { width: `${LATERAL - 3}cqw`, height: "auto", objectFit: "contain" },
+  logoColumnaCuadrado: { width: `${(LATERAL - 3) * 0.72}cqw`, height: "auto", objectFit: "contain" },
+  qrColumna: { position: "absolute", top: "3cqh", right: 0, width: `${LATERAL}cqw`, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", zIndex: 50 },
+  qrColumnaImg: { width: `${LATERAL - 3}cqw`, height: `${LATERAL - 3}cqw`, boxSizing: "border-box", background: "#FFFFFF", padding: "0.8cqh", borderRadius: "0.8cqh", display: "block", marginBottom: "1.4cqh" },
+  qrColumnaCodigo: { fontSize: "3.2cqh", fontWeight: 800, letterSpacing: "0.3cqh", color: ACENTO, margin: 0 },
+  // Titulo del caso dentro de la franja superior, centrado entre logos
+  // (terminan ~29cqw) y QR + codigo (empieza ~78cqw), hasta 2 lineas.
+  tituloFranja: { position: "absolute", top: 0, left: "29cqw", right: "22cqw", height: `${FRANJA}cqh`, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: "4.6cqh", fontWeight: 800, lineHeight: 1.1, zIndex: 40 },
 
   esquina: { position: "absolute", top: `${(FRANJA - ALTO_QR) / 2}cqh`, right: "3cqw", display: "flex", alignItems: "center", gap: "1.2cqw", zIndex: 50 },
   esquinaTexto: { textAlign: "right" },
