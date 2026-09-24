@@ -463,8 +463,13 @@ const s = {
   // Marco del grafico IA: fondo blanco (el SVG viene con fondo blanco o
   // transparente y texto oscuro), proporcion 4:3 como su viewBox.
   marcoGrafico: { height: "100%", maxWidth: "100%", aspectRatio: "4 / 3", boxSizing: "border-box", background: "#FFFFFF", borderRadius: "1.5cqh", padding: "1.5cqh" },
-  imagen: { maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", objectFit: "contain", borderRadius: "1.5cqh", display: "block" },
-  imagenGrande: { maxWidth: "100%", maxHeight: "100%", borderRadius: "1.3cqh", objectFit: "contain", display: "block" },
+  // La imagen OCUPA toda su caja (width/height 100%) y objectFit:contain
+  // la escala -hacia arriba o hacia abajo- hasta llenar el alto o el ancho
+  // disponible, completa, sin recortar ni deformar. Antes solo tenia
+  // maxWidth/maxHeight: eso achica las grandes pero NUNCA agranda las
+  // chicas (una foto de 350px quedaba de 350px en medio de la pantalla).
+  imagen: { width: "100%", height: "100%", objectFit: "contain", display: "block" },
+  imagenGrande: { width: "100%", height: "100%", objectFit: "contain", display: "block" },
 
   // Texto + imagen al lado: visual en la mitad del ancho, alto completo
   filaLado: { flex: "1 1 auto", minHeight: 0, display: "flex", gap: "4cqw", alignItems: "stretch" },
@@ -478,7 +483,7 @@ const s = {
   bullets: { listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "2cqh 3cqw", width: "100%" },
   bulletItem: { display: "flex", alignItems: "flex-start", gap: "1.2cqw", background: TARJETA, border: BORDE, borderRadius: "1.5cqh", padding: "2cqh 2cqw", fontSize: "3.4cqh", lineHeight: 1.3 },
   bulletsLado: { listStyle: "none", padding: 0, margin: 0, flex: "1 1 0", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "safe center", gap: "2cqh" },
-  bulletItemLado: { display: "flex", alignItems: "flex-start", gap: "1cqw", background: TARJETA, border: BORDE, borderRadius: "1.5cqh", padding: "1.8cqh 1.6cqw", fontSize: "3cqh", lineHeight: 1.3 },
+  bulletItemLado: { display: "flex", alignItems: "flex-start", gap: "1cqw", background: TARJETA, border: BORDE, borderRadius: "1.5cqh", padding: "1.8cqh 1.6cqw", fontSize: "3.3cqh", lineHeight: 1.3 },
 
   // ---- trivia ----
   triviaTexto: { flex: "1 1 0", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "safe center" },
