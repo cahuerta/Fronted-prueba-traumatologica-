@@ -2,6 +2,11 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { casosVivoAlumno } from "../../api/client";
 
+// Letra de cada opcion, la misma que muestra la proyeccion (A = primera
+// opcion, B = segunda...), para asociar lo que se ve en pantalla grande
+// con lo que se toca en el telefono.
+const LETRAS = ["A", "B", "C", "D", "E"];
+
 export default function AlumnoVivoVotar() {
   const navigate = useNavigate();
   const { codigo } = useParams();
@@ -139,7 +144,8 @@ export default function AlumnoVivoVotar() {
                     ...(deshabilitado && estado === "votando" ? s.opcionDeshabilitada : {}),
                   }}
                 >
-                  {op}
+                  <span style={{ ...s.opcionLetra, ...(esCorrecta ? s.opcionLetraCorrecta : {}) }}>{LETRAS[i]}</span>
+                  <span style={s.opcionTexto}>{op}</span>
                 </button>
               );
             })}
@@ -176,7 +182,10 @@ const s = {
   esperando: { color: "#94A3B8", fontSize: 15, textAlign: "center", marginTop: 40 },
   pregunta: { fontSize: 17, fontWeight: 600, lineHeight: 1.4, margin: "0 0 12px" },
   opciones: { display: "flex", flexDirection: "column", gap: 10, marginTop: 12 },
-  opcion: { background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 10, color: "#F4F1EA", padding: "14px 16px", fontSize: 15, textAlign: "left", cursor: "pointer" },
+  opcion: { display: "flex", alignItems: "center", gap: 12, width: "100%", background: "#16213A", border: "1px solid rgba(244,241,233,0.15)", borderRadius: 10, color: "#F4F1EA", padding: "12px 14px", fontSize: 15, textAlign: "left", cursor: "pointer" },
+  opcionLetra: { width: 28, height: 28, borderRadius: "50%", background: "rgba(79,195,217,0.15)", color: "#4FC3D9", fontWeight: 800, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  opcionLetraCorrecta: { background: "#7FD98F", color: "#0E1526" },
+  opcionTexto: { flex: 1, minWidth: 0, lineHeight: 1.3 },
   opcionDeshabilitada: { opacity: 0.5 },
   opcionCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.1)" },
   aviso: { color: "#4FC3D9", fontSize: 14, textAlign: "center", marginTop: 16 },
