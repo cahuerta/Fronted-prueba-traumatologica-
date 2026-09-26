@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import {
   clasesFormalesActual,
@@ -9,6 +9,66 @@ import {
 } from "../../api/clasesFormalesCliente";
 
 const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
+
+// ============================================================================
+// AJUSTE AUTOMATICO DEL TEXTO AL ALTO DISPONIBLE
+// ============================================================================
+// La letra se mide en cqh (alto de la pantalla) y las columnas de texto en
+// cqw (ancho). Si la pantalla se hace proporcionalmente mas alta -F11 quita
+// las barras del navegador y gana ~140px de alto sin ganar ancho-, la letra
+// crece pero la columna no: cada linea parte en mas lineas y el total se
+// cortaba abajo. Este ajuste mide si el contenido cabe en su caja y, solo si
+// no cabe, reduce la variable --ajuste (que multiplica tamaños de letra,
+// separaciones y rellenos del texto) lo justo para que entre completo. Si
+// cabe, --ajuste queda en 1 y todo se ve exactamente igual que antes.
+// Se recalcula en cada render (cambio de pagina, votos) y cuando cambia el
+// tamaño de la caja (entrar/salir de F11, redimensionar). Las imagenes no
+// se ven afectadas: su tamaño depende de la caja, no de la letra.
+const AJUSTE_MINIMO = 0.45;
+
+function ajustarAlAlto(el) {
+  if (!el) return;
+  el.style.setProperty("--ajuste", "1");
+  if (el.scrollHeight <= el.clientHeight + 1) return;
+  let cabe = AJUSTE_MINIMO;
+  let noCabe = 1;
+  for (let i = 0; i < 9; i++) {
+    const medio = (cabe + noCabe) / 2;
+    el.style.setProperty("--ajuste", String(medio));
+    if (el.scrollHeight <= el.clientHeight + 1) cabe = medio;
+    else noCabe = medio;
+  }
+  el.style.setProperty("--ajuste", String(cabe));
+}
+
+// Devuelve un ref para la caja cuyo contenido debe caber (callback ref:
+// sirve aunque el elemento cambie entre un render y otro).
+function useAjusteAlAlto() {
+  const elRef = useRef(null);
+  const observadorRef = useRef(null);
+
+  const asignar = useCallback((el) => {
+    if (observadorRef.current) {
+      observadorRef.current.disconnect();
+      observadorRef.current = null;
+    }
+    elRef.current = el;
+    if (el && typeof ResizeObserver !== "undefined") {
+      const observador = new ResizeObserver(() => ajustarAlAlto(el));
+      observador.observe(el);
+      observadorRef.current = observador;
+    }
+  }, []);
+
+  // Sin dependencias a proposito: en cada render el texto puede cambiar.
+  useLayoutEffect(() => {
+    ajustarAlAlto(elRef.current);
+  });
+
+  useEffect(() => () => observadorRef.current?.disconnect(), []);
+
+  return asignar;
+}
 
 // ============================================================================
 // PANTALLA COMPARTIDA: proyeccion real + preview del constructor
@@ -258,12 +318,17 @@ export function PantallaClase({ pagina, imagenUrl, trivia, codigo, qrUrl }) {
     (config.bullets || []).length > 0 || Boolean(config.imagen_svg) || Boolean(pathImagenPagina(config)) || Boolean(imagenUrl);
   const esPortada = !esTrivia && tipo !== "semaforo" && !(tipo === "titulo_texto" && tieneContenidoTituloTexto);
 
+  // Hooks antes de cualquier return (reglas de hooks): el texto del cuerpo
+  // y el titulo se ajustan para caber siempre en su caja.
+  const refCuerpo = useAjusteAlAlto();
+  const refTitulo = useAjusteAlAlto();
+
   if (esPortada) {
     return (
       <div style={s.pantalla}>
         <LogoBar grandes />
         <Esquina codigo={codigo} qrUrl={qrUrl} />
-        <div style={s.portadaCentro}>
+        <div ref={refCuerpo} style={s.portadaCentro}>
           <h1 style={s.tituloPortada}>{pagina?.titulo || "Título de la página"}</h1>
           <div style={s.acentoPortada} />
         </div>
@@ -282,7 +347,7 @@ export function PantallaClase({ pagina, imagenUrl, trivia, codigo, qrUrl }) {
         <LogoBar columna />
         <Esquina codigo={codigo} qrUrl={qrUrl} columna />
         <h1 style={s.tituloLateral}>{pagina?.titulo || "Título de la página"}</h1>
-        <div style={s.cuerpo}>
+        <div ref={refCuerpo} style={s.cuerpo}>
           <ContenidoTituloTexto config={config} imagenUrl={imagenUrl} />
         </div>
         <style>{`.grafico-ia-pantalla svg { width: 100%; height: 100%; display: block; }`}</style>
@@ -304,9 +369,9 @@ export function PantallaClase({ pagina, imagenUrl, trivia, codigo, qrUrl }) {
       {/* Paginas con contenido: titulo DENTRO de la franja superior,
           centrado entre los logos y el QR -no ocupa una fila propia, asi
           todo el alto bajo la franja queda para el contenido-. */}
-      <h1 style={s.tituloFranja}>{pagina?.titulo || "Título de la página"}</h1>
+      <h1 ref={refTitulo} style={s.tituloFranja}>{pagina?.titulo || "Título de la página"}</h1>
 
-      <div style={s.cuerpo}>
+      <div ref={refCuerpo} style={s.cuerpo}>
         {tipo === "titulo_texto" && <ContenidoTituloTexto config={config} imagenUrl={imagenUrl} />}
 
         {/* Trivia con imagen (fase de votacion en vivo): pregunta +
@@ -513,16 +578,16 @@ const s = {
   // Paginas con contenido: titulo dentro de la franja superior, centrado
   // en el espacio libre ENTRE los logos (terminan ~29cqw) y el bloque del
   // QR + codigo (empieza ~78cqw), hasta 2 lineas.
-  tituloFranja: { position: "absolute", top: 0, left: "29cqw", right: "22cqw", height: `${FRANJA}cqh`, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: "4.6cqh", fontWeight: 800, lineHeight: 1.1, zIndex: 40 },
+  tituloFranja: { position: "absolute", top: 0, left: "29cqw", right: "22cqw", height: `${FRANJA}cqh`, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: "calc(var(--ajuste, 1) * 4.6cqh)", fontWeight: 800, lineHeight: 1.1, zIndex: 40 },
   // Imagen/grafico sin contenido: titulo en la franja delgada, entre las
   // columnas laterales, una linea.
   tituloLateral: { position: "absolute", top: 0, left: `${LATERAL}cqw`, right: `${LATERAL}cqw`, height: `${FRANJA_DELGADA}cqh`, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: "4.4cqh", fontWeight: 800, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", zIndex: 40 },
 
   // Portada: titulo grande al centro exacto del espacio bajo la franja
   portadaCentro: { flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingBottom: `${FRANJA / 2}cqh` },
-  tituloPortada: { fontSize: "10cqh", fontWeight: 800, lineHeight: 1.12, margin: 0, textAlign: "center", maxWidth: "80cqw" },
+  tituloPortada: { fontSize: "calc(var(--ajuste, 1) * 10cqh)", fontWeight: 800, lineHeight: 1.12, margin: 0, textAlign: "center", maxWidth: "80cqw" },
   acentoPortada: { width: "12cqw", height: "0.9cqh", borderRadius: "0.45cqh", background: ACENTO, marginTop: "3cqh" },
-  subtitulo: { fontSize: "3.6cqh", color: "#94A3B8", margin: 0 },
+  subtitulo: { fontSize: "calc(var(--ajuste, 1) * 3.6cqh)", color: "#94A3B8", margin: 0 },
 
   // Area de contenido con alto definido: base para que imagenes y
   // graficos sepan cuanto pueden crecer.
@@ -553,30 +618,30 @@ const s = {
 
   // ---- bullets ----
   bulletMarcador: { color: ACENTO, fontWeight: 800, flexShrink: 0 },
-  bullets: { listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "2cqh 3cqw", width: "100%" },
-  bulletItem: { display: "flex", alignItems: "flex-start", gap: "1.2cqw", background: TARJETA, border: BORDE, borderRadius: "1.5cqh", padding: "2cqh 2cqw", fontSize: "3.4cqh", lineHeight: 1.3 },
-  bulletsLado: { listStyle: "none", padding: 0, margin: 0, flex: "1 1 0", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "safe center", gap: "2cqh" },
-  bulletItemLado: { display: "flex", alignItems: "flex-start", gap: "1cqw", background: TARJETA, border: BORDE, borderRadius: "1.5cqh", padding: "1.8cqh 1.6cqw", fontSize: "3.3cqh", lineHeight: 1.3 },
+  bullets: { listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "calc(var(--ajuste, 1) * 2cqh) 3cqw", width: "100%" },
+  bulletItem: { display: "flex", alignItems: "flex-start", gap: "1.2cqw", background: TARJETA, border: BORDE, borderRadius: "calc(var(--ajuste, 1) * 1.5cqh)", padding: "calc(var(--ajuste, 1) * 2cqh) 2cqw", fontSize: "calc(var(--ajuste, 1) * 3.4cqh)", lineHeight: 1.3 },
+  bulletsLado: { listStyle: "none", padding: 0, margin: 0, flex: "1 1 0", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "safe center", gap: "calc(var(--ajuste, 1) * 2cqh)" },
+  bulletItemLado: { display: "flex", alignItems: "flex-start", gap: "1cqw", background: TARJETA, border: BORDE, borderRadius: "calc(var(--ajuste, 1) * 1.5cqh)", padding: "calc(var(--ajuste, 1) * 1.8cqh) 1.6cqw", fontSize: "calc(var(--ajuste, 1) * 3.3cqh)", lineHeight: 1.3 },
 
   // ---- trivia ----
   triviaTexto: { flex: "1 1 0", minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "safe center" },
   triviaTextoSolo: { width: "100%", maxWidth: "82cqw", margin: "0 auto", display: "flex", flexDirection: "column", justifyContent: "center" },
-  pregunta: { fontSize: "3.6cqh", fontWeight: 700, lineHeight: 1.25, margin: "0 0 3cqh" },
-  alternativas: { display: "flex", flexDirection: "column", gap: "1.6cqh" },
+  pregunta: { fontSize: "calc(var(--ajuste, 1) * 3.6cqh)", fontWeight: 700, lineHeight: 1.25, margin: "0 0 calc(var(--ajuste, 1) * 3cqh)" },
+  alternativas: { display: "flex", flexDirection: "column", gap: "calc(var(--ajuste, 1) * 1.6cqh)" },
   // Grilla de columnas fijas: letra | texto | barra (40%, igual en todas
   // las filas) | conteo.
-  alternativa: { display: "grid", gridTemplateColumns: "auto 1fr 40% 3.2em", alignItems: "center", columnGap: "1.2cqw", background: TARJETA, border: BORDE, borderRadius: "1.7cqh", padding: "1.6cqh 1.6cqw", fontSize: "2.6cqh" },
+  alternativa: { display: "grid", gridTemplateColumns: "auto 1fr 40% 3.2em", alignItems: "center", columnGap: "1.2cqw", background: TARJETA, border: BORDE, borderRadius: "calc(var(--ajuste, 1) * 1.7cqh)", padding: "calc(var(--ajuste, 1) * 1.6cqh) 1.6cqw", fontSize: "calc(var(--ajuste, 1) * 2.6cqh)" },
   // Mismo verde que AdminClaseVivo/Casos Clinicos para la correcta.
   alternativaCorrecta: { border: "2px solid #7FD98F", background: "rgba(127,217,143,0.08)" },
   // Al lado de una imagen: barra algo mas angosta (igual en todas las
   // filas) y un poco menos de padding, para que el texto respire.
-  alternativaCompacta: { gridTemplateColumns: "auto 1fr 28% 2.6em", padding: "1.3cqh 1.4cqw", fontSize: "2.5cqh" },
+  alternativaCompacta: { gridTemplateColumns: "auto 1fr 28% 2.6em", padding: "calc(var(--ajuste, 1) * 1.3cqh) 1.4cqw", fontSize: "calc(var(--ajuste, 1) * 2.5cqh)" },
   alternativaTexto: { minWidth: 0, lineHeight: 1.25 },
-  letra: { width: "4.6cqh", height: "4.6cqh", borderRadius: "50%", background: ACENTO, color: FONDO, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "2.4cqh" },
+  letra: { width: "calc(var(--ajuste, 1) * 4.6cqh)", height: "calc(var(--ajuste, 1) * 4.6cqh)", borderRadius: "50%", background: ACENTO, color: FONDO, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "calc(var(--ajuste, 1) * 2.4cqh)" },
   letraCorrecta: { background: "#7FD98F" },
-  alternativaBarraFondo: { height: "1.5cqh", borderRadius: "0.8cqh", background: FONDO, overflow: "hidden" },
+  alternativaBarraFondo: { height: "calc(var(--ajuste, 1) * 1.5cqh)", borderRadius: "calc(var(--ajuste, 1) * 0.8cqh)", background: FONDO, overflow: "hidden" },
   alternativaBarraLlena: { height: "100%", background: ACENTO, borderRadius: "0.8cqh", transition: "width 0.4s ease" },
   alternativaBarraLlenaCorrecta: { background: "#7FD98F" },
   alternativaConteo: { textAlign: "right", fontWeight: 800, color: "#94A3B8" },
-  triviaTotal: { marginTop: "2cqh", fontSize: "2cqh", color: "#64748B" },
+  triviaTotal: { marginTop: "calc(var(--ajuste, 1) * 2cqh)", fontSize: "calc(var(--ajuste, 1) * 2cqh)", color: "#64748B" },
 };
