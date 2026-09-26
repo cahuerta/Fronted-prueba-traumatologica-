@@ -1,8 +1,68 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useLayoutEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { casosVivoAdmin } from "../../api/client";
 
 const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
+
+// ============================================================================
+// AJUSTE AUTOMATICO DEL TEXTO AL ALTO DISPONIBLE
+// ============================================================================
+// La letra se mide en cqh (alto de la pantalla) y las columnas de texto en
+// cqw (ancho). Si la pantalla se hace proporcionalmente mas alta -F11 quita
+// las barras del navegador y gana ~140px de alto sin ganar ancho-, la letra
+// crece pero la columna no: cada linea parte en mas lineas y el total se
+// cortaba abajo. Este ajuste mide si el contenido cabe en su caja y, solo si
+// no cabe, reduce la variable --ajuste (que multiplica tamaños de letra,
+// separaciones y rellenos del texto) lo justo para que entre completo. Si
+// cabe, --ajuste queda en 1 y todo se ve exactamente igual que antes.
+// Se recalcula en cada render (cambio de pagina, votos) y cuando cambia el
+// tamaño de la caja (entrar/salir de F11, redimensionar). Las imagenes no
+// se ven afectadas: su tamaño depende de la caja, no de la letra.
+const AJUSTE_MINIMO = 0.45;
+
+function ajustarAlAlto(el) {
+  if (!el) return;
+  el.style.setProperty("--ajuste", "1");
+  if (el.scrollHeight <= el.clientHeight + 1) return;
+  let cabe = AJUSTE_MINIMO;
+  let noCabe = 1;
+  for (let i = 0; i < 9; i++) {
+    const medio = (cabe + noCabe) / 2;
+    el.style.setProperty("--ajuste", String(medio));
+    if (el.scrollHeight <= el.clientHeight + 1) cabe = medio;
+    else noCabe = medio;
+  }
+  el.style.setProperty("--ajuste", String(cabe));
+}
+
+// Devuelve un ref para la caja cuyo contenido debe caber (callback ref:
+// sirve aunque el elemento cambie entre un render y otro).
+function useAjusteAlAlto() {
+  const elRef = useRef(null);
+  const observadorRef = useRef(null);
+
+  const asignar = useCallback((el) => {
+    if (observadorRef.current) {
+      observadorRef.current.disconnect();
+      observadorRef.current = null;
+    }
+    elRef.current = el;
+    if (el && typeof ResizeObserver !== "undefined") {
+      const observador = new ResizeObserver(() => ajustarAlAlto(el));
+      observador.observe(el);
+      observadorRef.current = observador;
+    }
+  }, []);
+
+  // Sin dependencias a proposito: en cada render el texto puede cambiar.
+  useLayoutEffect(() => {
+    ajustarAlAlto(elRef.current);
+  });
+
+  useEffect(() => () => observadorRef.current?.disconnect(), []);
+
+  return asignar;
+}
 const LETRAS = ["A", "B", "C", "D", "E"];
 const CASOS_POR_PAGINA = 4; // suficiente espacio para letras grandes, sin amontonar
 
@@ -95,13 +155,16 @@ function Media({ url, tipo, controles }) {
 //                        "discusion" | "cerrada" | ...), conteo {indice: votos}
 //   titulo -> titulo del caso, dentro de la franja superior entre logos y QR
 export function PantallaCaso({ modo, titulo, caso, pregunta, estado, conteo, codigo, qrUrl, controlesVideo }) {
+  // El texto del cuerpo y el titulo se ajustan para caber siempre en su caja.
+  const refCuerpo = useAjusteAlAlto();
+  const refTitulo = useAjusteAlAlto();
   return (
     <div style={s.pantalla}>
       <LogoBar />
       <Esquina codigo={codigo} qrUrl={qrUrl} />
-      {titulo && <h1 style={s.tituloFranja}>{titulo}</h1>}
+      {titulo && <h1 ref={refTitulo} style={s.tituloFranja}>{titulo}</h1>}
 
-      <div style={s.cuerpo}>
+      <div ref={refCuerpo} style={s.cuerpo}>
         {modo === "presentando" && <ContenidoPresentacion caso={caso} controlesVideo={controlesVideo} />}
         {modo === "pregunta" && (
           <ContenidoPregunta pregunta={pregunta} estado={estado} conteo={conteo} controlesVideo={controlesVideo} />
@@ -411,7 +474,7 @@ const s = {
   qrColumnaCodigo: { fontSize: "3.2cqh", fontWeight: 800, letterSpacing: "0.3cqh", color: ACENTO, margin: 0 },
   // Titulo del caso dentro de la franja superior, centrado entre logos
   // (terminan ~29cqw) y QR + codigo (empieza ~78cqw), hasta 2 lineas.
-  tituloFranja: { position: "absolute", top: 0, left: "29cqw", right: "22cqw", height: `${FRANJA}cqh`, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: "4.6cqh", fontWeight: 800, lineHeight: 1.1, zIndex: 40 },
+  tituloFranja: { position: "absolute", top: 0, left: "29cqw", right: "22cqw", height: `${FRANJA}cqh`, margin: 0, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: "calc(var(--ajuste, 1) * 4.6cqh)", fontWeight: 800, lineHeight: 1.1, zIndex: 40 },
 
   esquina: { position: "absolute", top: `${(FRANJA - ALTO_QR) / 2}cqh`, right: "3cqw", display: "flex", alignItems: "center", gap: "1.2cqw", zIndex: 50 },
   esquinaTexto: { textAlign: "right" },
@@ -449,27 +512,27 @@ const s = {
   columnaTextoSola: { width: "100%", maxWidth: "84cqw", margin: "0 auto", display: "flex", flexDirection: "column", justifyContent: "safe center" },
 
   // ---- presentacion del caso ----
-  vinetaLado: { fontSize: "4.2cqh", lineHeight: 1.45, color: "#E2E6EE", margin: 0, whiteSpace: "pre-line" },
-  vinetaSola: { fontSize: "4cqh", lineHeight: 1.5, color: "#E2E6EE", margin: "0 auto", maxWidth: "80cqw", textAlign: "center", whiteSpace: "pre-line" },
+  vinetaLado: { fontSize: "calc(var(--ajuste, 1) * 4.2cqh)", lineHeight: 1.45, color: "#E2E6EE", margin: 0, whiteSpace: "pre-line" },
+  vinetaSola: { fontSize: "calc(var(--ajuste, 1) * 4cqh)", lineHeight: 1.5, color: "#E2E6EE", margin: "0 auto", maxWidth: "80cqw", textAlign: "center", whiteSpace: "pre-line" },
 
   // ---- pregunta ----
-  pregunta: { fontSize: "3.8cqh", fontWeight: 700, lineHeight: 1.25, margin: "0 0 2.6cqh" },
-  opciones: { display: "flex", flexDirection: "column", gap: "1.4cqh" },
-  opcionRow: { background: TARJETA, border: "2px solid rgba(244,241,233,0.12)", borderRadius: "1.6cqh", padding: "1.3cqh 1.4cqw" },
+  pregunta: { fontSize: "calc(var(--ajuste, 1) * 3.8cqh)", fontWeight: 700, lineHeight: 1.25, margin: "0 0 calc(var(--ajuste, 1) * 2.6cqh)" },
+  opciones: { display: "flex", flexDirection: "column", gap: "calc(var(--ajuste, 1) * 1.4cqh)" },
+  opcionRow: { background: TARJETA, border: "2px solid rgba(244,241,233,0.12)", borderRadius: "calc(var(--ajuste, 1) * 1.6cqh)", padding: "calc(var(--ajuste, 1) * 1.3cqh) 1.4cqw" },
   opcionRowCorrecta: { border: `2px solid ${VERDE}`, background: "rgba(127,217,143,0.08)" },
   opcionHeader: { display: "flex", alignItems: "center", gap: "1.2cqw" },
-  opcionLetra: { width: "4.6cqh", height: "4.6cqh", borderRadius: "50%", background: "rgba(79,195,217,0.15)", color: ACENTO, fontWeight: 800, fontSize: "2.4cqh", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  opcionLetra: { width: "calc(var(--ajuste, 1) * 4.6cqh)", height: "calc(var(--ajuste, 1) * 4.6cqh)", borderRadius: "50%", background: "rgba(79,195,217,0.15)", color: ACENTO, fontWeight: 800, fontSize: "calc(var(--ajuste, 1) * 2.4cqh)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   opcionLetraCorrecta: { background: VERDE, color: FONDO },
-  opcionTexto: { flex: 1, minWidth: 0, fontSize: "2.8cqh", lineHeight: 1.25 },
-  opcionNumero: { fontSize: "3cqh", fontWeight: 800, color: ACENTO, minWidth: "3em", textAlign: "right", flexShrink: 0 },
+  opcionTexto: { flex: 1, minWidth: 0, fontSize: "calc(var(--ajuste, 1) * 2.8cqh)", lineHeight: 1.25 },
+  opcionNumero: { fontSize: "calc(var(--ajuste, 1) * 3cqh)", fontWeight: 800, color: ACENTO, minWidth: "3em", textAlign: "right", flexShrink: 0 },
   // Misma posicion y ancho en todas las filas (debajo del texto, a todo el
   // ancho de la tarjeta): las barras se comparan directo.
-  barraFondo: { height: "1.4cqh", background: FONDO, borderRadius: "0.8cqh", overflow: "hidden", marginTop: "1cqh" },
+  barraFondo: { height: "calc(var(--ajuste, 1) * 1.4cqh)", background: FONDO, borderRadius: "calc(var(--ajuste, 1) * 0.8cqh)", overflow: "hidden", marginTop: "calc(var(--ajuste, 1) * 1cqh)" },
   barraLlena: { height: "100%", background: ACENTO, borderRadius: "0.8cqh", transition: "width 0.4s ease" },
 
-  explicacionBox: { marginTop: "2.4cqh", paddingTop: "2cqh", borderTop: "1px solid rgba(244,241,233,0.15)" },
-  explicacionTitulo: { fontSize: "2cqh", color: ACENTO, fontWeight: 700, textTransform: "uppercase", margin: "0 0 1cqh" },
-  explicacionTexto: { fontSize: "2.6cqh", lineHeight: 1.5, margin: 0 },
+  explicacionBox: { marginTop: "calc(var(--ajuste, 1) * 2.4cqh)", paddingTop: "calc(var(--ajuste, 1) * 2cqh)", borderTop: "1px solid rgba(244,241,233,0.15)" },
+  explicacionTitulo: { fontSize: "calc(var(--ajuste, 1) * 2cqh)", color: ACENTO, fontWeight: 700, textTransform: "uppercase", margin: "0 0 calc(var(--ajuste, 1) * 1cqh)" },
+  explicacionTexto: { fontSize: "calc(var(--ajuste, 1) * 2.6cqh)", lineHeight: 1.5, margin: 0 },
 
   // ---- resumen final ----
   resumenBox: { textAlign: "center", maxWidth: "85cqw", display: "flex", flexDirection: "column", alignItems: "center", gap: "2cqh" },
