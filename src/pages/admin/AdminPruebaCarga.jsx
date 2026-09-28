@@ -1,9 +1,26 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { casosVivoAlumno, casosVivoAdmin } from "../../api/client";
+import {
+  clasesFormalesSesiones,
+  clasesFormalesActual,
+  clasesFormalesSemaforo,
+  clasesFormalesPreguntas,
+  clasesFormalesAvatar,
+  clasesFormalesTrivia,
+} from "../../api/clasesFormalesCliente";
 
 const ALUMNO_INTERVALO_MS = 6000;
 const ADMIN_INTERVALO_MS = 2000;
+// Clases Formales: el telefono del alumno, el mando y la proyeccion
+// consultan cada 2 s (ver AlumnoClaseInteraccion, AdminClaseVivo y
+// ProyeccionClase).
+const CLASE_INTERVALO_MS = 2000;
+
+const TIPOS = {
+  casos: "Casos Clínicos",
+  clases: "Clases Formales",
+};
 const N_ALUMNOS_DEFAULT = 90;
 const DURACION_SEG_DEFAULT = 90;
 
@@ -38,9 +55,34 @@ function esperar(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Mide una llamada y la anota en la metrica. En /actual, el 404 "sin
+// pagina activa" es una respuesta valida (la clase aun no inicia), no una
+// falla: se cuenta como ok. Devuelve el resultado o null.
+async function medir(metrica, llamada, { aceptar404 = false } = {}) {
+  const inicio = performance.now();
+  try {
+    const r = await llamada();
+    registrarOk(metrica, performance.now() - inicio);
+    return r;
+  } catch (err) {
+    if (aceptar404 && err?.status === 404) {
+      registrarOk(metrica, performance.now() - inicio);
+    } else {
+      registrarError(metrica, err);
+    }
+    return null;
+  }
+}
+
+function tituloSesion(tipo, ses) {
+  if (!ses) return "";
+  return tipo === "clases" ? ses.nombre || "Clase formal" : ses.presentaciones?.titulo || "Presentación";
+}
+
 export default function AdminPruebaCarga() {
   const navigate = useNavigate();
 
+  const [tipo, setTipo] = useState("casos"); // "casos" | "clases"
   const [sesionesActivas, setSesionesActivas] = useState([]);
   const [sesionElegida, setSesionElegida] = useState(null);
   const [cargandoSesiones, setCargandoSesiones] = useState(true);
@@ -53,14 +95,19 @@ export default function AdminPruebaCarga() {
   const cancelarRef = useRef(false);
 
   useEffect(() => {
-    buscarSesiones();
-  }, []);
+    buscarSesiones(tipo);
+  }, [tipo]);
 
-  async function buscarSesiones() {
+  async function buscarSesiones(tipoBuscado) {
     setCargandoSesiones(true);
     setError("");
+    setSesionesActivas([]);
+    setSesionElegida(null);
+    setResultados(null);
     try {
-      const activas = await casosVivoAdmin.listarSesionesActivas();
+      const activas = tipoBuscado === "clases"
+        ? (await clasesFormalesSesiones.listar()).filter((ses) => ses.estado === "activa")
+        : await casosVivoAdmin.listarSesionesActivas();
       setSesionesActivas(activas);
       if (activas.length === 1) setSesionElegida(activas[0]);
     } catch (err) {
@@ -99,6 +146,55 @@ export default function AdminPruebaCarga() {
     }
   }
 
+  // ---------------- Clases Formales ----------------
+  // Alumno: solo consulta la pagina activa (para saber si hay trivia).
+  // Parten desfasados al azar dentro de los 2 s, como en una sala real
+  // (cada telefono abrio la pagina en un momento distinto).
+  async function simularAlumnoClase(hasta, codigo, metrica) {
+    await esperar(Math.random() * CLASE_INTERVALO_MS);
+    while (Date.now() < hasta && !cancelarRef.current) {
+      await medir(metrica, () => clasesFormalesActual.leer(codigo), { aceptar404: true });
+      await esperar(CLASE_INTERVALO_MS);
+    }
+  }
+
+  // Mando del interrogador: las mismas 5 llamadas en paralelo que hace
+  // AdminClaseVivo cada 2 s (+ conteo y detalle si la pagina es trivia).
+  async function simularMandoClase(hasta, codigo, sesionId, metrica) {
+    while (Date.now() < hasta && !cancelarRef.current) {
+      const [pagina] = await Promise.all([
+        medir(metrica, () => clasesFormalesActual.leer(codigo), { aceptar404: true }),
+        medir(metrica, () => clasesFormalesSemaforo.resultado(sesionId)),
+        medir(metrica, () => clasesFormalesPreguntas.listar(sesionId)),
+        medir(metrica, () => clasesFormalesSesiones.asistencia(sesionId)),
+        medir(metrica, () => clasesFormalesAvatar.estados(sesionId)),
+      ]);
+      if (pagina?.tipo_herramienta === "trivia") {
+        await Promise.all([
+          medir(metrica, () => clasesFormalesTrivia.resultado(pagina.id)),
+          medir(metrica, () => clasesFormalesTrivia.detalle(pagina.id)),
+        ]);
+      }
+      await esperar(CLASE_INTERVALO_MS);
+    }
+  }
+
+  // Proyeccion: pagina activa + capa del avatar cada 2 s (+ conteo de la
+  // trivia y asistencia si la pagina es trivia), igual que ProyeccionClase.
+  async function simularProyeccionClase(hasta, codigo, sesionId, metrica) {
+    while (Date.now() < hasta && !cancelarRef.current) {
+      const [pagina] = await Promise.all([
+        medir(metrica, () => clasesFormalesActual.leer(codigo), { aceptar404: true }),
+        medir(metrica, () => clasesFormalesAvatar.actual(sesionId)),
+      ]);
+      if (pagina?.tipo_herramienta === "trivia") {
+        await medir(metrica, () => clasesFormalesTrivia.resultado(pagina.id));
+        await medir(metrica, () => clasesFormalesSesiones.asistencia(sesionId));
+      }
+      await esperar(CLASE_INTERVALO_MS);
+    }
+  }
+
   async function iniciarPrueba() {
     if (!sesionElegida) return;
     setError("");
@@ -108,9 +204,18 @@ export default function AdminPruebaCarga() {
     setProgreso(0);
 
     const { codigo_acceso, id: sesionId } = sesionElegida;
-    const metricaAlumnos = nuevaMetrica(`Alumnos (${N_ALUMNOS_DEFAULT}, público)`);
-    const metricaAdmin = nuevaMetrica("Admin (1 llamada a /panel)");
-    const metricaProyeccion = nuevaMetrica("Proyección (1 llamada a /panel)");
+    const esClase = tipo === "clases";
+    const metricaAlumnos = nuevaMetrica(
+      esClase
+        ? `Alumnos (${N_ALUMNOS_DEFAULT}, página activa cada 2s)`
+        : `Alumnos (${N_ALUMNOS_DEFAULT}, público)`
+    );
+    const metricaAdmin = nuevaMetrica(
+      esClase ? "Mando (5 llamadas cada 2s)" : "Admin (1 llamada a /panel)"
+    );
+    const metricaProyeccion = nuevaMetrica(
+      esClase ? "Proyección (página activa + avatar cada 2s)" : "Proyección (1 llamada a /panel)"
+    );
 
     const hasta = Date.now() + DURACION_SEG_DEFAULT * 1000;
 
@@ -120,11 +225,19 @@ export default function AdminPruebaCarga() {
     }, 500);
 
     const tareas = [];
-    for (let i = 0; i < N_ALUMNOS_DEFAULT; i++) {
-      tareas.push(simularAlumno(hasta, codigo_acceso, metricaAlumnos));
+    if (esClase) {
+      for (let i = 0; i < N_ALUMNOS_DEFAULT; i++) {
+        tareas.push(simularAlumnoClase(hasta, codigo_acceso, metricaAlumnos));
+      }
+      tareas.push(simularMandoClase(hasta, codigo_acceso, sesionId, metricaAdmin));
+      tareas.push(simularProyeccionClase(hasta, codigo_acceso, sesionId, metricaProyeccion));
+    } else {
+      for (let i = 0; i < N_ALUMNOS_DEFAULT; i++) {
+        tareas.push(simularAlumno(hasta, codigo_acceso, metricaAlumnos));
+      }
+      tareas.push(simularPanel(hasta, sesionId, metricaAdmin));
+      tareas.push(simularPanel(hasta, sesionId, metricaProyeccion));
     }
-    tareas.push(simularPanel(hasta, sesionId, metricaAdmin));
-    tareas.push(simularPanel(hasta, sesionId, metricaProyeccion));
 
     await Promise.all(tareas);
     clearInterval(cronometro);
@@ -145,11 +258,34 @@ export default function AdminPruebaCarga() {
         <h1 style={s.h1}>Prueba de carga</h1>
       </header>
 
-      <p style={s.ayuda}>
-        Simula, desde este navegador, el tráfico de una clase real: {N_ALUMNOS_DEFAULT} alumnos pidiendo el
-        estado cada 6s, más admin y proyección pidiendo el panel combinado cada 2s — igual a como funciona
-        hoy. Usa automáticamente una sesión en vivo ya activa.
-      </p>
+      <div style={s.selector}>
+        {Object.entries(TIPOS).map(([clave, nombre]) => (
+          <button
+            key={clave}
+            onClick={() => !corriendo && setTipo(clave)}
+            disabled={corriendo}
+            style={{ ...s.selectorBtn, ...(tipo === clave ? s.selectorBtnActivo : null) }}
+          >
+            {nombre}
+          </button>
+        ))}
+      </div>
+
+      {tipo === "clases" ? (
+        <p style={s.ayuda}>
+          Simula, desde este navegador, el tráfico de una clase formal real: {N_ALUMNOS_DEFAULT} alumnos
+          consultando la página activa cada 2s, el mando con sus 5 llamadas cada 2s (página, semáforo,
+          preguntas, asistencia y avatar) y la proyección con página activa + avatar cada 2s. Usa una sesión
+          de Clases Formales ya activa. Si la clase aún no inicia, la respuesta "sin página activa" cuenta
+          como correcta.
+        </p>
+      ) : (
+        <p style={s.ayuda}>
+          Simula, desde este navegador, el tráfico de una clase real: {N_ALUMNOS_DEFAULT} alumnos pidiendo el
+          estado cada 6s, más admin y proyección pidiendo el panel combinado cada 2s — igual a como funciona
+          hoy. Usa automáticamente una sesión en vivo ya activa.
+        </p>
+      )}
 
       {cargandoSesiones ? (
         <p style={s.muted}>Buscando sesiones activas...</p>
@@ -157,7 +293,9 @@ export default function AdminPruebaCarga() {
         <p style={s.error}>{error}</p>
       ) : sesionesActivas.length === 0 ? (
         <p style={s.muted}>
-          No hay ninguna sesión en vivo activa. Crea una desde "Iniciar presentación" y vuelve aquí.
+          {tipo === "clases"
+            ? "No hay ninguna sesión de Clases Formales activa. Inicia una clase y vuelve aquí."
+            : 'No hay ninguna sesión en vivo activa. Crea una desde "Iniciar presentación" y vuelve aquí.'}
         </p>
       ) : sesionesActivas.length > 1 && !sesionElegida ? (
         <>
@@ -165,7 +303,7 @@ export default function AdminPruebaCarga() {
           <div style={s.listaSesiones}>
             {sesionesActivas.map((ses) => (
               <button key={ses.id} onClick={() => setSesionElegida(ses)} style={s.sesionCard}>
-                <p style={s.sesionTitulo}>{ses.presentaciones?.titulo || "Presentación"}</p>
+                <p style={s.sesionTitulo}>{tituloSesion(tipo, ses)}</p>
                 <p style={s.sesionMeta}>código {ses.codigo_acceso}</p>
               </button>
             ))}
@@ -174,7 +312,7 @@ export default function AdminPruebaCarga() {
       ) : (
         <div style={s.form}>
           <p style={s.sesionElegidaTexto}>
-            Sesión: <strong>{sesionElegida?.presentaciones?.titulo || "Presentación"}</strong> (código {sesionElegida?.codigo_acceso})
+            Sesión: <strong>{tituloSesion(tipo, sesionElegida)}</strong> (código {sesionElegida?.codigo_acceso})
           </p>
 
           {error && <p style={s.error}>{error}</p>}
@@ -225,6 +363,10 @@ const s = {
   h1: { fontSize: 20, margin: 0 },
   ayuda: { color: "#94A3B8", fontSize: 13, lineHeight: 1.5, marginBottom: 20, maxWidth: 560 },
   muted: { color: "#94A3B8", fontSize: 14 },
+
+  selector: { display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" },
+  selectorBtn: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 20, color: "#94A3B8", padding: "8px 16px", fontSize: 13, cursor: "pointer" },
+  selectorBtnActivo: { background: "#4FC3D9", borderColor: "#4FC3D9", color: "#0E1526", fontWeight: 700 },
   error: { color: "#D1495B", fontSize: 13, marginTop: 8 },
 
   listaSesiones: { display: "flex", flexDirection: "column", gap: 8, maxWidth: 460 },
