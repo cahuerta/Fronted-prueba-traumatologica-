@@ -6,6 +6,7 @@ import {
   clasesFormalesSemaforo,
   clasesFormalesPreguntas,
   clasesFormalesTrivia,
+  clasesFormalesAvatar,
 } from "../../api/clasesFormalesCliente";
 
 const ACENTO = "#4FC3D9";
@@ -21,6 +22,9 @@ export default function AdminClaseVivo() {
   const [paginaActual, setPaginaActual] = useState(null);
   const [semaforo, setSemaforo] = useState(null);
   const [preguntas, setPreguntas] = useState([]);
+  // Avatar: {pregunta_id: "preparando" | "lista" | "no_pertinente" | "error"}
+  const [estadosAvatar, setEstadosAvatar] = useState({});
+  const [proyectandoId, setProyectandoId] = useState(null);
   const [trivia, setTrivia] = useState(null);
   const [asistencia, setAsistencia] = useState({ presentes: 0, total_habilitados: 0, lista_presentes: [] });
   // Nombre -> letra de la trivia activa (solo lo ves tu, igual que el
@@ -62,15 +66,17 @@ export default function AdminClaseVivo() {
       // fallaba, se perdian TODAS. Antes de iniciar la clase /actual
       // responde 404 ("sin pagina activa"), y eso tumbaba el poll completo:
       // la asistencia nunca se actualizaba en la pantalla de asistencia.
-      const [rPagina, rSemaforo, rPreguntas, rAsistencia] = await Promise.allSettled([
+      const [rPagina, rSemaforo, rPreguntas, rAsistencia, rAvatar] = await Promise.allSettled([
         codigoRef.current ? clasesFormalesActual.leer(codigoRef.current) : Promise.resolve(null),
         clasesFormalesSemaforo.resultado(sesionId),
         clasesFormalesPreguntas.listar(sesionId),
         clasesFormalesSesiones.asistencia(sesionId),
+        clasesFormalesAvatar.estados(sesionId),
       ]);
 
       if (rSemaforo.status === "fulfilled") setSemaforo(rSemaforo.value);
       if (rPreguntas.status === "fulfilled") setPreguntas(rPreguntas.value);
+      if (rAvatar.status === "fulfilled") setEstadosAvatar(rAvatar.value || {});
       if (rAsistencia.status === "fulfilled") setAsistencia(rAsistencia.value);
 
       let pagina;
@@ -143,6 +149,29 @@ export default function AdminClaseVivo() {
       setPreguntas((prev) => prev.map((p) => (p.id === preguntaId ? { ...p, respondida: true } : p)));
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  // Avatar: "Preparar" ya es la decision de que la responde el avatar.
+  async function handlePrepararAvatar(preguntaId) {
+    setEstadosAvatar((prev) => ({ ...prev, [preguntaId]: "preparando" }));
+    try {
+      await clasesFormalesAvatar.preparar(preguntaId, sesionId);
+    } catch (err) {
+      setEstadosAvatar((prev) => ({ ...prev, [preguntaId]: "error" }));
+      setError(err.message);
+    }
+  }
+
+  async function handleProyectarAvatar(preguntaId) {
+    setProyectandoId(preguntaId);
+    try {
+      await clasesFormalesAvatar.proyectar(preguntaId, sesionId);
+      setPreguntas((prev) => prev.map((p) => (p.id === preguntaId ? { ...p, respondida: true } : p)));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setProyectandoId(null);
     }
   }
 
@@ -318,9 +347,17 @@ export default function AdminClaseVivo() {
               <div style={s.preguntaFila}>
                 <span style={s.upvotes}>▲ {p.upvotes}</span>
                 {!p.respondida && (
-                  <button onClick={() => handleResponder(p.id)} style={s.btnResponder}>
-                    Marcar respondida
-                  </button>
+                  <div style={s.preguntaAcciones}>
+                    <BotonAvatar
+                      estado={estadosAvatar[p.id]}
+                      proyectando={proyectandoId === p.id}
+                      onPreparar={() => handlePrepararAvatar(p.id)}
+                      onProyectar={() => handleProyectarAvatar(p.id)}
+                    />
+                    <button onClick={() => handleResponder(p.id)} style={s.btnResponder}>
+                      Marcar respondida
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -330,6 +367,29 @@ export default function AdminClaseVivo() {
 
       {error && <p style={s.error}>{error}</p>}
     </div>
+  );
+}
+
+// Boton del avatar por pregunta: Preparar -> Preparando... -> Proyectar avatar.
+// No muestra el texto de la respuesta (solo el estado).
+function BotonAvatar({ estado, proyectando, onPreparar, onProyectar }) {
+  if (estado === "preparando") {
+    return <button disabled style={{ ...s.btnAvatar, ...s.btnAvatarEspera }}>Preparando…</button>;
+  }
+  if (estado === "lista") {
+    return (
+      <button onClick={onProyectar} disabled={proyectando} style={{ ...s.btnAvatar, ...s.btnAvatarLista }}>
+        {proyectando ? "..." : "Proyectar avatar"}
+      </button>
+    );
+  }
+  if (estado === "no_pertinente") {
+    return <span style={s.avatarAviso}>No es de traumatología</span>;
+  }
+  return (
+    <button onClick={onPreparar} style={s.btnAvatar}>
+      {estado === "error" ? "Reintentar" : "Preparar"}
+    </button>
   );
 }
 
@@ -376,6 +436,11 @@ const s = {
   preguntaTexto: { fontSize: 14, margin: "0 0 8px" },
   preguntaFila: { display: "flex", alignItems: "center", justifyContent: "space-between" },
   upvotes: { fontSize: 12.5, color: ACENTO, fontWeight: 700 },
+  preguntaAcciones: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" },
+  btnAvatar: { background: "none", border: `1px solid ${ACENTO}`, borderRadius: 8, color: ACENTO, fontSize: 12, fontWeight: 700, padding: "6px 10px", cursor: "pointer" },
+  btnAvatarEspera: { opacity: 0.6, cursor: "default" },
+  btnAvatarLista: { background: ACENTO, color: "#0E1526" },
+  avatarAviso: { fontSize: 12, color: "#94A3B8" },
   btnResponder: { background: "none", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 8, color: "#F4F1EA", fontSize: 12, padding: "6px 10px", cursor: "pointer" },
   triviaBarras: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 },
   // Ahora es un boton (toca para ver nombres): se resetea el estilo nativo.
