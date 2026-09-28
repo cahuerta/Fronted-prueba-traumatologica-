@@ -7,6 +7,7 @@ import {
   clasesFormalesSesiones,
   sesionResolver,
 } from "../../api/clasesFormalesCliente";
+import AvatarProyeccion from "../../avatar/AvatarProyeccion.jsx";
 
 const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
 
@@ -483,9 +484,13 @@ export default function ProyeccionClase() {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(linkAlumno)}`;
   const qrUrlChico = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=${encodeURIComponent(linkAlumno)}`;
 
+  // Avatar: pequeño en la esquina; a pantalla completa cuando responde.
+  const capaAvatar = <AvatarProyeccion sesionId={sesionId} />;
+
   if (!pagina) {
     return (
       <div style={s.contenedorFijo}>
+        {capaAvatar}
         <div style={s.pantallaCentrada}>
           <LogoBar />
           <div style={s.qrBox}>
@@ -501,6 +506,7 @@ export default function ProyeccionClase() {
   if (mostrarSoloImagen) {
     return (
       <div style={s.contenedorFijo}>
+        {capaAvatar}
         {/* Imagen sin contenido: logos y QR en columnas laterales para
             que la imagen use todo el alto. Sin titulo (no adelantar nada
             mientras votan). */}
@@ -516,6 +522,7 @@ export default function ProyeccionClase() {
   return (
     <div style={s.contenedorFijo}>
       <PantallaClase pagina={pagina} imagenUrl={imagenUrl} trivia={trivia} codigo={codigo} qrUrl={qrUrlChico} />
+      {capaAvatar}
     </div>
   );
 }
