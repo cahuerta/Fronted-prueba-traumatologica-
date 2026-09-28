@@ -30,7 +30,12 @@ async function request(path, { method = "GET", body, auth = false } = {}) {
     } else if (Array.isArray(detail.detail)) {
       mensaje = detail.detail.map((d) => `${d.loc?.join(".")}: ${d.msg}`).join(" · ");
     }
-    throw new Error(mensaje);
+    const error = new Error(mensaje);
+    // Codigo HTTP para distinguir un 404 real (ej. sin pagina activa) de
+    // un fallo transitorio (500, 502, red): las pantallas en vivo solo
+    // cambian de vista con el 404.
+    error.status = res.status;
+    throw error;
   }
   if (res.status === 204) return null;
   return res.json();
