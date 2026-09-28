@@ -65,10 +65,16 @@ export default function AlumnoClaseInteraccion() {
           setTriviaAlternativas([]);
           setMiLetra(null);
         }
-      } catch {
-        setPaginaTrivia(null);
-        setTriviaPregunta("");
-        setTriviaAlternativas([]);
+      } catch (err) {
+        // Solo un 404 real (la clase aun no inicia o no hay pagina activa)
+        // quita la trivia. Un fallo transitorio (500, 502, red) la deja
+        // tal cual: el proximo poll reintenta, sin que la trivia
+        // desaparezca del telefono mientras el alumno responde.
+        if (err?.status === 404) {
+          setPaginaTrivia(null);
+          setTriviaPregunta("");
+          setTriviaAlternativas([]);
+        }
       }
     }
     poll();
