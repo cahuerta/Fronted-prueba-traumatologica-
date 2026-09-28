@@ -103,6 +103,19 @@ export const clasesFormalesPreguntas = {
     }),
 };
 
+// ---------------- AVATAR (responde preguntas en la proyeccion) ----------------
+export const clasesFormalesAvatar = {
+  // Interrogador (auth)
+  preparar: (preguntaId, sesionId) =>
+    request(`/clases-formales/avatar/${preguntaId}/preparar?sesion_id=${sesionId}`, { method: "POST", auth: true }),
+  estados: (sesionId) => request(`/clases-formales/avatar/estados/${sesionId}`, { auth: true }),
+  proyectar: (preguntaId, sesionId) =>
+    request(`/clases-formales/avatar/${preguntaId}/proyectar?sesion_id=${sesionId}`, { method: "POST", auth: true }),
+
+  // Proyeccion (publico)
+  actual: (sesionId) => request(`/clases-formales/avatar/actual/${sesionId}`),
+};
+
 // ---------------- SEMAFORO (continuo por sesion completa, no por pagina) ----------------
 export const clasesFormalesSemaforo = {
   // Alumno (publico, sin login) — puede cambiar su respuesta en cualquier momento
