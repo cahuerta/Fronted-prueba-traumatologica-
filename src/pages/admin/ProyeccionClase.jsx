@@ -485,6 +485,9 @@ export default function ProyeccionClase() {
   const qrUrlChico = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=${encodeURIComponent(linkAlumno)}`;
 
   // Avatar: pequeño en la esquina; a pantalla completa cuando responde.
+  // Va SIEMPRE como primer hijo del contenedor en las tres pantallas: asi, cuando
+  // el poll cambia de pantalla (o falla un momento), React conserva la misma
+  // capa y la medica no se reinicia a mitad de una respuesta.
   const capaAvatar = <AvatarProyeccion sesionId={sesionId} />;
 
   if (!pagina) {
@@ -521,8 +524,8 @@ export default function ProyeccionClase() {
 
   return (
     <div style={s.contenedorFijo}>
-      <PantallaClase pagina={pagina} imagenUrl={imagenUrl} trivia={trivia} codigo={codigo} qrUrl={qrUrlChico} />
       {capaAvatar}
+      <PantallaClase pagina={pagina} imagenUrl={imagenUrl} trivia={trivia} codigo={codigo} qrUrl={qrUrlChico} />
     </div>
   );
 }
