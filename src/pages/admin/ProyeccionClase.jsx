@@ -436,29 +436,40 @@ export default function ProyeccionClase() {
 
   useEffect(() => {
     async function poll() {
+      let data;
       try {
-        const data = await clasesFormalesActual.leer(codigo);
-        setPagina(data);
-
-        if (data?.tipo_herramienta === "trivia") {
-          const resultadoTrivia = await clasesFormalesTrivia.resultado(data.id);
-          setTrivia(resultadoTrivia);
-
-          // Asistencia aparte: si falla, no tumba el resultado de la trivia.
-          if (sesionId) {
-            try {
-              const a = await clasesFormalesSesiones.asistencia(sesionId);
-              setPresentes(a?.presentes || 0);
-            } catch {
-              // se reintenta en el proximo poll
-            }
-          }
-        } else {
+        data = await clasesFormalesActual.leer(codigo);
+      } catch (err) {
+        // Solo un 404 real (codigo invalido o la clase aun no inicia)
+        // muestra el QR grande. Un fallo transitorio (500, 502, red) deja
+        // la pagina que ya estaba: el proximo poll reintenta. Antes
+        // cualquier fallo mostraba el QR por un instante y luego volvia.
+        if (err?.status === 404) {
+          setPagina(null);
           setTrivia(null);
         }
-      } catch {
-        // Sin pagina activa todavia (o fallo transitorio): QR grande.
-        setPagina(null);
+        return;
+      }
+      setPagina(data);
+
+      if (data?.tipo_herramienta === "trivia") {
+        // Conteo y asistencia aparte: si fallan, se mantiene lo ultimo
+        // que se mostro y no se toca la pagina.
+        try {
+          const resultadoTrivia = await clasesFormalesTrivia.resultado(data.id);
+          setTrivia(resultadoTrivia);
+        } catch {
+          // se reintenta en el proximo poll
+        }
+        if (sesionId) {
+          try {
+            const a = await clasesFormalesSesiones.asistencia(sesionId);
+            setPresentes(a?.presentes || 0);
+          } catch {
+            // se reintenta en el proximo poll
+          }
+        }
+      } else {
         setTrivia(null);
       }
     }
