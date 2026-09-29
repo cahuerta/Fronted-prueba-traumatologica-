@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { materiales } from "../../api/client";
 
 function LogoBar() {
@@ -12,26 +12,68 @@ function LogoBar() {
   );
 }
 
+// Datos con que el alumno ingreso a una clase en vivo (AlumnoVivoIngreso)
+function identidadGuardada() {
+  try {
+    return {
+      nombre: localStorage.getItem("alumno_nombre") || "",
+      rut: localStorage.getItem("alumno_rut") || "",
+    };
+  } catch {
+    return { nombre: "", rut: "" };
+  }
+}
+
 export default function AlumnoMaterialesIngreso() {
   const navigate = useNavigate();
-  const [nombre, setNombre] = useState("");
-  const [rut, setRut] = useState("");
+  const [params] = useSearchParams();
+  const guardada = identidadGuardada();
+  // Desde el boton "Materiales y documentos" de la clase se entra directo,
+  // sin volver a escribir los datos. Si ya ingreso a alguna clase, igual
+  // quedan los campos prellenados.
+  const directo = params.get("desde") === "clase" && Boolean(guardada.nombre && guardada.rut);
+
+  const [nombre, setNombre] = useState(guardada.nombre);
+  const [rut, setRut] = useState(guardada.rut);
   const [error, setError] = useState("");
-  const [cargando, setCargando] = useState(false);
-  async function handleSubmit(e) {
-    e.preventDefault();
+  const [cargando, setCargando] = useState(directo);
+
+  async function ingresar(nombreIngreso, rutIngreso) {
     setError("");
     setCargando(true);
     try {
-      const res = await materiales.ingreso(nombre.trim(), rut.trim());
+      const res = await materiales.ingreso(nombreIngreso.trim(), rutIngreso.trim());
       sessionStorage.setItem("materiales_alumno_id", res.alumno_id);
-      navigate("/materiales/ver");
+      navigate("/materiales/ver", { replace: true });
     } catch (err) {
+      // Si falla la entrada directa, queda el formulario con los datos
       setError(err.message);
-    } finally {
       setCargando(false);
     }
   }
+
+  useEffect(() => {
+    if (directo) ingresar(guardada.nombre, guardada.rut);
+    // solo al abrir la pagina
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    ingresar(nombre, rut);
+  }
+
+  if (directo && cargando && !error) {
+    return (
+      <div style={s.wrap}>
+        <div style={s.contenedor}>
+          <LogoBar />
+          <p style={s.subtitle}>Abriendo materiales...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={s.wrap}>
       <div style={s.contenedor}>
@@ -41,8 +83,8 @@ export default function AlumnoMaterialesIngreso() {
           <p style={s.subtitle}>Ingresa tus datos para ver los materiales</p>
           <label style={s.label}>Nombre completo</label>
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} required style={s.input} />
-          <label style={s.label}>RUT</label>
-          <input value={rut} onChange={(e) => setRut(e.target.value)} required style={s.input} placeholder="12345678-9" />
+          <label style={s.label}>RUT o número de matrícula</label>
+          <input value={rut} onChange={(e) => setRut(e.target.value)} required style={s.input} placeholder="RUT o matrícula" />
           {error && <p style={s.error}>{error}</p>}
           <button type="submit" disabled={cargando} style={s.button}>
             {cargando ? "Verificando..." : "Ingresar"}
