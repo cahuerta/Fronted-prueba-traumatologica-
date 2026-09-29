@@ -12,9 +12,10 @@ import {
 
 const ALUMNO_INTERVALO_MS = 6000;
 const ADMIN_INTERVALO_MS = 2000;
-// Clases Formales: el telefono del alumno, el mando y la proyeccion
-// consultan cada 2 s (ver AlumnoClaseInteraccion, AdminClaseVivo y
-// ProyeccionClase).
+// Clases Formales: el telefono del alumno consulta cada 6 s (igual que
+// Casos Clinicos); el mando y la proyeccion cada 2 s (ver
+// AlumnoClaseInteraccion, AdminClaseVivo y ProyeccionClase).
+const CLASE_ALUMNO_INTERVALO_MS = 6000;
 const CLASE_INTERVALO_MS = 2000;
 
 const TIPOS = {
@@ -148,13 +149,13 @@ export default function AdminPruebaCarga() {
 
   // ---------------- Clases Formales ----------------
   // Alumno: solo consulta la pagina activa (para saber si hay trivia).
-  // Parten desfasados al azar dentro de los 2 s, como en una sala real
+  // Parten desfasados al azar dentro de los 6 s, como en una sala real
   // (cada telefono abrio la pagina en un momento distinto).
   async function simularAlumnoClase(hasta, codigo, metrica) {
-    await esperar(Math.random() * CLASE_INTERVALO_MS);
+    await esperar(Math.random() * CLASE_ALUMNO_INTERVALO_MS);
     while (Date.now() < hasta && !cancelarRef.current) {
       await medir(metrica, () => clasesFormalesActual.leer(codigo), { aceptar404: true });
-      await esperar(CLASE_INTERVALO_MS);
+      await esperar(CLASE_ALUMNO_INTERVALO_MS);
     }
   }
 
@@ -207,7 +208,7 @@ export default function AdminPruebaCarga() {
     const esClase = tipo === "clases";
     const metricaAlumnos = nuevaMetrica(
       esClase
-        ? `Alumnos (${N_ALUMNOS_DEFAULT}, página activa cada 2s)`
+        ? `Alumnos (${N_ALUMNOS_DEFAULT}, página activa cada 6s)`
         : `Alumnos (${N_ALUMNOS_DEFAULT}, público)`
     );
     const metricaAdmin = nuevaMetrica(
@@ -274,7 +275,7 @@ export default function AdminPruebaCarga() {
       {tipo === "clases" ? (
         <p style={s.ayuda}>
           Simula, desde este navegador, el tráfico de una clase formal real: {N_ALUMNOS_DEFAULT} alumnos
-          consultando la página activa cada 2s, el mando con sus 5 llamadas cada 2s (página, semáforo,
+          consultando la página activa cada 6s, el mando con sus 5 llamadas cada 2s (página, semáforo,
           preguntas, asistencia y avatar) y la proyección con página activa + avatar cada 2s. Usa una sesión
           de Clases Formales ya activa. Si la clase aún no inicia, la respuesta "sin página activa" cuenta
           como correcta.
