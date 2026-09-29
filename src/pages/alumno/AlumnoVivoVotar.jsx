@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { casosVivoAlumno } from "../../api/client";
+import BotonMateriales from "./BotonMateriales";
 
 // Letra de cada opcion, la misma que muestra la proyeccion (A = primera
 // opcion, B = segunda...), para asociar lo que se ve en pantalla grande
@@ -76,6 +77,7 @@ export default function AlumnoVivoVotar() {
         <div style={s.finalizadaBox}>
           <p style={s.finalizadaTitulo}>Presentación finalizada</p>
           <p style={s.finalizadaTexto}>Mira la pantalla para ver los resultados</p>
+          <BotonMateriales />
         </div>
       </div>
     );
@@ -167,6 +169,8 @@ export default function AlumnoVivoVotar() {
       )}
 
       {error && <p style={s.error}>{error}</p>}
+
+      <BotonMateriales />
     </div>
   );
 }
