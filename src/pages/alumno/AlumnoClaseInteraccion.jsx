@@ -15,6 +15,8 @@ const LETRAS = ["A", "B", "C", "D", "E"];
 // pagina, el alumno consulta en silencio (sin mostrar titulo ni
 // contenido de la pagina) cual esta activa, solo para saber si hay una
 // trivia esperando respuesta y a que pagina_id atarla.
+
+const ALUMNO_POLL_MS = 6000;
 export default function AlumnoClaseInteraccion() {
   const { codigo } = useParams();
 
@@ -45,7 +47,9 @@ export default function AlumnoClaseInteraccion() {
     }
   }, [enviada]);
 
-  // Consulta silenciosa: solo para saber si hay trivia activa ahora
+  // Consulta silenciosa: solo para saber si hay trivia activa ahora.
+  // Cada 6 s, igual que Casos Clinicos: con 90 alumnos es un tercio del
+  // trafico que cada 2 s, y la trivia aparece a lo mas 6 s despues.
   useEffect(() => {
     async function poll() {
       try {
@@ -78,7 +82,7 @@ export default function AlumnoClaseInteraccion() {
       }
     }
     poll();
-    const id = setInterval(poll, 2000);
+    const id = setInterval(poll, ALUMNO_POLL_MS);
     return () => clearInterval(id);
   }, [codigo]);
 
