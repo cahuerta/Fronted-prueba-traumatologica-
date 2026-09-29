@@ -6,6 +6,7 @@ import {
   clasesFormalesTrivia,
   clasesFormalesActual,
 } from "../../api/clasesFormalesCliente";
+import BotonMateriales from "./BotonMateriales";
 
 const LETRAS = ["A", "B", "C", "D", "E"];
 
@@ -194,6 +195,9 @@ export default function AlumnoClaseInteraccion() {
             </button>
           </form>
         </div>
+
+        {/* ---------------- MATERIALES ---------------- */}
+        <BotonMateriales />
       </div>
     </div>
   );
