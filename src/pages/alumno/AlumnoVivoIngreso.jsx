@@ -3,6 +3,18 @@ import { useNavigate, useParams } from "react-router-dom";
 import { casosVivoAlumno } from "../../api/client";
 import { sesionResolver, clasesFormalesIngreso } from "../../api/clasesFormalesCliente";
 
+// Nombre y RUT/matricula con que el alumno entro a la clase: los usa el
+// boton "Materiales y documentos" para entrar a los materiales sin volver
+// a escribirlos (ver BotonMateriales y AlumnoMaterialesIngreso).
+function guardarIdentidad(nombre, rut) {
+  try {
+    localStorage.setItem("alumno_nombre", String(nombre || "").trim());
+    localStorage.setItem("alumno_rut", String(rut || "").trim());
+  } catch {
+    // sin almacenamiento: el alumno escribe sus datos en materiales
+  }
+}
+
 export default function AlumnoVivoIngreso() {
   const navigate = useNavigate();
   const { codigo } = useParams();
@@ -56,6 +68,7 @@ export default function AlumnoVivoIngreso() {
       const { sesion_id, alumno_id } = await casosVivoAlumno.ingreso(codigo, nombre, rutLimpio);
       localStorage.setItem("vivo_alumno_id", alumno_id);
       localStorage.setItem("vivo_sesion_id", sesion_id);
+      guardarIdentidad(nombre, rutLimpio);
       navigate(`/alumno-vivo/${codigo}/votar`);
     } catch (err) {
       setError(err.message);
@@ -85,6 +98,7 @@ export default function AlumnoVivoIngreso() {
       await clasesFormalesIngreso.ingresar(sesionId, nombreLimpio, rutLimpio);
       localStorage.setItem("clase_rut", rutLimpio);
       localStorage.setItem("clase_sesion_id", sesionId);
+      guardarIdentidad(nombreLimpio, rutLimpio);
       navigate(`/alumno-vivo/${codigo}/clase`);
     } catch (err) {
       setError(err.message);
