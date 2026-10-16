@@ -91,8 +91,58 @@ export const preguntas = {
   generarAlternativas: (data) => request("/preguntas/generar-alternativas", { method: "POST", body: data, auth: true }),
   crear: (data) => request("/preguntas", { method: "POST", body: data, auth: true }),
   crearBulk: (lista) => request("/preguntas/bulk", { method: "POST", body: lista, auth: true }),
-  listar: (region) => request(`/preguntas${region ? `?region=${region}` : ""}`, { auth: true }),
+  // filtros opcionales: { revisar: true|false, carga_id: "..." }
+  listar: (region, filtros = {}) => {
+    const params = new URLSearchParams();
+    if (region) params.set("region", region);
+    if (filtros.revisar !== undefined && filtros.revisar !== null) params.set("revisar", String(filtros.revisar));
+    if (filtros.carga_id) params.set("carga_id", filtros.carga_id);
+    const qs = params.toString();
+    return request(`/preguntas${qs ? `?${qs}` : ""}`, { auth: true });
+  },
+  actualizar: (id, cambios) => request(`/preguntas/${id}`, { method: "PUT", body: cambios, auth: true }),
   borrar: (id) => request(`/preguntas/${id}`, { method: "DELETE", auth: true }),
+  // Registro de cargas desde archivo (lotes) y baja de un lote completo (solo admin)
+  cargas: () => request("/preguntas/cargas", { auth: true }),
+  desactivarCarga: (cargaId) => request(`/preguntas/cargas/${cargaId}/desactivar`, { method: "POST", auth: true }),
+};
+
+// ---------------- EXAMEN EN PAPEL (PDF con folio, orden revuelto) ----------------
+export const examenImpreso = {
+  generar: (data) => request("/examen-impreso/generar", { method: "POST", body: data, auth: true }),
+  listar: () => request("/examen-impreso", { auth: true }),
+  // tipo: "prueba" | "pauta". descargar=false abre el PDF en otra pestaña (para imprimir).
+  abrirPdf: async (folio, tipo, descargar = false) => {
+    const nombre = `${tipo === "pauta" ? "Pauta" : "Prueba"}-F-${String(folio).padStart(4, "0")}.pdf`;
+    // La pestaña se abre ANTES de pedir el PDF para que el navegador no la bloquee.
+    const ventana = descargar ? null : window.open("", "_blank");
+    try {
+      const res = await fetch(`${API_URL}/examen-impreso/${folio}/${tipo}.pdf`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(typeof detail.detail === "string" ? detail.detail : `Error ${res.status}`);
+      }
+      const url = URL.createObjectURL(await res.blob());
+      if (descargar) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = nombre;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else if (ventana) {
+        ventana.location.href = url;
+      } else {
+        window.open(url, "_blank");
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 120000);
+    } catch (err) {
+      if (ventana) ventana.close();
+      throw err;
+    }
+  },
 };
 
 // ---------------- MATERIALES ----------------
@@ -250,4 +300,3 @@ export const casosVivoAlumno = {
     request("/casos-vivo/vivo/votar", { method: "POST", body: { sesion_id: sesionId, alumno_id: alumnoId, pregunta_id: preguntaId, opcion } }),
   resultados: (sesionId) => request(`/casos-vivo/vivo/${sesionId}/resultados`),
 };
-    
