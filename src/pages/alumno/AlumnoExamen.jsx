@@ -24,6 +24,10 @@ export default function AlumnoExamen() {
 
   const [empezado, setEmpezado] = useState(false);
   const [warning, setWarning] = useState(null); // { salidas, maxSalidas, ultima }
+  // true cuando el alumno vuelve a entrar a un examen que ya habia empezado
+  // (recarga, gesto "atras", se cerro el navegador): sus respuestas y su
+  // tiempo restante vienen del backend; solo falta tocar "Continuar".
+  const [retomando, setRetomando] = useState(false);
 
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
@@ -49,27 +53,39 @@ export default function AlumnoExamen() {
     return () => clearTimeout(t);
   }, [segundosRestantes]);
 
-  // ---------------- Detección de salida (cambio de pestaña/app) ----------------
+  // ---------------- Detección de salida (cambio de pestaña/app, gesto "atrás") ----------------
   useEffect(() => {
     if (!empezado) return;
 
-    async function handleVisibilityChange() {
-      if (document.hidden && !registrandoSalida.current && instanciaId) {
-        registrandoSalida.current = true;
-        try {
-          const res = await examen.registrarSalida(instanciaId);
-          if (res.finalizado) {
-            sessionStorage.setItem(`resultado_${sesionId}`, JSON.stringify(res.resultado));
-            navigate(`/alumno/${sesionId}/resultado`);
-          } else {
-            setWarning({ salidas: res.salidas, maxSalidas: res.max_salidas, ultima: res.salidas === res.max_salidas - 1 });
-          }
-        } catch (err) {
-          // si falla el registro, no bloqueamos al alumno
-        } finally {
-          registrandoSalida.current = false;
+    async function registrarSalidaYAvisar() {
+      if (registrandoSalida.current || !instanciaId) return;
+      registrandoSalida.current = true;
+      try {
+        const res = await examen.registrarSalida(instanciaId);
+        if (res.finalizado) {
+          sessionStorage.setItem(`resultado_${sesionId}`, JSON.stringify(res.resultado));
+          navigate(`/alumno/${sesionId}/resultado`);
+        } else {
+          setWarning({ salidas: res.salidas, maxSalidas: res.max_salidas, ultima: res.salidas === res.max_salidas - 1 });
         }
+      } catch (err) {
+        // si falla el registro, no bloqueamos al alumno
+      } finally {
+        registrandoSalida.current = false;
       }
+    }
+
+    function handleVisibilityChange() {
+      if (document.hidden) registrarSalidaYAvisar();
+    }
+
+    // Gesto/boton "atrás" del celular: se bloquea mientras dura el examen.
+    // Se agrega una entrada extra al historial; al apretar "atrás" el
+    // navegador solo consume esa entrada (el alumno sigue en el examen), se
+    // vuelve a agregar y el intento cuenta como una salida, con su aviso.
+    function handlePopState() {
+      window.history.pushState({ examen: true }, "", window.location.href);
+      registrarSalidaYAvisar();
     }
 
     function handleBeforeUnload(e) {
@@ -77,10 +93,13 @@ export default function AlumnoExamen() {
       e.returnValue = "";
     }
 
+    window.history.pushState({ examen: true }, "", window.location.href);
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("popstate", handlePopState);
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("popstate", handlePopState);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [empezado, instanciaId, sesionId]);
@@ -89,12 +108,33 @@ export default function AlumnoExamen() {
     setCargando(true);
     try {
       const res = await examen.iniciar(sesionId, alumnoId, item);
+
+      // Examen ya finalizado antes: directo a su resultado.
+      if (res.finalizado) {
+        sessionStorage.setItem(`resultado_${sesionId}`, JSON.stringify(res.resultado));
+        navigate(`/alumno/${sesionId}/resultado`);
+        return;
+      }
+
       setInstanciaId(res.instancia_id);
       setPreguntas(res.preguntas);
       setMinutosTotales(res.minutos_totales);
-      if (res.iniciado_at) {
+
+      // Respuestas ya guardadas (si vuelve a entrar), en la posición que el alumno ve.
+      const guardadas = res.respuestas || {};
+      setSeleccion(guardadas);
+
+      // Reloj: el tiempo que realmente queda, contado desde su primera respuesta.
+      if (res.segundos_restantes !== null && res.segundos_restantes !== undefined) {
         timerIniciado.current = true;
-        setSegundosRestantes(res.minutos_totales * 60); // aproximado si ya había arrancado antes
+        setSegundosRestantes(res.segundos_restantes);
+      }
+
+      if (Object.keys(guardadas).length > 0 || res.iniciado_at) {
+        setRetomando(true);
+        // Sigue en la primera pregunta que le falta responder.
+        const primeraSinResponder = res.preguntas.findIndex((p) => guardadas[p.id] === undefined);
+        setIdx(primeraSinResponder === -1 ? 0 : primeraSinResponder);
       }
     } catch (err) {
       setError(err.message);
@@ -162,14 +202,30 @@ export default function AlumnoExamen() {
   if (error) return <div style={s.wrap}><p style={s.error}>{error}</p></div>;
   if (preguntas.length === 0) return <div style={s.wrap}><p style={s.muted}>No hay preguntas disponibles.</p></div>;
 
+  if (!empezado && retomando) {
+    // Pantalla completa exige un toque del alumno: por eso "Continuar" y no entrar solo.
+    return (
+      <div style={s.wrap}>
+        <div style={s.startCard}>
+          <h1 style={s.startTitle}>Tu examen sigue en curso</h1>
+          <p style={s.startText}>
+            Tus respuestas están guardadas ({Object.keys(seleccion).length} de {preguntas.length}) y el tiempo
+            siguió corriendo. Toca continuar para volver a pantalla completa y seguir donde quedaste.
+          </p>
+          <button onClick={handleComenzar} style={s.nextBtn}>Continuar examen</button>
+        </div>
+      </div>
+    );
+  }
+
   if (!empezado) {
     return (
       <div style={s.wrap}>
         <div style={s.startCard}>
           <h1 style={s.startTitle}>Antes de comenzar</h1>
           <p style={s.startText}>
-            El examen se rinde en pantalla completa. Salir de la aplicación o cambiar de pestaña queda
-            registrado como advertencia — a la 3ª vez el examen se finaliza automáticamente con lo ya respondido.
+            El examen se rinde en pantalla completa. Salir de la aplicación, cambiar de pestaña o usar el
+            botón "atrás" del celular queda registrado como advertencia — a la 3ª vez el examen se finaliza automáticamente con lo ya respondido.
             Puedes navegar libremente entre preguntas y cambiar tus respuestas hasta finalizar.
           </p>
           <button onClick={handleComenzar} style={s.nextBtn}>Comenzar examen</button>
@@ -316,6 +372,13 @@ export default function AlumnoExamen() {
   );
 }
 
+
+// Bordes definidos por partes (borderWidth/borderStyle/borderColor), nunca con
+// el atajo "border", en todo estilo que despues se sobreescriba con
+// borderColor/borderWidth (alternativa marcada, letra, grilla del menu): si se
+// mezclan, React al desmarcar borra borderColor y con eso tambien el color del
+// borde base, y el boton reutilizado en la pregunta siguiente queda con un
+// resto de color en vez de volver a su estado normal.
 const s = {
   wrap: { minHeight: "100vh", background: "#0E1526", color: "#F4F1EA", padding: "20px 16px 40px", fontFamily: "sans-serif" },
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 10 },
@@ -329,9 +392,9 @@ const s = {
   media: { width: "100%", borderRadius: 10, marginBottom: 14, background: "#000" },
   pregunta: { fontSize: 16, lineHeight: 1.4, marginBottom: 16 },
   opciones: { display: "flex", flexDirection: "column", gap: 8 },
-  opcionBtn: { display: "flex", alignItems: "center", gap: 10, background: "#0E1526", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, padding: "12px 14px", cursor: "pointer", textAlign: "left", color: "#F4F1EA", fontSize: 14 },
+  opcionBtn: { display: "flex", alignItems: "center", gap: 10, background: "#0E1526", borderWidth: 1, borderStyle: "solid", borderColor: "rgba(244,241,233,0.12)", borderRadius: 10, padding: "12px 14px", cursor: "pointer", textAlign: "left", color: "#F4F1EA", fontSize: 14 },
   opcionBtnActiva: { borderColor: "#4FC3D9", background: "rgba(79,195,217,0.1)" },
-  letra: { width: 26, height: 26, borderRadius: 8, border: "1px solid rgba(244,241,233,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 },
+  letra: { width: 26, height: 26, borderRadius: 8, borderWidth: 1, borderStyle: "solid", borderColor: "rgba(244,241,233,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 },
   letraActiva: { borderColor: "#4FC3D9", color: "#4FC3D9" },
   navRow: { display: "flex", gap: 8 },
   navBtn: { flex: 1, background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 10, color: "#F4F1EA", padding: "13px 0", fontSize: 14, fontWeight: 600, cursor: "pointer" },
@@ -353,7 +416,7 @@ const s = {
   drawerClose: { background: "none", border: "none", color: "#94A3B8", fontSize: 18, cursor: "pointer" },
   drawerResumen: { color: "#94A3B8", fontSize: 12, marginBottom: 16 },
   grid: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, overflowY: "auto", flex: 1, alignContent: "start" },
-  gridItem: { aspectRatio: "1", borderRadius: 8, border: "1px solid rgba(244,241,233,0.15)", background: "#16213A", color: "#94A3B8", fontSize: 13, fontWeight: 600, cursor: "pointer" },
+  gridItem: { aspectRatio: "1", borderRadius: 8, borderWidth: 1, borderStyle: "solid", borderColor: "rgba(244,241,233,0.15)", background: "#16213A", color: "#94A3B8", fontSize: 13, fontWeight: 600, cursor: "pointer" },
   gridItemResp: { background: "rgba(79,195,217,0.14)", borderColor: "#4FC3D9", color: "#4FC3D9" },
   gridItemActual: { borderColor: "#F4F1EA", borderWidth: 2, color: "#F4F1EA" },
   finalizarBtn: { marginTop: 16, background: "#D1495B", border: "none", borderRadius: 10, color: "#F4F1EA", padding: "13px 0", fontSize: 14, fontWeight: 600, cursor: "pointer" },
@@ -369,4 +432,4 @@ const s = {
   confirmCancelBtn: { background: "transparent", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 10, color: "#F4F1EA", padding: "12px 0", fontSize: 14, cursor: "pointer" },
   confirmFinalBtn: { background: "#D1495B", border: "none", borderRadius: 10, color: "#F4F1EA", padding: "12px 0", fontSize: 14, fontWeight: 600, cursor: "pointer" },
 };
-        
+
