@@ -99,6 +99,17 @@ export default function AdminPreguntas() {
   const [cargas, setCargas] = useState([]);
   const [errorCargas, setErrorCargas] = useState("");
 
+  // ---------- Cargar preguntas desde un Word ----------
+  const [verImportar, setVerImportar] = useState(true);
+  const [archivoDocx, setArchivoDocx] = useState(null);
+  const [inputDocxKey, setInputDocxKey] = useState(0);
+  const [vistaPrevia, setVistaPrevia] = useState(null);
+  const [leyendoDocx, setLeyendoDocx] = useState(false);
+  const [guardandoDocx, setGuardandoDocx] = useState(false);
+  const [forzarCarga, setForzarCarga] = useState(false);
+  const [errorImportar, setErrorImportar] = useState("");
+  const [exitoImportar, setExitoImportar] = useState("");
+
   useEffect(() => {
     cargarLista();
   }, [filtroRegion, soloRevisar]);
@@ -365,6 +376,51 @@ export default function AdminPreguntas() {
     }
   }
 
+  // ---------- Cargar desde Word ----------
+  async function handleVistaPrevia() {
+    if (!archivoDocx) return;
+    setErrorImportar("");
+    setExitoImportar("");
+    setVistaPrevia(null);
+    setForzarCarga(false);
+    setLeyendoDocx(true);
+    try {
+      setVistaPrevia(await preguntas.importarDocxVistaPrevia(archivoDocx));
+    } catch (err) {
+      setErrorImportar(err.message);
+    } finally {
+      setLeyendoDocx(false);
+    }
+  }
+
+  async function handleGuardarDocx() {
+    setErrorImportar("");
+    setExitoImportar("");
+    setGuardandoDocx(true);
+    try {
+      const res = await preguntas.importarDocx(archivoDocx, forzarCarga);
+      setExitoImportar(
+        `Listo: ${res.insertadas} preguntas guardadas (${res.por_revisar} por revisar, ${res.rechazadas} rechazadas).`
+      );
+      setVistaPrevia(null);
+      setArchivoDocx(null);
+      setInputDocxKey((k) => k + 1);
+      cargarLista();
+      cargarCargas();
+    } catch (err) {
+      setErrorImportar(err.message);
+    } finally {
+      setGuardandoDocx(false);
+    }
+  }
+
+  function cancelarImportar() {
+    setVistaPrevia(null);
+    setArchivoDocx(null);
+    setInputDocxKey((k) => k + 1);
+    setErrorImportar("");
+  }
+
   function etiquetaDeRegion(valor) {
     return REGIONES.find((r) => r.valor === valor)?.etiqueta || valor;
   }
@@ -430,6 +486,98 @@ export default function AdminPreguntas() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* ---------- CARGAR PREGUNTAS DESDE WORD ---------- */}
+      <div style={s.panel}>
+        <button onClick={() => setVerImportar(!verImportar)} style={s.panelHead}>
+          <span>Cargar preguntas desde un Word</span>
+          <span style={s.chevron}>{verImportar ? "▲" : "▼"}</span>
+        </button>
+
+        {verImportar && (
+          <div style={s.panelBody}>
+            <p style={s.ayuda}>
+              Sube el examen en Word (.docx). La respuesta correcta se toma de la alternativa en negrita y las
+              radiografías quedan en su pregunta. Todas entran como complejidad "basica"; la región se propone
+              sola y la corriges después. Primero ves lo detectado y recién ahí guardas.
+            </p>
+
+            <input
+              key={inputDocxKey}
+              type="file"
+              accept=".docx"
+              onChange={(e) => { setArchivoDocx(e.target.files[0] || null); setVistaPrevia(null); setErrorImportar(""); setExitoImportar(""); }}
+              style={s.fileInput}
+            />
+
+            {archivoDocx && !vistaPrevia && (
+              <button onClick={handleVistaPrevia} disabled={leyendoDocx} style={s.iaBtn}>
+                {leyendoDocx ? "Leyendo el Word..." : "Ver lo que se detectó"}
+              </button>
+            )}
+
+            {vistaPrevia && (
+              <>
+                <p style={s.ayuda}>
+                  <b>{vistaPrevia.archivo}</b>: {vistaPrevia.preguntas.length} preguntas detectadas ·{" "}
+                  {vistaPrevia.preguntas.filter((q) => q.revisar).length} por revisar ·{" "}
+                  {vistaPrevia.preguntas.filter((q) => q.n_imagenes > 0).length} con imagen
+                  {vistaPrevia.anomalias.length > 0 && ` · ${vistaPrevia.anomalias.length} con problemas`}
+                </p>
+
+                {vistaPrevia.ya_cargado && (
+                  <div style={s.advertencia}>
+                    <p style={{ margin: 0 }}>
+                      Este mismo archivo ya fue cargado el {formatoFecha(vistaPrevia.ya_cargado.created_at)}.
+                    </p>
+                    <label style={s.checkRow}>
+                      <input type="checkbox" checked={forzarCarga} onChange={(e) => setForzarCarga(e.target.checked)} />
+                      <span>Cargarlo de nuevo igual (quedarían preguntas repetidas)</span>
+                    </label>
+                  </div>
+                )}
+
+                {vistaPrevia.anomalias.map((a, i) => (
+                  <p key={i} style={s.rechazada}>Problema en la pregunta #{a.numero}: {a.motivo}</p>
+                ))}
+
+                <div style={s.previaLista}>
+                  {vistaPrevia.preguntas.map((q) => (
+                    <div key={q.numero} style={s.previaItem}>
+                      <p style={s.cardMeta}>
+                        #{q.numero} · {etiquetaDeRegion(q.region)} · basica{q.n_imagenes > 0 ? " · imagen" : ""}
+                        {q.revisar && <span style={s.badgeRevisar}> · POR REVISAR</span>}
+                        {q.correcta === null && <span style={s.badgeRevisar}> · SIN CORRECTA</span>}
+                      </p>
+                      <p style={s.previaEnunciado}>{q.pregunta}</p>
+                      <p style={s.previaCorrecta}>
+                        {q.correcta !== null
+                          ? `Correcta ${LETRAS[q.correcta]}: ${q.opciones[q.correcta]}`
+                          : "No se detectó la correcta: esta pregunta no se guardará"}
+                      </p>
+                      {q.nota_revision && <p style={s.rechazada}>{q.nota_revision}</p>}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={s.btnRow}>
+                  <button onClick={cancelarImportar} style={s.secondaryBtn}>Cancelar</button>
+                  <button
+                    onClick={handleGuardarDocx}
+                    disabled={guardandoDocx || vistaPrevia.preguntas.length === 0 || (vistaPrevia.ya_cargado && !forzarCarga)}
+                    style={s.saveBtn}
+                  >
+                    {guardandoDocx ? "Guardando (puede tardar unos segundos)..." : "Guardar en el banco"}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {errorImportar && <p style={s.error}>{errorImportar}</p>}
+            {exitoImportar && <p style={s.exito}>{exitoImportar}</p>}
           </div>
         )}
       </div>
@@ -720,6 +868,11 @@ const s = {
   smallBtn: { background: "transparent", border: "1px solid rgba(79,195,217,0.5)", borderRadius: 8, color: "#4FC3D9", padding: "6px 10px", fontSize: 12, cursor: "pointer" },
   smallBtnPeligro: { background: "transparent", border: "1px solid rgba(209,73,91,0.5)", borderRadius: 8, color: "#D1495B", padding: "6px 10px", fontSize: 12, cursor: "pointer" },
   rechazada: { color: "#E0A94A", fontSize: 11.5, margin: "2px 0 0" },
+  advertencia: { color: "#E0A94A", fontSize: 12.5, background: "rgba(224,169,74,0.1)", border: "1px solid rgba(224,169,74,0.3)", borderRadius: 8, padding: "8px 10px", margin: "6px 0" },
+  previaLista: { maxHeight: 420, overflowY: "auto", border: "1px solid rgba(244,241,233,0.1)", borderRadius: 8, marginTop: 8 },
+  previaItem: { padding: "8px 10px", borderBottom: "1px solid rgba(244,241,233,0.08)" },
+  previaEnunciado: { color: "#F4F1EA", fontSize: 13, margin: "2px 0 0" },
+  previaCorrecta: { color: "#7FB685", fontSize: 12.5, margin: "3px 0 0" },
   form: { display: "flex", flexDirection: "column", background: "#16213A", border: "1px solid rgba(244,241,233,0.12)", borderRadius: 12, padding: 16, marginBottom: 24 },
   formEdit: { display: "flex", flexDirection: "column" },
   label: { fontSize: 11, color: "#94A3B8", marginTop: 10, marginBottom: 4 },
