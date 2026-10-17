@@ -12,13 +12,15 @@ export default function AlumnoEspera() {
   const { sesionId } = useParams();
   const navigate = useNavigate();
   const alumnoId = sessionStorage.getItem(`alumno_id_${sesionId}`);
+  const pase = sessionStorage.getItem(`pase_${sesionId}`);
 
   const [sesion, setSesion] = useState(null);
   const [yaVoto, setYaVoto] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!alumnoId) {
+    // Sin ingreso (o con un ingreso anterior a que existiera el pase): vuelve a ingresar.
+    if (!alumnoId || !pase) {
       navigate(`/alumno/${sesionId}`);
       return;
     }
@@ -29,13 +31,22 @@ export default function AlumnoEspera() {
 
   async function cargar() {
     try {
-      // Endpoint público de solo lectura del estado de la sesión
+      // Estado de la sesión con el pase entregado al ingresar (solo el estado, nunca preguntas)
       const API_URL = import.meta.env.VITE_API_URL;
-      const res = await fetch(`${API_URL}/sesiones/${sesionId}/alumnos`);
-      // usamos ver estado vía encuesta/asistencia que ya son públicos; si existe /sesiones/{id} público, se ajusta después
-      const ses = await sesiones.ver(sesionId).catch(() => null);
-      if (ses) setSesion(ses);
-      if (ses?.estado === "en_curso") {
+      const res = await fetch(`${API_URL}/sesiones/${sesionId}/estado-alumno?pase=${encodeURIComponent(pase)}`);
+      if (res.status === 401) {
+        sessionStorage.removeItem(`pase_${sesionId}`);
+        navigate(`/alumno/${sesionId}`);
+        return;
+      }
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `Error ${res.status}`);
+      }
+      const ses = await res.json();
+      setError("");
+      setSesion(ses);
+      if (ses.estado === "en_curso") {
         navigate(`/alumno/${sesionId}/examen`);
       }
     } catch (err) {
@@ -99,3 +110,4 @@ const s = {
   opcionLabel: { color: "#F4F1EA", fontSize: 14, fontWeight: 600 },
   opcionDesc: { color: "#94A3B8", fontSize: 12, marginTop: 2 },
 };
+            
