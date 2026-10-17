@@ -105,6 +105,18 @@ export const preguntas = {
   // Registro de cargas desde archivo (lotes) y baja de un lote completo (solo admin)
   cargas: () => request("/preguntas/cargas", { auth: true }),
   desactivarCarga: (cargaId) => request(`/preguntas/cargas/${cargaId}/desactivar`, { method: "POST", auth: true }),
+  // Carga de preguntas desde un Word (.docx): primero la vista previa (no guarda), luego guardar.
+  importarDocxVistaPrevia: (archivo) => {
+    const formData = new FormData();
+    formData.append("archivo", archivo);
+    return requestArchivo("/preguntas/importar-docx/vista-previa", formData);
+  },
+  importarDocx: (archivo, forzar = false) => {
+    const formData = new FormData();
+    formData.append("archivo", archivo);
+    formData.append("forzar", forzar ? "true" : "false");
+    return requestArchivo("/preguntas/importar-docx", formData);
+  },
 };
 
 // ---------------- EXAMEN EN PAPEL (PDF con folio, orden revuelto) ----------------
