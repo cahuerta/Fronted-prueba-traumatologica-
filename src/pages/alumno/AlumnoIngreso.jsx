@@ -33,6 +33,9 @@ export default function AlumnoIngreso() {
       }
       const data = await res.json();
       sessionStorage.setItem(`alumno_id_${sesionId}`, data.alumno_id);
+      // Pase firmado entregado al ingresar: con él la pantalla de espera
+      // consulta el estado de la sesión sin volver a validar al alumno.
+      sessionStorage.setItem(`pase_${sesionId}`, data.pase);
 
       // item (clinico/administrativo) viene pegado en la URL desde
       // AdminExamen/AdminSesion -no se guarda en ninguna tabla-; se
@@ -81,3 +84,4 @@ const s = {
   error: { color: "#D1495B", fontSize: 13, marginBottom: 12 },
   button: { background: "#4FC3D9", color: "#0E1526", border: "none", borderRadius: 8, padding: "12px 0", fontSize: 15, fontWeight: 600, cursor: "pointer" },
 };
+  
