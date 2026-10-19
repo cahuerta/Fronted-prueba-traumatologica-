@@ -32,7 +32,6 @@ export default function AlumnoExamen() {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
 
-  const timerIniciado = useRef(false);
   const registrandoSalida = useRef(false);
 
   useEffect(() => {
@@ -124,13 +123,11 @@ export default function AlumnoExamen() {
       const guardadas = res.respuestas || {};
       setSeleccion(guardadas);
 
-      // Reloj: el tiempo que realmente queda, contado desde su primera respuesta.
-      if (res.segundos_restantes !== null && res.segundos_restantes !== undefined) {
-        timerIniciado.current = true;
-        setSegundosRestantes(res.segundos_restantes);
-      }
+      // Reloj: el examen partió para todos al cerrar la encuesta y termina a la
+      // misma hora para todos; el backend entrega cuánto falta para ese término.
+      setSegundosRestantes(res.segundos_restantes);
 
-      if (Object.keys(guardadas).length > 0 || res.iniciado_at) {
+      if (Object.keys(guardadas).length > 0) {
         setRetomando(true);
         // Sigue en la primera pregunta que le falta responder.
         const primeraSinResponder = res.preguntas.findIndex((p) => guardadas[p.id] === undefined);
@@ -157,11 +154,6 @@ export default function AlumnoExamen() {
   async function handleResponder(opcionIdx) {
     const pregunta = preguntas[idx];
     setSeleccion((s) => ({ ...s, [pregunta.id]: opcionIdx }));
-
-    if (!timerIniciado.current) {
-      timerIniciado.current = true;
-      setSegundosRestantes(minutosTotales * 60);
-    }
 
     try {
       await examen.responder(instanciaId, pregunta.id, opcionIdx);
@@ -432,4 +424,3 @@ const s = {
   confirmCancelBtn: { background: "transparent", border: "1px solid rgba(244,241,233,0.2)", borderRadius: 10, color: "#F4F1EA", padding: "12px 0", fontSize: 14, cursor: "pointer" },
   confirmFinalBtn: { background: "#D1495B", border: "none", borderRadius: 10, color: "#F4F1EA", padding: "12px 0", fontSize: 14, fontWeight: 600, cursor: "pointer" },
 };
-
