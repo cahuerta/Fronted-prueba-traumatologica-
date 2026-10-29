@@ -19,6 +19,7 @@ export default function AdminClasesFormales() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [nombre, setNombre] = useState("");
   const [creando, setCreando] = useState(false);
+  const [borrandoId, setBorrandoId] = useState(null);
 
   useEffect(() => {
     cargar();
@@ -51,6 +52,30 @@ export default function AdminClasesFormales() {
       setError(err.message);
     } finally {
       setCreando(false);
+    }
+  }
+
+  async function handleBorrar(clase) {
+    const ok = window.confirm(
+      `¿Borrar la clase "${clase.nombre}"?\n\nSe borran la clase y todas sus páginas. No se puede deshacer.`
+    );
+    if (!ok) return;
+    setError("");
+    setBorrandoId(clase.id);
+    try {
+      await clasesFormalesContenido.eliminar(clase.id);
+      setClases((prev) => prev.filter((c) => c.id !== clase.id));
+    } catch (err) {
+      // La base impide borrar una clase que ya tiene sesiones dictadas
+      // (llave foranea de sesiones_clase): asi la asistencia nunca se pierde.
+      const msg = String(err.message || "");
+      if (/foreign key|violates|23503/i.test(msg)) {
+        setError("No se puede borrar: esta clase ya tiene sesiones dictadas (se conserva su asistencia).");
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setBorrandoId(null);
     }
   }
 
@@ -96,13 +121,21 @@ export default function AdminClasesFormales() {
       ) : (
         <div style={s.list}>
           {clases.map((clase) => (
-            <button
-              key={clase.id}
-              onClick={() => navigate(`/admin/clases-formales/${clase.id}`)}
-              style={s.btn}
-            >
-              <p style={s.btnTitulo}>{clase.nombre}</p>
-            </button>
+            <div key={clase.id} style={s.fila}>
+              <button
+                onClick={() => navigate(`/admin/clases-formales/${clase.id}`)}
+                style={s.btn}
+              >
+                <p style={s.btnTitulo}>{clase.nombre}</p>
+              </button>
+              <button
+                onClick={() => handleBorrar(clase)}
+                disabled={borrandoId === clase.id}
+                style={s.borrarBtn}
+              >
+                {borrandoId === clase.id ? "..." : "Borrar"}
+              </button>
+            </div>
           ))}
         </div>
       )}
@@ -124,6 +157,8 @@ const s = {
   info: { color: "#94A3B8", fontSize: 14, textAlign: "center", margin: "20px 0" },
   error: { color: "#D1495B", fontSize: 14, textAlign: "center", margin: "0 0 16px" },
   list: { display: "flex", flexDirection: "column", gap: 10 },
-  btn: { display: "block", width: "100%", background: "#16213A", border: "1px solid rgba(244,241,233,0.1)", borderRadius: 14, color: "#F4F1EA", cursor: "pointer", padding: "16px 18px", textAlign: "left" },
+  fila: { display: "flex", gap: 8, alignItems: "stretch" },
+  borrarBtn: { background: "none", border: "1px solid rgba(209,73,91,0.4)", color: "#D1495B", borderRadius: 14, padding: "0 16px", fontSize: 13, cursor: "pointer" },
+  btn: { display: "block", flex: 1, width: "100%", background: "#16213A", border: "1px solid rgba(244,241,233,0.1)", borderRadius: 14, color: "#F4F1EA", cursor: "pointer", padding: "16px 18px", textAlign: "left" },
   btnTitulo: { fontSize: 15, fontWeight: 700, margin: 0 },
 };
