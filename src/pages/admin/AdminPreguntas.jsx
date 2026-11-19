@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { preguntas, examenImpreso, getToken } from "../../api/client";
 
-const API_URL = import.meta.env.VITE_API_URL;
+import { API_URL } from "../../api/apiUrl";
 const REGIONES = [
   { valor: "hombro", etiqueta: "Hombro" },
   { valor: "codo", etiqueta: "Codo" },

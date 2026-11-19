@@ -1,3 +1,4 @@
+import { API_URL } from "../../api/apiUrl";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { sesiones } from "../../api/client";
@@ -32,7 +33,6 @@ export default function AlumnoEspera() {
   async function cargar() {
     try {
       // Estado de la sesión con el pase entregado al ingresar (solo el estado, nunca preguntas)
-      const API_URL = import.meta.env.VITE_API_URL;
       const res = await fetch(`${API_URL}/sesiones/${sesionId}/estado-alumno?pase=${encodeURIComponent(pase)}`);
       if (res.status === 401) {
         sessionStorage.removeItem(`pase_${sesionId}`);

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-const API_URL = import.meta.env.VITE_API_URL;
+import { API_URL } from "../../api/apiUrl";
 
 export default function AlumnoIngreso() {
   const { sesionId } = useParams();

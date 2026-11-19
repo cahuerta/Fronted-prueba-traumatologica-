@@ -35,7 +35,7 @@ function Miniatura({ url, tipo, texto }) {
   );
 }
 
-const API_URL = import.meta.env.VITE_API_URL;
+import { API_URL } from "../../api/apiUrl";
 
 // Media de PREGUNTA de caso vive en el bucket "preguntas" (no "casos"),
 // asi que no puede usar clasesFormalesMedia.obtenerUrl (fija bucket
